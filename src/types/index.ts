@@ -1,104 +1,123 @@
-export interface Murid {
-  id: string;
-  nama: string;
-  kelas: string;
-  domisili?: string;
-  alamat?: string;
-  user_id?: string;
-  created_at?: string;
+export interface Kelas {
+  id: number;
+  nama_kelas: string;
+  tingkat: number;
+  aktif: boolean;
+  wali_kelas?: string;
+  tahun_ajaran_id?: number;
+  user_id: string;
+  created_at: string;
 }
 
-export interface Jadwal {
-  id: string;
+export interface Murid {
+  id: number;
+  nama: string;
+  kelas_id: number;
+  nomor_whatsapp?: string;
+  alamat?: string;
+  domisili?: string;
+  status_aktif: boolean;
+  user_id: string;
+  created_at: string;
+}
+
+export interface JadwalMengajar {
+  id: number;
   hari: string;
   jam_mulai: string;
-  jam_selesai?: string;
-  kelas: string;
+  jam_selesai: string;
+  kelas_id: number;
   pelajaran: string;
-  ruangan?: string;
-  catatan?: string;
-  user_id?: string;
-  created_at?: string;
+  lokasi?: string;
+  user_id: string;
+  created_at: string;
 }
 
 export interface Absensi {
-  id: string;
-  murid_id: string;
+  id: number;
+  murid_id: number;
+  tanggal: string;
   status: 'Hadir' | 'Izin' | 'Sakit' | 'Alpha';
+  user_id: string;
+  created_at: string;
+}
+
+export interface KbmHarian {
+  id: number;
   tanggal: string;
-  user_id?: string;
-  created_at?: string;
-}
-
-export interface BukuSakuBatas {
-  id: string;
-  kelas: string;
-  fan: string;
-  materi: string;
-  halaman?: string;
-  target?: string;
+  kelas_id: number;
+  pelajaran: string;
+  materi?: string;
   catatan?: string;
-  user_id?: string;
-  created_at?: string;
+  durasi?: number;
+  selesai: boolean;
+  user_id: string;
+  created_at: string;
 }
 
-export interface BukuSakuTagihan {
-  id: string;
+export interface BukuSaku {
+  id: number;
+  kelas_id: number;
+  pelajaran: string;
+  bab_terakhir?: string;
+  halaman_terakhir?: string;
+  catatan?: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface Muhafadhoh {
+  id: number;
+  kelas_id: number;
   tanggal: string;
-  kelas: string;
-  kitab: string;
-  target_dari?: string;
-  target_sampai?: string;
-  murid_id?: string;
+  materi?: string;
+  target_hafalan?: string;
   catatan?: string;
-  user_id?: string;
-  created_at?: string;
-}
-
-export interface CatatanPerilaku {
-  id: string;
-  murid_id: string;
-  jenis: 'prestasi' | 'pelanggaran' | 'catatan';
-  catatan: string;
-  user_id?: string;
-  created_at?: string;
+  user_id: string;
+  created_at: string;
 }
 
 export interface Nilai {
-  id: string;
-  murid_id: string;
+  id: number;
+  murid_id: number;
   pelajaran: string;
-  jenis_ujian: string;
+  jenis_penilaian: string;
   skor: number;
-  user_id?: string;
-  created_at?: string;
+  tanggal: string;
+  user_id: string;
+  created_at: string;
 }
 
 export interface BankSoal {
-  id: string;
+  id: number;
+  kelas_id: number;
   pelajaran: string;
-  kelas: string;
-  batasan?: string;
+  batasan_materi?: string;
   isi_soal: string;
-  user_id?: string;
-  created_at?: string;
+  user_id: string;
+  created_at: string;
 }
 
-export interface CapaianHafalan {
-  id: string;
-  murid_id: string;
-  capaian: string;
+export interface AgendaPenting {
+  id: number;
+  judul: string;
+  catatan?: string;
+  jenis: string;
   tanggal: string;
-  user_id?: string;
-  created_at?: string;
+  user_id: string;
+  created_at: string;
 }
 
-export type ActiveTab =
-  | 'jadwal'
-  | 'absensi'
-  | 'bukusaku'
-  | 'hafalan'
-  | 'perilaku'
-  | 'nilai'
-  | 'soal'
-  | 'murid';
+export interface Pengumuman {
+  id: number;
+  judul: string;
+  isi: string;
+  kategori: string;
+  tanggal: string;
+  user_id: string;
+  created_at: string;
+}
+
+export type ActiveTab = 'jadwal' | 'murid' | 'absensi' | 'kbm' | 'nilai' | 'agenda';
+
+export type ShowToast = (message: string, type?: 'success' | 'error' | 'info') => void;
