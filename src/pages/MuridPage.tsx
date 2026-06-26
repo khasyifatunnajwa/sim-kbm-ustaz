@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X,
+  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -12,222 +12,402 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState<string>('all');
 
   const [form, setForm] = useState({
-    nama: '', kelas: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true,
+    nama: '',
+    kelas: '',
+    domisili: '',
+    alamat: '',
+    nomor_whatsapp: '',
+    status_aktif: true,
   });
 
+  // Fetch data murid dari Supabase
   const fetchMurid = async () => {
     setLoading(true);
-    const { data } = await supabase.from('murid').select('*').order('nama');
-    if (data) setMuridList(data as Murid[]);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('murid')
+        .select('*')
+        .order('nama');
+      
+      if (error) throw error;
+      if (data) setMuridList(data as Murid[]);
+    } catch (error: any) {
+      showToast(error.message || 'Gagal mengambil data murid', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchMurid(); }, []);
+  useEffect(() => {
+    fetchMurid();
+  }, []);
 
+  // Ambil daftar kelas unik untuk opsi filter
   const kelasOptions = useMemo(
     () => [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
     [muridList]
   );
 
-  const filtered = useMemo(() => {
+  // Filter & Pencarian Data Murid
+  const filteredMuridList = useMemo(() => {
     return muridList.filter(m => {
-      const matchKelas = filterKelas === 'all' || m.kelas === filterKelas;
-      const matchSearch = !search ||
+      const matchesSearch = 
         m.nama.toLowerCase().includes(search.toLowerCase()) ||
-        (m.domisili ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (m.alamat ?? '').toLowerCase().includes(search.toLowerCase());
-      return matchKelas && matchSearch;
+        (m.domisili && m.domisili.toLowerCase().includes(search.toLowerCase()));
+      const matchesKelas = filterKelas === 'all' || m.kelas === filterKelas;
+      return matchesSearch && matchesKelas;
     });
-  }, [muridList, filterKelas, search]);
+  }, [muridList, search, filterKelas]);
 
-  const openAdd = () => {
+  // Reset Form state
+  const resetForm = () => {
     setEditingId(null);
-    setForm({ nama: '', kelas: filterKelas !== 'all' ? filterKelas : '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true });
-    setShowModal(true);
+    setForm({
+      nama: '',
+      kelas: '',
+      domisili: '',
+      alamat: '',
+      nomor_whatsapp: '',
+      status_aktif: true,
+    });
   };
 
-  const openEdit = (m: Murid) => {
-    setEditingId(m.id);
+  // Buka modal untuk mode Edit
+  const openEdit = (murid: any) => {
+    setEditingId(murid.id);
     setForm({
-      nama: m.nama, kelas: m.kelas, domisili: m.domisili ?? '', alamat: m.alamat ?? '',
-      nomor_whatsapp: m.nomor_whatsapp ?? '', status_aktif: m.status_aktif,
+      nama: murid.nama || '',
+      kelas: murid.kelas || '',
+      domisili: murid.domisili || '',
+      alamat: murid.alamat || '',
+      nomor_whatsapp: murid.nomor_whatsapp || '',
+      status_aktif: murid.status_aktif !== undefined ? murid.status_aktif : true,
     });
     setShowModal(true);
   };
 
+  // Handler Tambah & Edit Data
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nama || !form.kelas) { showToast('Nama dan kelas wajib diisi', 'error'); return; }
+    if (!form.nama || !form.kelas) {
+      showToast('Nama dan Kelas wajib diisi!', 'error');
+      return;
+    }
+
     setSaving(true);
-    const payload = {
-      nama: form.nama, kelas: form.kelas, domisili: form.domisili || null,
-      alamat: form.alamat || null, nomor_whatsapp: form.nomor_whatsapp || null,
-      status_aktif: form.status_aktif,
-    };
-    const { error } = editingId
-      ? await supabase.from('murid').update(payload).eq('id', editingId)
-      : await supabase.from('murid').insert(payload);
-    setSaving(false);
-    if (error) { showToast(error.message, 'error'); return; }
-    showToast(editingId ? 'Data santri diperbarui!' : 'Santri ditambahkan!', 'success');
-    setShowModal(false);
-    setEditingId(null);
-    fetchMurid();
+    try {
+      if (editingId) {
+        // Mode Update
+        const { error } = await supabase
+          .from('murid')
+          .update({
+            nama: form.nama,
+            kelas: form.kelas,
+            domisili: form.domisili,
+            alamat: form.alamat,
+            nomor_whatsapp: form.nomor_whatsapp,
+            status_aktif: form.status_aktif,
+          })
+          .eq('id', editingId);
+
+        if (error) throw error;
+        showToast('Data santri berhasil diperbarui', 'success');
+      } else {
+        // Mode Insert New
+        const { error } = await supabase
+          .from('murid')
+          .insert([form]);
+
+        if (error) throw error;
+        showToast('Santri baru berhasil ditambahkan', 'success');
+      }
+
+      setShowModal(false);
+      resetForm();
+      fetchMurid();
+    } catch (error: any) {
+      showToast(error.message || 'Gagal menyimpan data', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('murid').delete().eq('id', id);
-    if (error) { showToast('Gagal hapus (mungkin ada data terkait)', 'error'); return; }
-    showToast('Santri dihapus', 'info');
-    setMuridList(prev => prev.filter(m => m.id !== id));
+  // Handler Hapus Data
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      const { error } = await supabase
+        .from('murid')
+        .delete()
+        .eq('id', deletingId);
+
+      if (error) throw error;
+      showToast('Data santri berhasil dihapus', 'success');
+      setShowDeleteModal(false);
+      setDeletingId(null);
+      fetchMurid();
+    } catch (error: any) {
+      showToast(error.message || 'Gagal menghapus data', 'error');
+    }
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="section-title">Database Santri</h2>
-          <p className="section-subtitle">{filtered.length} dari {muridList.length} santri</p>
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Manajemen Santri</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Total: {filteredMuridList.length} Santri</p>
+          </div>
         </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+        <button
+          onClick={() => { resetForm(); setShowModal(true); }}
+          className="btn-primary flex items-center justify-center gap-2 text-sm font-semibold"
+        >
           <Plus className="w-4 h-4" />
-          <span>Tambah</span>
+          Tambah Santri
         </button>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex gap-2 mb-4 flex-col sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Filter Toolbar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="relative sm:col-span-2">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
           <input
             type="text"
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Cari nama, domisili, atau alamat..."
-            className="input-field text-sm pl-9"
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama santri atau domisili..."
+            className="w-full pl-9 pr-4 py-2.5 bg-white rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <button onClick={() => setSearch('')} className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600">
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
-        <select
-          value={filterKelas}
-          onChange={e => setFilterKelas(e.target.value)}
-          className="input-field text-sm sm:max-w-[180px]"
-        >
-          <option value="all">Semua Kelas</option>
-          {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
-        </select>
+
+        <div className="relative">
+          <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+          <select
+            value={filterKelas}
+            onChange={(e) => setFilterKelas(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-white rounded-xl border border-slate-200 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+          >
+            <option value="all">Semua Kelas</option>
+            {kelasOptions.map(kelas => (
+              <option key={kelas} value={kelas}>Kelas {kelas}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Stats */}
-      {muridList.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="card p-3 text-center bg-emerald-50 border-emerald-100">
-            <p className="text-2xl font-bold text-emerald-700">{muridList.filter(m => m.status_aktif).length}</p>
-            <p className="text-[10px] font-semibold text-emerald-600">Aktif</p>
-          </div>
-          <div className="card p-3 text-center bg-slate-50 border-slate-100">
-            <p className="text-2xl font-bold text-slate-600">{muridList.filter(m => !m.status_aktif).length}</p>
-            <p className="text-[10px] font-semibold text-slate-500">Non-aktif</p>
-          </div>
-          <div className="card p-3 text-center bg-sky-50 border-sky-100">
-            <p className="text-2xl font-bold text-sky-700">{kelasOptions.length}</p>
-            <p className="text-[10px] font-semibold text-sky-600">Kelas</p>
-          </div>
-        </div>
-      )}
-
+      {/* Main Content Area */}
       {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map(i => <div key={i} className="card p-4 animate-pulse h-16 bg-slate-50 rounded-2xl" />)}
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-slate-500 font-medium">Memuat data santri...</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filteredMuridList.length === 0 ? (
         <EmptyState
-          title={search || filterKelas !== 'all' ? "Tidak ada hasil" : "Belum ada santri"}
-          description={search || filterKelas !== 'all' ? "Coba ubah kata kunci atau filter." : "Tambahkan data santri untuk mulai mengelola."}
-          icon={<Users className="w-8 h-8 text-slate-300" />}
+          title="Tidak ada data santri"
+          description={search || filterKelas !== 'all' ? "Tidak ada hasil yang cocok dengan filter pencarian Anda." : "Belum ada data santri yang ditambahkan."}
         />
       ) : (
-        <div className="space-y-2">
-          {filtered.map((m, i) => (
-            <div key={m.id} className="card card-hover p-3.5 flex items-center gap-3 group">
-              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-emerald-700 font-bold text-sm">{i + 1}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <p className="font-semibold text-slate-800 text-sm truncate">{m.nama}</p>
-                  <span className="badge badge-success text-[10px]">{m.kelas}</span>
-                  <span className={`badge text-[10px] ${m.status_aktif ? 'badge-success' : 'bg-slate-100 text-slate-500'}`}>
-                    {m.status_aktif ? 'Aktif' : 'Non-aktif'}
-                  </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredMuridList.map((murid: any) => (
+            <div key={murid.id} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all group relative">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-800 text-base line-clamp-1">{murid.nama}</h3>
+                    {murid.status_aktif === false ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-50 text-rose-600">
+                        <XCircle className="w-3 h-3" /> Non-aktif
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-600">
+                        <CheckCircle className="w-3 h-3" /> Aktif
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs font-semibold text-emerald-600 mt-0.5">Kelas {murid.kelas}</p>
                 </div>
-                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                  {m.nomor_whatsapp && <span className="flex items-center gap-1 text-[10px] text-slate-400"><Phone className="w-2.5 h-2.5" />{m.nomor_whatsapp}</span>}
-                  {m.domisili && <span className="flex items-center gap-1 text-[10px] text-slate-400"><MapPin className="w-2.5 h-2.5" />{m.domisili}</span>}
+
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => openEdit(murid)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                    title="Ubah Data"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => { setDeletingId(murid.id); setShowDeleteModal(true); }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    title="Hapus Data"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => handleDelete(m.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+
+              <div className="mt-4 pt-4 border-t border-slate-50 space-y-2 text-xs text-slate-600">
+                {murid.nomor_whatsapp && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{murid.nomor_whatsapp}</span>
+                  </div>
+                )}
+                {murid.domisili && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="line-clamp-1">{murid.domisili}</span>
+                  </div>
+                )}
+                {murid.alamat && (
+                  <p className="text-slate-400 italic line-clamp-2 mt-1 pl-5">"{murid.alamat}"</p>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal Tambah/Edit Santri */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingId ? 'Edit Santri' : 'Tambah Santri'} size="sm">
+      {/* Modal Form Tambah / Edit */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => { setShowModal(false); resetForm(); }}
+        title={editingId ? 'Ubah Data Santri' : 'Tambah Santri Baru'}
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Santri</label>
-            <input type="text" value={form.nama} onChange={e => setForm(p => ({ ...p, nama: e.target.value }))} className="input-field text-sm" placeholder="Nama lengkap..." required />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Lengkap *</label>
+            <input
+              type="text"
+              required
+              value={form.nama}
+              onChange={e => setForm(p => ({ ...p, nama: e.target.value }))}
+              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              placeholder="Masukkan nama lengkap..."
+            />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
-              <input type="text" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" placeholder="cth. 3A" required list="kelas-list" />
-              <datalist id="kelas-list">
-                {kelasOptions.map(k => <option key={k} value={k} />)}
-              </datalist>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
+              <input
+                type="text"
+                required
+                value={form.kelas}
+                onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
+                className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                placeholder="Contoh: 3A"
+              />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status</label>
-              <select value={String(form.status_aktif)} onChange={e => setForm(p => ({ ...p, status_aktif: e.target.value === 'true' }))} className="input-field text-sm">
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status Aktif</label>
+              <select
+                value={form.status_aktif ? 'true' : 'false'}
+                onChange={e => setForm(p => ({ ...p, status_aktif: e.target.value === 'true' }))}
+                className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              >
                 <option value="true">Aktif</option>
                 <option value="false">Non-aktif</option>
               </select>
             </div>
           </div>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">No. WhatsApp (opsional)</label>
-            <input type="tel" value={form.nomor_whatsapp} onChange={e => setForm(p => ({ ...p, nomor_whatsapp: e.target.value }))} className="input-field text-sm" placeholder="08xx..." />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">No. WhatsApp (Opsional)</label>
+            <input
+              type="tel"
+              value={form.nomor_whatsapp}
+              onChange={e => setForm(p => ({ ...p, nomor_whatsapp: e.target.value }))}
+              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              placeholder="08xx..."
+            />
           </div>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Domisili (opsional)</label>
-            <input type="text" value={form.domisili} onChange={e => setForm(p => ({ ...p, domisili: e.target.value }))} className="input-field text-sm" placeholder="Kota/Kecamatan..." />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Domisili (Opsional)</label>
+            <input
+              type="text"
+              value={form.domisili}
+              onChange={e => setForm(p => ({ ...p, domisili: e.target.value }))}
+              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              placeholder="Kota/Kecamatan asal..."
+            />
           </div>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Alamat (opsional)</label>
-            <textarea value={form.alamat} onChange={e => setForm(p => ({ ...p, alamat: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Alamat lengkap..." />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Alamat Lengkap (Opsional)</label>
+            <textarea
+              value={form.alamat}
+              onChange={e => setForm(p => ({ ...p, alamat: e.target.value }))}
+              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              rows={2}
+              placeholder="Alamat lengkap rumah..."
+            />
           </div>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
+
+          <div className="flex gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => { setShowModal(false); resetForm(); }}
+              className="btn-secondary flex-1 text-sm py-2.5"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-primary flex-1 text-sm py-2.5"
+            >
+              {saving ? 'Menyimpan...' : 'Simpan Data'}
+            </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Konfirmasi Hapus */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeletingId(null); }}
+        title="Hapus Data Santri"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Apakah Anda yakin ingin menghapus data santri ini? Tindakan ini bersifat permanen dan data riwayat absensi atau nilai yang terikat mungkin akan ikut terpengaruh.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => { setShowDeleteModal(false); setDeletingId(null); }}
+              className="btn-secondary flex-1 text-sm"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all flex-1 text-sm"
+            >
+              Ya, Hapus
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
