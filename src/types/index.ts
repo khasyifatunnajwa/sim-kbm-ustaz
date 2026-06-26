@@ -1,3 +1,6 @@
+// Types match the LIVE database schema (hybrid of two migrations).
+// Tables with uuid IDs use text "kelas"; tables with bigint IDs use kelas_id FK.
+
 export interface Kelas {
   id: number;
   nama_kelas: string;
@@ -9,10 +12,11 @@ export interface Kelas {
   created_at: string;
 }
 
+// murid: uuid id, kelas text (no FK)
 export interface Murid {
-  id: number;
+  id: string;
   nama: string;
-  kelas_id: number;
+  kelas: string;
   nomor_whatsapp?: string;
   alamat?: string;
   domisili?: string;
@@ -21,27 +25,31 @@ export interface Murid {
   created_at: string;
 }
 
+// jadwal_mengajar: uuid id, kelas text, ruangan, catatan
 export interface JadwalMengajar {
-  id: number;
+  id: string;
   hari: string;
   jam_mulai: string;
   jam_selesai: string;
-  kelas_id: number;
+  kelas: string;
   pelajaran: string;
-  lokasi?: string;
+  ruangan?: string;
+  catatan?: string;
   user_id: string;
   created_at: string;
 }
 
+// absensi: uuid id, tanggal text
 export interface Absensi {
-  id: number;
-  murid_id: number;
+  id: string;
+  murid_id: string;
   tanggal: string;
   status: 'Hadir' | 'Izin' | 'Sakit' | 'Alpha';
   user_id: string;
   created_at: string;
 }
 
+// kbm_harian: bigint id, kelas_id FK
 export interface KbmHarian {
   id: number;
   tanggal: string;
@@ -55,6 +63,7 @@ export interface KbmHarian {
   created_at: string;
 }
 
+// buku_saku: bigint id, kelas_id FK
 export interface BukuSaku {
   id: number;
   kelas_id: number;
@@ -66,6 +75,7 @@ export interface BukuSaku {
   created_at: string;
 }
 
+// muhafadhoh: bigint id, kelas_id FK
 export interface Muhafadhoh {
   id: number;
   kelas_id: number;
@@ -77,22 +87,24 @@ export interface Muhafadhoh {
   created_at: string;
 }
 
+// nilai: uuid id, jenis_ujian, tanggal
 export interface Nilai {
-  id: number;
-  murid_id: number;
+  id: string;
+  murid_id: string;
   pelajaran: string;
-  jenis_penilaian: string;
+  jenis_ujian: string;
   skor: number;
   tanggal: string;
   user_id: string;
   created_at: string;
 }
 
+// bank_soal: uuid id, kelas text, batasan
 export interface BankSoal {
-  id: number;
-  kelas_id: number;
+  id: string;
   pelajaran: string;
-  batasan_materi?: string;
+  kelas: string;
+  batasan?: string;
   isi_soal: string;
   user_id: string;
   created_at: string;
@@ -118,6 +130,26 @@ export interface Pengumuman {
   created_at: string;
 }
 
-export type ActiveTab = 'jadwal' | 'murid' | 'absensi' | 'kbm' | 'nilai' | 'agenda';
+// catatan_perilaku: uuid id, murid_id uuid
+export interface CatatanPerilaku {
+  id: string;
+  murid_id: string;
+  jenis: 'prestasi' | 'pelanggaran' | 'catatan';
+  catatan: string;
+  user_id: string;
+  created_at: string;
+}
+
+// capaian_hafalan: uuid id, murid_id uuid, tanggal text
+export interface CapaianHafalan {
+  id: string;
+  murid_id: string;
+  capaian: string;
+  tanggal: string;
+  user_id: string;
+  created_at: string;
+}
+
+export type ActiveTab = 'jadwal' | 'murid' | 'absensi' | 'kbm' | 'sikap' | 'nilai' | 'soal' | 'agenda';
 
 export type ShowToast = (message: string, type?: 'success' | 'error' | 'info') => void;

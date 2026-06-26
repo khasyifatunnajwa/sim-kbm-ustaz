@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
@@ -10,7 +10,9 @@ import JadwalPage from './pages/JadwalPage';
 import MuridPage from './pages/MuridPage';
 import AbsensiPage from './pages/AbsensiPage';
 import KbmPage from './pages/KbmPage';
+import SikapPage from './pages/SikapPage';
 import NilaiPage from './pages/NilaiPage';
+import SoalPage from './pages/SoalPage';
 import AgendaPage from './pages/AgendaPage';
 
 function LoadingScreen() {
@@ -181,6 +183,8 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('jadwal');
+  const [tabHistory, setTabHistory] = useState<ActiveTab[]>([]);
+  const backPressCount = useRef(0);
   const { toasts, showToast, removeToast } = useToast();
 
   useEffect(() => {
@@ -198,19 +202,41 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Handle Android back button
+  // Track tab changes for back navigation
+  const handleTabChange = (tab: ActiveTab) => {
+    setTabHistory(prev => [...prev, activeTab]);
+    setActiveTab(tab);
+  };
+
+  // Handle Android back button: navigate back through tab history, double-press to exit
   useEffect(() => {
     const handleBack = (e: PopStateEvent) => {
+      e.preventDefault();
       if (activeTab !== 'jadwal') {
-        e.preventDefault();
-        setActiveTab('jadwal');
+        // Go back to previous tab if history exists, else go to jadwal
+        const prev = tabHistory[tabHistory.length - 1] ?? 'jadwal';
+        setTabHistory(prev => prev.slice(0, -1));
+        setActiveTab(prev);
+        window.history.pushState(null, '', window.location.pathname);
+        backPressCount.current = 0;
+      } else {
+        // On main menu: require double press to exit
+        const next = backPressCount.current + 1;
+        backPressCount.current = next;
+        if (next >= 2) {
+          showToast('Menutup aplikasi...', 'info');
+          window.history.back();
+        } else {
+          showToast('Tekan sekali lagi untuk keluar', 'info');
+          setTimeout(() => { backPressCount.current = 0; }, 2000);
+        }
         window.history.pushState(null, '', window.location.pathname);
       }
     };
     window.history.pushState(null, '', window.location.pathname);
     window.addEventListener('popstate', handleBack);
     return () => window.removeEventListener('popstate', handleBack);
-  }, [activeTab]);
+  }, [activeTab, tabHistory, showToast]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -233,7 +259,9 @@ export default function App() {
       case 'murid':    return <MuridPage showToast={showToast} />;
       case 'absensi':  return <AbsensiPage showToast={showToast} />;
       case 'kbm':      return <KbmPage showToast={showToast} />;
+      case 'sikap':    return <SikapPage showToast={showToast} />;
       case 'nilai':    return <NilaiPage showToast={showToast} />;
+      case 'soal':     return <SoalPage showToast={showToast} />;
       case 'agenda':   return <AgendaPage showToast={showToast} />;
       default:         return null;
     }
@@ -243,7 +271,7 @@ export default function App() {
     <>
       <Layout
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         userEmail={user?.email}
         onLogout={handleLogout}
       >

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Bell, Calendar, Megaphone } from 'lucide-react';
+import { Plus, Trash2, Calendar, Megaphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';

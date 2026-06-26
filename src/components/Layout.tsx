@@ -10,6 +10,8 @@ import {
   X,
   User,
   ChevronRight,
+  Heart,
+  FileQuestion,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { ActiveTab } from '../types';
@@ -26,8 +28,10 @@ const navItems: { id: ActiveTab; icon: React.ElementType; label: string }[] = [
   { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
   { id: 'murid', icon: Users, label: 'Santri' },
   { id: 'absensi', icon: ClipboardCheck, label: 'Absensi' },
-  { id: 'kbm', icon: BookOpen, label: 'KBM' },
+  { id: 'kbm', icon: BookOpen, label: 'Buku Saku' },
+  { id: 'sikap', icon: Heart, label: 'Sikap' },
   { id: 'nilai', icon: BarChart3, label: 'Nilai' },
+  { id: 'soal', icon: FileQuestion, label: 'Soal' },
   { id: 'agenda', icon: Bell, label: 'Agenda' },
 ];
 
