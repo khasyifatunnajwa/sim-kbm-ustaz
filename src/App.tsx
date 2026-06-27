@@ -6,6 +6,7 @@ import ToastContainer from './components/ToastContainer';
 import { useToast } from './hooks/useToast';
 import type { ActiveTab, ShowToast } from './types';
 
+import KelasPage from './pages/KelasPage';
 import JadwalPage from './pages/JadwalPage';
 import MuridPage from './pages/MuridPage';
 import AbsensiPage from './pages/AbsensiPage';
@@ -58,10 +59,8 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (data.session) {
-          // Email confirmation not required — user is logged in automatically
           showToast('Akun berhasil dibuat!', 'success');
         } else {
-          // Email confirmation required
           setAwaitingConfirm(true);
         }
       }
@@ -189,9 +188,7 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
-      })
+      .then(({ data: { session } }) => { setUser(session?.user ?? null); })
       .catch(() => setUser(null))
       .finally(() => setAuthLoading(false));
 
@@ -202,25 +199,21 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Track tab changes for back navigation
   const handleTabChange = (tab: ActiveTab) => {
     setTabHistory(prev => [...prev, activeTab]);
     setActiveTab(tab);
   };
 
-  // Handle Android back button: navigate back through tab history, double-press to exit
   useEffect(() => {
     const handleBack = (e: PopStateEvent) => {
       e.preventDefault();
       if (activeTab !== 'jadwal') {
-        // Go back to previous tab if history exists, else go to jadwal
         const prev = tabHistory[tabHistory.length - 1] ?? 'jadwal';
-        setTabHistory(prev => prev.slice(0, -1));
+        setTabHistory(h => h.slice(0, -1));
         setActiveTab(prev);
         window.history.pushState(null, '', window.location.pathname);
         backPressCount.current = 0;
       } else {
-        // On main menu: require double press to exit
         const next = backPressCount.current + 1;
         backPressCount.current = next;
         if (next >= 2) {
@@ -238,9 +231,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handleBack);
   }, [activeTab, tabHistory, showToast]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
+  const handleLogout = async () => { await supabase.auth.signOut(); };
 
   if (authLoading) return <LoadingScreen />;
 
@@ -255,15 +246,16 @@ export default function App() {
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'jadwal':   return <JadwalPage showToast={showToast} />;
-      case 'murid':    return <MuridPage showToast={showToast} />;
-      case 'absensi':  return <AbsensiPage showToast={showToast} />;
-      case 'kbm':      return <KbmPage showToast={showToast} />;
-      case 'sikap':    return <SikapPage showToast={showToast} />;
-      case 'nilai':    return <NilaiPage showToast={showToast} />;
-      case 'soal':     return <SoalPage showToast={showToast} />;
-      case 'agenda':   return <AgendaPage showToast={showToast} />;
-      default:         return null;
+      case 'kelas':   return <KelasPage showToast={showToast} />;
+      case 'jadwal':  return <JadwalPage showToast={showToast} />;
+      case 'murid':   return <MuridPage showToast={showToast} />;
+      case 'absensi': return <AbsensiPage showToast={showToast} />;
+      case 'kbm':     return <KbmPage showToast={showToast} />;
+      case 'sikap':   return <SikapPage showToast={showToast} />;
+      case 'nilai':   return <NilaiPage showToast={showToast} />;
+      case 'soal':    return <SoalPage showToast={showToast} />;
+      case 'agenda':  return <AgendaPage showToast={showToast} />;
+      default:        return <JadwalPage showToast={showToast} />;
     }
   };
 

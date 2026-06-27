@@ -1,17 +1,6 @@
 import {
-  CalendarDays,
-  ClipboardCheck,
-  BookOpen,
-  BarChart3,
-  Users,
-  Bell,
-  LogOut,
-  Menu,
-  X,
-  User,
-  ChevronRight,
-  Heart,
-  FileQuestion,
+  CalendarDays, ClipboardCheck, BookOpen, BarChart3, Users,
+  Bell, LogOut, Menu, X, User, ChevronRight, Heart, FileQuestion, School,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { ActiveTab } from '../types';
@@ -25,15 +14,19 @@ interface LayoutProps {
 }
 
 const navItems: { id: ActiveTab; icon: React.ElementType; label: string }[] = [
-  { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
-  { id: 'murid', icon: Users, label: 'Santri' },
+  { id: 'kelas',   icon: School,         label: 'Kelas' },
+  { id: 'murid',   icon: Users,          label: 'Santri' },
+  { id: 'jadwal',  icon: CalendarDays,   label: 'Jadwal' },
   { id: 'absensi', icon: ClipboardCheck, label: 'Absensi' },
-  { id: 'kbm', icon: BookOpen, label: 'Buku Saku' },
-  { id: 'sikap', icon: Heart, label: 'Sikap' },
-  { id: 'nilai', icon: BarChart3, label: 'Nilai' },
-  { id: 'soal', icon: FileQuestion, label: 'Soal' },
-  { id: 'agenda', icon: Bell, label: 'Agenda' },
+  { id: 'kbm',     icon: BookOpen,       label: 'Buku Saku' },
+  { id: 'sikap',   icon: Heart,          label: 'Sikap' },
+  { id: 'nilai',   icon: BarChart3,      label: 'Nilai' },
+  { id: 'soal',    icon: FileQuestion,   label: 'Soal' },
+  { id: 'agenda',  icon: Bell,           label: 'Agenda' },
 ];
+
+// Bottom nav mobile: 5 item pertama saja
+const bottomNav = navItems.slice(0, 5);
 
 export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -50,13 +43,14 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
   };
 
   const activeLabel = navItems.find(n => n.id === activeTab)?.label ?? '';
+  const isInBottomNav = bottomNav.some(n => n.id === activeTab);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20 md:pb-0 md:pl-64">
-      {/* Sidebar Desktop */}
+      {/* ===== Sidebar Desktop ===== */}
       <nav className="hidden md:flex flex-col w-64 bg-white shadow-sm border-r border-slate-100 fixed top-0 bottom-0 left-0 z-40">
         <div className="p-5 bg-emerald-600 text-white">
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
               <BookOpen className="w-5 h-5" />
             </div>
@@ -102,7 +96,7 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
         </div>
       </nav>
 
-      {/* Mobile Overlay */}
+      {/* ===== Mobile Sidebar Overlay ===== */}
       {sidebarOpen && (
         <>
           <div
@@ -148,7 +142,7 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
         </>
       )}
 
-      {/* Header */}
+      {/* ===== Header ===== */}
       <header className="bg-white shadow-sm border-b border-slate-100 sticky top-0 z-30">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -168,7 +162,7 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
               </p>
             </div>
           </div>
-          <div className="md:hidden flex items-center gap-2">
+          <div className="md:hidden">
             <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
               <User className="w-4 h-4 text-emerald-600" />
             </div>
@@ -176,18 +170,18 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
         </div>
       </header>
 
-      {/* Bottom Nav Mobile */}
+      {/* ===== Bottom Nav Mobile ===== */}
       <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] z-30 flex justify-around px-1 py-1.5">
-        {navItems.map(item => {
+        {bottomNav.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => handleNav(item.id)}
-              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl min-w-[52px] transition-all ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl min-w-[48px] transition-all ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}
             >
-              <div className={`p-1.5 rounded-xl mb-0.5 transition-colors ${isActive ? 'bg-emerald-50' : ''}`}>
+              <div className={`p-1.5 rounded-xl mb-0.5 ${isActive ? 'bg-emerald-50' : ''}`}>
                 <Icon className="w-[18px] h-[18px]" />
               </div>
               <span className={`text-[9px] leading-none ${isActive ? 'font-bold text-emerald-600' : 'font-medium'}`}>
@@ -196,9 +190,21 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
             </button>
           );
         })}
+        {/* Tombol Lainnya — buka sidebar untuk menu sisanya */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl min-w-[48px] transition-all ${
+            !isInBottomNav ? 'text-emerald-600' : 'text-slate-400'
+          }`}
+        >
+          <div className={`p-1.5 rounded-xl mb-0.5 ${!isInBottomNav ? 'bg-emerald-50' : ''}`}>
+            <Menu className="w-[18px] h-[18px]" />
+          </div>
+          <span className="text-[9px] leading-none font-medium">Lainnya</span>
+        </button>
       </nav>
 
-      {/* Main Content */}
+      {/* ===== Main Content ===== */}
       <main className="p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
           {children}

@@ -6,7 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { JadwalMengajar, AgendaPenting, Pengumuman, ShowToast } from '../types';
+import type { JadwalMengajar, Kelas, AgendaPenting, Pengumuman, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
@@ -20,8 +20,19 @@ function parseTimeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
+const emptyForm = {
+  hari: 'Senin',
+  jam_mulai: '07:00',
+  jam_selesai: '08:00',
+  kelas_id: '',
+  pelajaran: '',
+  ruangan: '',
+  catatan: '',
+};
+
 export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
   const [jadwal, setJadwal] = useState<JadwalMengajar[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [agendaList, setAgendaList] = useState<AgendaPenting[]>([]);
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,23 +40,21 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
-
-  const [form, setForm] = useState({
-    hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:00',
-    kelas: '', pelajaran: '', ruangan: '', catatan: '',
-  });
+  const [form, setForm] = useState(emptyForm);
 
   const todayHari = getTodayHari();
   const today = new Date().toISOString().split('T')[0];
 
   const fetchData = async () => {
     setLoading(true);
-    const [jr, ar, pr] = await Promise.all([
-      supabase.from('jadwal_mengajar').select('*').order('jam_mulai'),
+    const [jr, kr, ar, pr] = await Promise.all([
+      supabase.from('jadwal_mengajar').select('*, kelas_data:kelas(id, nama_kelas, lembaga)').order('jam_mulai'),
+      supabase.from('kelas').select('*').eq('aktif', true).order('tingkat').order('nama_kelas'),
       supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
       supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
     ]);
     if (jr.data) setJadwal(jr.data as JadwalMengajar[]);
+    if (kr.data) setKelasList(kr.data as Kelas[]);
     if (ar.data) setAgendaList(ar.data as AgendaPenting[]);
     if (pr.data) setPengumumanList(pr.data as Pengumuman[]);
     setLoading(false);
@@ -53,24 +62,25 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
 
   useEffect(() => { fetchData(); }, []);
 
-  // tick every second for countdown
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // Nama kelas dari join atau fallback kolom kelas text
+  const getKelasLabel = (j: JadwalMengajar) =>
+    (j as any).kelas_data?.nama_kelas ?? j.kelas ?? '-';
+
   const todaySchedules = useMemo(
     () => jadwal.filter(j => j.hari === todayHari).sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai)),
-    [jadwal, todayHari]
+    [jadwal, todayHari],
   );
 
-  // Find the next upcoming class today
   const nextClass = useMemo(() => {
     const nowMin = now.getHours() * 60 + now.getMinutes();
     return todaySchedules.find(j => parseTimeToMinutes(j.jam_mulai) > nowMin);
   }, [todaySchedules, now]);
 
-  // Currently ongoing class
   const ongoingClass = useMemo(() => {
     const nowMin = now.getHours() * 60 + now.getMinutes();
     return todaySchedules.find(j => {
@@ -80,7 +90,6 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
     });
   }, [todaySchedules, now]);
 
-  // Countdown to next class
   const countdown = useMemo(() => {
     if (!nextClass) return null;
     const [h, m] = nextClass.jam_mulai.split(':').map(Number);
@@ -88,42 +97,57 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
     target.setHours(h, m, 0, 0);
     const diff = target.getTime() - now.getTime();
     if (diff <= 0) return null;
-    const hours = Math.floor(diff / 3600000);
-    const minutes = Math.floor((diff % 3600000) / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    return { hours, minutes, seconds };
+    return {
+      hours: Math.floor(diff / 3600000),
+      minutes: Math.floor((diff % 3600000) / 60000),
+      seconds: Math.floor((diff % 60000) / 1000),
+    };
   }, [nextClass, now]);
 
-  // Upcoming agenda (today and future)
   const upcomingAgenda = useMemo(
     () => agendaList.filter(a => new Date(a.tanggal) >= new Date(today)).slice(0, 3),
-    [agendaList, today]
+    [agendaList, today],
   );
 
   const openAdd = () => {
     setEditingId(null);
-    setForm({ hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:00', kelas: '', pelajaran: '', ruangan: '', catatan: '' });
+    setForm(emptyForm);
     setShowModal(true);
   };
 
   const openEdit = (j: JadwalMengajar) => {
     setEditingId(j.id);
     setForm({
-      hari: j.hari, jam_mulai: j.jam_mulai.slice(0, 5), jam_selesai: j.jam_selesai.slice(0, 5),
-      kelas: j.kelas, pelajaran: j.pelajaran, ruangan: j.ruangan ?? '', catatan: j.catatan ?? '',
+      hari: j.hari,
+      jam_mulai: j.jam_mulai.slice(0, 5),
+      jam_selesai: j.jam_selesai.slice(0, 5),
+      kelas_id: j.kelas_id ? String(j.kelas_id) : '',
+      pelajaran: j.pelajaran,
+      ruangan: j.ruangan ?? '',
+      catatan: j.catatan ?? '',
     });
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.kelas || !form.pelajaran) { showToast('Kelas dan pelajaran wajib diisi', 'error'); return; }
+    if (!form.kelas_id) { showToast('Pilih kelas terlebih dahulu', 'error'); return; }
+    if (!form.pelajaran.trim()) { showToast('Mata pelajaran wajib diisi', 'error'); return; }
     setSaving(true);
-    const payload = {
-      hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai,
-      kelas: form.kelas, pelajaran: form.pelajaran,
-      ruangan: form.ruangan || null, catatan: form.catatan || null,
+
+    const kelasObj = kelasList.find(k => k.id === Number(form.kelas_id));
+    const payload: any = {
+      hari: form.hari,
+      jam_mulai: form.jam_mulai,
+      jam_selesai: form.jam_selesai,
+      kelas_id: Number(form.kelas_id),
+      // Simpan juga ke kolom kelas (text) agar kompatibel dengan kode lama
+      kelas: kelasObj?.nama_kelas ?? '',
+      pelajaran: form.pelajaran.trim(),
+      ruangan: form.ruangan.trim() || null,
+      catatan: form.catatan.trim() || null,
     };
+
     const { error } = editingId
       ? await supabase.from('jadwal_mengajar').update(payload).eq('id', editingId)
       : await supabase.from('jadwal_mengajar').insert(payload);
@@ -142,13 +166,15 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
     setJadwal(prev => prev.filter(j => j.id !== id));
   };
 
-  const grouped = HARI.reduce((acc, h) => { acc[h] = jadwal.filter(j => j.hari === h); return acc; }, {} as Record<string, JadwalMengajar[]>);
+  const grouped = HARI.reduce((acc, h) => {
+    acc[h] = jadwal.filter(j => j.hari === h);
+    return acc;
+  }, {} as Record<string, JadwalMengajar[]>);
 
   return (
     <div>
-      {/* ===== PAPAN PENGUMUMAN ===== */}
+      {/* ===== BANNER HARI INI ===== */}
       <div className="mb-5 space-y-3">
-        {/* Greeting + Today's Schedule */}
         <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
           <div className="p-5">
             <div className="flex items-center gap-2 mb-3">
@@ -164,7 +190,7 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
             </div>
 
             {ongoingClass ? (
-              <div className="bg-white/15 rounded-2xl p-3.5 backdrop-blur-sm">
+              <div className="bg-white/15 rounded-2xl p-3.5">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="w-2 h-2 bg-emerald-300 rounded-full animate-pulse" />
                   <span className="text-xs font-bold text-emerald-100 uppercase tracking-wide">Sedang Berlangsung</span>
@@ -172,24 +198,31 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <BookOpen className="w-4 h-4 text-emerald-100" />
                   <span className="font-bold text-sm">{ongoingClass.pelajaran}</span>
-                  <span className="badge bg-white/20 text-white text-[10px]">{ongoingClass.kelas}</span>
+                  <span className="badge bg-white/20 text-white text-[10px]">{getKelasLabel(ongoingClass)}</span>
                 </div>
                 <div className="flex items-center gap-3 mt-1.5 text-xs text-emerald-100">
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{ongoingClass.jam_mulai.slice(0, 5)} – {ongoingClass.jam_selesai.slice(0, 5)} WIB</span>
-                  {ongoingClass.ruangan && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{ongoingClass.ruangan}</span>}
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {ongoingClass.jam_mulai.slice(0, 5)} – {ongoingClass.jam_selesai.slice(0, 5)} WIB
+                  </span>
+                  {ongoingClass.ruangan && (
+                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{ongoingClass.ruangan}</span>
+                  )}
                 </div>
               </div>
             ) : nextClass ? (
-              <div className="bg-white/15 rounded-2xl p-3.5 backdrop-blur-sm">
+              <div className="bg-white/15 rounded-2xl p-3.5">
                 <div className="flex items-center gap-2 mb-2">
                   <CalendarDays className="w-4 h-4 text-emerald-100" />
-                  <span className="text-xs font-bold text-emerald-100">Jadwal Mengajar Berikutnya</span>
+                  <span className="text-xs font-bold text-emerald-100">Jadwal Berikutnya</span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap mb-2.5">
                   <BookOpen className="w-4 h-4 text-emerald-100" />
                   <span className="font-bold text-sm">{nextClass.pelajaran}</span>
-                  <span className="badge bg-white/20 text-white text-[10px]">{nextClass.kelas}</span>
-                  <span className="text-xs text-emerald-100">{nextClass.jam_mulai.slice(0, 5)}–{nextClass.jam_selesai.slice(0, 5)} WIB</span>
+                  <span className="badge bg-white/20 text-white text-[10px]">{getKelasLabel(nextClass)}</span>
+                  <span className="text-xs text-emerald-100">
+                    {nextClass.jam_mulai.slice(0, 5)}–{nextClass.jam_selesai.slice(0, 5)} WIB
+                  </span>
                 </div>
                 {countdown && (
                   <div className="flex items-center gap-2 bg-emerald-800/40 rounded-xl px-3 py-2">
@@ -207,18 +240,18 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
                 )}
               </div>
             ) : todaySchedules.length > 0 ? (
-              <div className="bg-white/15 rounded-2xl p-3.5 backdrop-blur-sm">
-                <p className="text-sm text-emerald-100">Semua jadwal mengajar hari ini telah selesai. Barakallahu fiikum.</p>
+              <div className="bg-white/15 rounded-2xl p-3.5">
+                <p className="text-sm text-emerald-100">Semua jadwal hari ini telah selesai. Barakallahu fiikum.</p>
               </div>
             ) : (
-              <div className="bg-white/15 rounded-2xl p-3.5 backdrop-blur-sm">
+              <div className="bg-white/15 rounded-2xl p-3.5">
                 <p className="text-sm text-emerald-100">Tidak ada jadwal mengajar hari ini.</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Upcoming Agenda + Pengumuman */}
+        {/* Agenda + Pengumuman */}
         {(upcomingAgenda.length > 0 || pengumumanList.length > 0) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {upcomingAgenda.length > 0 && (
@@ -245,7 +278,6 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
                 </div>
               </div>
             )}
-
             {pengumumanList.length > 0 && (
               <div className="card p-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -271,7 +303,7 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
         )}
       </div>
 
-      {/* ===== JADWAL MENGAJAR ===== */}
+      {/* ===== DAFTAR JADWAL ===== */}
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="section-title">Jadwal Mengajar</h2>
@@ -283,12 +315,23 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
         </button>
       </div>
 
+      {/* Peringatan jika belum ada kelas */}
+      {!loading && kelasList.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-sm text-amber-700">
+          Belum ada kelas terdaftar. Tambahkan kelas terlebih dahulu melalui menu <strong>Kelas</strong>.
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="card p-4 animate-pulse"><div className="h-16 bg-slate-50 rounded-xl" /></div>)}
+          {[1, 2, 3].map(i => <div key={i} className="card p-4 animate-pulse h-16 bg-slate-50 rounded-xl" />)}
         </div>
       ) : jadwal.length === 0 ? (
-        <EmptyState title="Jadwal kosong" description="Tambahkan jadwal mengajar untuk ditampilkan di sini." icon={<CalendarDays className="w-8 h-8 text-slate-300" />} />
+        <EmptyState
+          title="Jadwal kosong"
+          description="Tambahkan jadwal mengajar untuk ditampilkan di sini."
+          icon={<CalendarDays className="w-8 h-8 text-slate-300" />}
+        />
       ) : (
         <div className="space-y-4">
           {HARI.map(hari => {
@@ -297,9 +340,13 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
             const isToday = hari === todayHari;
             return (
               <div key={hari} className={`card overflow-hidden ${isToday ? 'ring-2 ring-emerald-300' : ''}`}>
-                <div className={`px-4 py-2.5 flex items-center justify-between ${isToday ? 'bg-emerald-600' : 'bg-slate-50 border-b border-slate-100'}`}>
+                <div className={`px-4 py-2.5 flex items-center justify-between ${
+                  isToday ? 'bg-emerald-600' : 'bg-slate-50 border-b border-slate-100'
+                }`}>
                   <span className={`font-bold text-sm ${isToday ? 'text-white' : 'text-slate-700'}`}>{hari}</span>
-                  {isToday && <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">Hari Ini</span>}
+                  {isToday && (
+                    <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">Hari Ini</span>
+                  )}
                 </div>
                 <div className="divide-y divide-slate-50">
                   {items.map(j => (
@@ -307,19 +354,35 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="font-semibold text-slate-800 text-sm">{j.pelajaran}</span>
-                          <span className="badge badge-success text-[10px]">{j.kelas}</span>
+                          <span className="badge badge-success text-[10px]">{getKelasLabel(j)}</span>
+                          {(j as any).kelas_data?.lembaga && (
+                            <span className="text-[10px] text-slate-400">{(j as any).kelas_data.lembaga}</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{j.jam_mulai.slice(0, 5)} – {j.jam_selesai.slice(0, 5)} WIB</span>
-                          {j.ruangan && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{j.ruangan}</span>}
-                          {j.catatan && <span className="text-slate-400 italic truncate max-w-[120px]">{j.catatan}</span>}
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {j.jam_mulai.slice(0, 5)} – {j.jam_selesai.slice(0, 5)} WIB
+                          </span>
+                          {j.ruangan && (
+                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{j.ruangan}</span>
+                          )}
+                          {j.catatan && (
+                            <span className="italic truncate max-w-[120px]">{j.catatan}</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(j)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
+                        <button
+                          onClick={() => openEdit(j)}
+                          className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
+                        >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(j.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
+                        <button
+                          onClick={() => handleDelete(j.id)}
+                          className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -333,45 +396,120 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
       )}
 
       {/* Modal Tambah/Edit Jadwal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingId ? 'Edit Jadwal' : 'Tambah Jadwal'} size="sm">
+      <Modal
+        isOpen={showModal}
+        onClose={() => { setShowModal(false); setEditingId(null); }}
+        title={editingId ? 'Edit Jadwal' : 'Tambah Jadwal'}
+        size="sm"
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Hari</label>
-              <select value={form.hari} onChange={e => setForm(p => ({ ...p, hari: e.target.value }))} className="input-field text-sm">
+              <select
+                value={form.hari}
+                onChange={e => setForm(p => ({ ...p, hari: e.target.value }))}
+                className="input-field text-sm"
+              >
                 {HARI.map(h => <option key={h}>{h}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
-              <input type="text" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" placeholder="cth. 3A" required />
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
+              {kelasList.length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-2 text-[11px] text-amber-700">
+                  Tambahkan kelas dulu
+                </div>
+              ) : (
+                <select
+                  required
+                  value={form.kelas_id}
+                  onChange={e => setForm(p => ({ ...p, kelas_id: e.target.value }))}
+                  className="input-field text-sm"
+                >
+                  <option value="">-- Pilih --</option>
+                  {kelasList.map(k => (
+                    <option key={k.id} value={String(k.id)}>
+                      {k.nama_kelas}{k.lembaga ? ` (${k.lembaga})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran</label>
-            <input type="text" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" placeholder="cth. Fiqih, Nahwu Wadhih..." required />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran *</label>
+            <input
+              type="text"
+              value={form.pelajaran}
+              onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))}
+              className="input-field text-sm"
+              placeholder="cth. Fiqih, Nahwu Wadhih..."
+              required
+            />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Jam Mulai</label>
-              <input type="time" value={form.jam_mulai} onChange={e => setForm(p => ({ ...p, jam_mulai: e.target.value }))} className="input-field text-sm" required />
+              <input
+                type="time"
+                value={form.jam_mulai}
+                onChange={e => setForm(p => ({ ...p, jam_mulai: e.target.value }))}
+                className="input-field text-sm"
+                required
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Jam Selesai</label>
-              <input type="time" value={form.jam_selesai} onChange={e => setForm(p => ({ ...p, jam_selesai: e.target.value }))} className="input-field text-sm" required />
+              <input
+                type="time"
+                value={form.jam_selesai}
+                onChange={e => setForm(p => ({ ...p, jam_selesai: e.target.value }))}
+                className="input-field text-sm"
+                required
+              />
             </div>
           </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Ruangan (opsional)</label>
-            <input type="text" value={form.ruangan} onChange={e => setForm(p => ({ ...p, ruangan: e.target.value }))} className="input-field text-sm" placeholder="cth. Kelas A, Musholla..." />
+            <input
+              type="text"
+              value={form.ruangan}
+              onChange={e => setForm(p => ({ ...p, ruangan: e.target.value }))}
+              className="input-field text-sm"
+              placeholder="cth. Kelas A, Musholla..."
+            />
           </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catatan (opsional)</label>
-            <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Catatan tambahan..." />
+            <textarea
+              value={form.catatan}
+              onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))}
+              className="input-field text-sm resize-none"
+              rows={2}
+              placeholder="Catatan tambahan..."
+            />
           </div>
+
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
+            <button
+              type="button"
+              onClick={() => { setShowModal(false); setEditingId(null); }}
+              className="btn-secondary flex-1 text-sm"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={saving || kelasList.length === 0}
+              className="btn-primary flex-1 text-sm"
+            >
+              {saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}
+            </button>
           </div>
         </form>
       </Modal>
