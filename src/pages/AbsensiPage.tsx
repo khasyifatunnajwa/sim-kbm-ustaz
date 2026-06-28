@@ -52,7 +52,7 @@ export default function AbsensiPage({ showToast }: { showToast: ShowToast }) {
     supabase.from('murid').select('*').eq('status_aktif', true).order('nama').then(({ data }) => {
       const murid = (data ?? []) as Murid[];
       setMuridList(murid);
-      const kelas = [...new Set(murid.map(m => m.kelas).filter(Boolean))].sort();
+      const kelas = [...new Set(murid.map(m => m.kelas).filter((k): k is string => Boolean(k)))].sort();
       setKelasOptions(kelas);
       if (kelas.length) setSelectedKelas(kelas[0]);
     });
@@ -75,7 +75,7 @@ export default function AbsensiPage({ showToast }: { showToast: ShowToast }) {
     muridKelas.forEach(m => { map[m.id] = 'Hadir'; });
     if (muridIds.length) {
       const { data } = await supabase.from('absensi').select('*').eq('tanggal', tgl).in('murid_id', muridIds);
-      (data ?? []).forEach((a: Absensi) => { map[a.murid_id] = a.status as Status; });
+      (data ?? []).forEach((a: Absensi) => { if (a.murid_id) map[a.murid_id] = a.status as Status; });
     }
     setAttendance(map);
     setLoading(false);
@@ -117,7 +117,7 @@ export default function AbsensiPage({ showToast }: { showToast: ShowToast }) {
       grouped[m.id] = { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0 };
     });
     (data ?? []).forEach((a: Absensi) => {
-      if (grouped[a.murid_id]) {
+      if (a.murid_id && grouped[a.murid_id]) {
         grouped[a.murid_id][a.status as Status] = (grouped[a.murid_id][a.status as Status] ?? 0) + 1;
       }
     });

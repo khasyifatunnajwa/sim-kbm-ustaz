@@ -4,16 +4,19 @@ import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import ToastContainer from './components/ToastContainer';
 import { useToast } from './hooks/useToast';
-import type { ActiveTab, ShowToast } from './types';
+import type { ActiveTab, ShowToast, Profile } from './types';
 
+import DashboardPage from './pages/DashboardPage';
 import JadwalPage from './pages/JadwalPage';
 import MuridPage from './pages/MuridPage';
 import AbsensiPage from './pages/AbsensiPage';
-import KbmPage from './pages/KbmPage';
-import SikapPage from './pages/SikapPage';
+import JurnalPage from './pages/JurnalPage';
 import NilaiPage from './pages/NilaiPage';
+import SikapPage from './pages/SikapPage';
+import CatatanPage from './pages/CatatanPage';
 import SoalPage from './pages/SoalPage';
 import AgendaPage from './pages/AgendaPage';
+import AdminPage from './pages/AdminPage';
 
 function LoadingScreen() {
   return (
@@ -33,37 +36,38 @@ function LoadingScreen() {
 
 function AuthScreen({ showToast }: { showToast: ShowToast }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
+  const [idLogin, setIdLogin] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
   const friendlyError = (msg: string) => {
-    if (msg.includes('Invalid login credentials')) return 'Email atau kata sandi salah. Belum punya akun? Klik "Daftar".';
-    if (msg.includes('Email not confirmed')) return 'Email belum dikonfirmasi. Cek kotak masuk email Anda.';
-    if (msg.includes('User already registered')) return 'Email sudah terdaftar. Silakan masuk.';
+    if (msg.includes('Invalid login credentials')) return 'ID Login atau kata sandi salah.';
+    if (msg.includes('Email not confirmed')) return 'Email belum dikonfirmasi.';
+    if (msg.includes('User already registered')) return 'ID Login sudah terdaftar.';
     if (msg.includes('Password should be')) return 'Kata sandi minimal 6 karakter.';
-    if (msg.includes('Unable to validate')) return 'Format email tidak valid.';
     return msg;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!idLogin || !password) {
+      showToast('Isi ID Login dan kata sandi', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
+      // Convert ID Login to dummy email for Supabase Auth
+      const email = `${idLogin.toLowerCase().replace(/[^a-z0-9]/g, '')}@madrasah.local`;
+
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        if (data.session) {
-          // Email confirmation not required — user is logged in automatically
-          showToast('Akun berhasil dibuat!', 'success');
-        } else {
-          // Email confirmation required
-          setAwaitingConfirm(true);
-        }
+        showToast('Akun berhasil dibuat! Silakan login.', 'success');
+        setMode('login');
       }
     } catch (err: any) {
       showToast(friendlyError(err.message || 'Terjadi kesalahan'), 'error');
@@ -71,33 +75,6 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
       setLoading(false);
     }
   };
-
-  if (awaitingConfirm) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-100 p-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="w-20 h-20 bg-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-200">
-            <BookOpen className="w-10 h-10 text-white" />
-          </div>
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6">
-            <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">📧</span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-800 mb-2">Cek Email Anda</h2>
-            <p className="text-sm text-slate-500 mb-4">
-              Kami mengirim link konfirmasi ke <strong>{email}</strong>. Buka email tersebut lalu kembali ke sini untuk masuk.
-            </p>
-            <button
-              onClick={() => { setAwaitingConfirm(false); setMode('login'); }}
-              className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl"
-            >
-              Sudah Konfirmasi? Masuk
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-100 p-4">
@@ -126,25 +103,17 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
             </button>
           </div>
 
-          {mode === 'login' && (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 mb-4">
-              <p className="text-xs text-amber-700 font-medium">
-                Pertama kali? Klik <strong>Daftar</strong> untuk membuat akun baru.
-              </p>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">ID Login</label>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="text"
+                value={idLogin}
+                onChange={e => setIdLogin(e.target.value)}
                 className="input-field"
-                placeholder="ustaz@madrasah.com"
+                placeholder="Contoh: ustaz01"
                 required
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
             <div>
@@ -172,7 +141,7 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          Sistem Informasi Manajemen KBM Ustaz
+          Sistem Informasi Manajemen KBM Ustaz V2.0
         </p>
       </div>
     </div>
@@ -181,22 +150,64 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('jadwal');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [tabHistory, setTabHistory] = useState<ActiveTab[]>([]);
   const backPressCount = useRef(0);
   const { toasts, showToast, removeToast } = useToast();
 
+  // Fetch profile after auth
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+
+    // If no profile exists, create one with default ustaz role
+    if (!data) {
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert([{ id: userId, role: 'ustaz', is_active: true }])
+        .select()
+        .maybeSingle();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return null;
+      }
+      return newProfile as Profile;
+    }
+
+    return data as Profile;
+  };
+
   useEffect(() => {
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
         setUser(session?.user ?? null);
+        if (session?.user) {
+          const p = await fetchProfile(session.user.id);
+          setProfile(p);
+        }
       })
       .catch(() => setUser(null))
       .finally(() => setAuthLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        const p = await fetchProfile(session.user.id);
+        setProfile(p);
+      } else {
+        setProfile(null);
+      }
       setAuthLoading(false);
     });
     return () => subscription.unsubscribe();
@@ -208,19 +219,17 @@ export default function App() {
     setActiveTab(tab);
   };
 
-  // Handle Android back button: navigate back through tab history, double-press to exit
+  // Handle Android back button
   useEffect(() => {
     const handleBack = (e: PopStateEvent) => {
       e.preventDefault();
-      if (activeTab !== 'jadwal') {
-        // Go back to previous tab if history exists, else go to jadwal
-        const prev = tabHistory[tabHistory.length - 1] ?? 'jadwal';
+      if (activeTab !== 'dashboard') {
+        const prev = tabHistory[tabHistory.length - 1] ?? 'dashboard';
         setTabHistory(prev => prev.slice(0, -1));
         setActiveTab(prev);
         window.history.pushState(null, '', window.location.pathname);
         backPressCount.current = 0;
       } else {
-        // On main menu: require double press to exit
         const next = backPressCount.current + 1;
         backPressCount.current = next;
         if (next >= 2) {
@@ -255,14 +264,17 @@ export default function App() {
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'jadwal':   return <JadwalPage showToast={showToast} />;
-      case 'murid':    return <MuridPage showToast={showToast} />;
-      case 'absensi':  return <AbsensiPage showToast={showToast} />;
-      case 'kbm':      return <KbmPage showToast={showToast} />;
-      case 'sikap':    return <SikapPage showToast={showToast} />;
-      case 'nilai':    return <NilaiPage showToast={showToast} />;
-      case 'soal':     return <SoalPage showToast={showToast} />;
-      case 'agenda':   return <AgendaPage showToast={showToast} />;
+      case 'dashboard': return <DashboardPage showToast={showToast} profile={profile} />;
+      case 'jadwal':    return <JadwalPage showToast={showToast} />;
+      case 'murid':     return <MuridPage showToast={showToast} />;
+      case 'absensi':   return <AbsensiPage showToast={showToast} />;
+      case 'jurnal':    return <JurnalPage showToast={showToast} />;
+      case 'nilai':     return <NilaiPage showToast={showToast} />;
+      case 'sikap':     return <SikapPage showToast={showToast} />;
+      case 'catatan':   return <CatatanPage showToast={showToast} />;
+      case 'soal':      return <SoalPage showToast={showToast} />;
+      case 'agenda':    return <AgendaPage showToast={showToast} />;
+      case 'admin':     return <AdminPage showToast={showToast} profile={profile} />;
       default:         return null;
     }
   };
@@ -272,7 +284,7 @@ export default function App() {
       <Layout
         activeTab={activeTab}
         setActiveTab={handleTabChange}
-        userEmail={user?.email}
+        profile={profile}
         onLogout={handleLogout}
       >
         {renderPage()}

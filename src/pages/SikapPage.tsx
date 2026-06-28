@@ -1,30 +1,37 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Heart, Award, AlertTriangle, StickyNote, Plus, Trash2, Pencil, Users,
+  Plus, Trash2, Pencil, Users, TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
-import type { Murid, CatatanPerilaku, ShowToast } from '../types';
+import type { Murid, Sikap, ShowToast } from '../types';
 
-type Jenis = 'prestasi' | 'pelanggaran' | 'catatan';
-
-const JENIS_CONFIG: Record<Jenis, { icon: React.ElementType; bg: string; text: string; border: string; label: string }> = {
-  prestasi:    { icon: Award,          bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Prestasi' },
-  pelanggaran: { icon: AlertTriangle,  bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    label: 'Pelanggaran' },
-  catatan:     { icon: StickyNote,     bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     label: 'Catatan' },
-};
+const SIKAP_FIELDS = [
+  { key: 'disiplin', label: 'Disiplin', color: 'emerald' },
+  { key: 'adab', label: 'Adab', color: 'amber' },
+  { key: 'kerajinan', label: 'Kerajinan', color: 'sky' },
+  { key: 'kejujuran', label: 'Kejujuran', color: 'rose' },
+  { key: 'tanggung_jawab', label: 'Tanggung Jawab', color: 'slate' },
+] as const;
 
 export default function SikapPage({ showToast }: { showToast: ShowToast }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
-  const [perilakuList, setPerilakuList] = useState<CatatanPerilaku[]>([]);
+  const [sikapList, setSikapList] = useState<Sikap[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [filterKelas, setFilterKelas] = useState('');
   const [selectedMurid, setSelectedMurid] = useState<string>('');
-  const [jenis, setJenis] = useState<Jenis>('catatan');
-  const [catatan, setCatatan] = useState('');
+  const [sikapForm, setSikapForm] = useState({
+    tanggal: new Date().toISOString().split('T')[0],
+    disiplin: 80,
+    adab: 80,
+    kerajinan: 80,
+    kejujuran: 80,
+    tanggung_jawab: 80,
+    catatan: '',
+  });
 
   const kelasOptions = useMemo(
     () => [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
@@ -38,7 +45,7 @@ export default function SikapPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: muridData } = await supabase.from('murid').select('*').order('nama');
+    const { data: muridData } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
     if (muridData) setMuridList(muridData as Murid[]);
     setLoading(false);
   };
@@ -46,51 +53,89 @@ export default function SikapPage({ showToast }: { showToast: ShowToast }) {
   useEffect(() => { fetchData(); }, []);
 
   useEffect(() => {
-    if (selectedMurid) loadPerilaku(selectedMurid);
-    else setPerilakuList([]);
+    if (selectedMurid) loadSikap(selectedMurid);
+    else setSikapList([]);
   }, [selectedMurid]);
 
-  const loadPerilaku = async (muridId: string) => {
-    const { data } = await supabase.from('catatan_perilaku')
-      .select('*').eq('murid_id', muridId)
-      .order('created_at', { ascending: false });
-    if (data) setPerilakuList(data as CatatanPerilaku[]);
+  const loadSikap = async (muridId: string) => {
+    const { data } = await supabase.from('sikap')
+      .select('*')
+      .eq('murid_id', muridId)
+      .order('tanggal', { ascending: false });
+    if (data) setSikapList(data as Sikap[]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMurid || !catatan.trim()) { showToast('Pilih santri dan isi catatan', 'error'); return; }
+    if (!selectedMurid) { showToast('Pilih santri terlebih dahulu', 'error'); return; }
     setSaving(true);
-    const payload = { murid_id: selectedMurid, jenis, catatan: catatan.trim() };
+    const payload = {
+      murid_id: selectedMurid,
+      tanggal: sikapForm.tanggal,
+      disiplin: sikapForm.disiplin,
+      adab: sikapForm.adab,
+      kerajinan: sikapForm.kerajinan,
+      kejujuran: sikapForm.kejujuran,
+      tanggung_jawab: sikapForm.tanggung_jawab,
+      catatan: sikapForm.catatan || null,
+    };
     const { error } = editingId
-      ? await supabase.from('catatan_perilaku').update({ jenis, catatan: catatan.trim() }).eq('id', editingId)
-      : await supabase.from('catatan_perilaku').insert(payload);
+      ? await supabase.from('sikap').update(payload).eq('id', editingId)
+      : await supabase.from('sikap').insert(payload);
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
-    showToast(editingId ? 'Catatan diperbarui!' : 'Catatan perilaku disimpan!', 'success');
-    setCatatan(''); setEditingId(null);
-    loadPerilaku(selectedMurid);
+    showToast(editingId ? 'Penilaian sikap diperbarui!' : 'Penilaian sikap disimpan!', 'success');
+    resetForm();
+    loadSikap(selectedMurid);
   };
 
-  const openEdit = (p: CatatanPerilaku) => {
-    setEditingId(p.id);
-    setJenis(p.jenis);
-    setCatatan(p.catatan);
+  const openEdit = (s: Sikap) => {
+    setEditingId(s.id);
+    setSikapForm({
+      tanggal: s.tanggal,
+      disiplin: s.disiplin || 80,
+      adab: s.adab || 80,
+      kerajinan: s.kerajinan || 80,
+      kejujuran: s.kejujuran || 80,
+      tanggung_jawab: s.tanggung_jawab || 80,
+      catatan: s.catatan || '',
+    });
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setSikapForm({
+      tanggal: new Date().toISOString().split('T')[0],
+      disiplin: 80, adab: 80, kerajinan: 80, kejujuran: 80, tanggung_jawab: 80,
+      catatan: '',
+    });
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('catatan_perilaku').delete().eq('id', id);
-    setPerilakuList(prev => prev.filter(p => p.id !== id));
+    await supabase.from('sikap').delete().eq('id', id);
+    setSikapList(prev => prev.filter(s => s.id !== id));
     showToast('Dihapus', 'info');
   };
 
   const selectedMuridData = muridList.find(m => m.id === selectedMurid);
 
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'text-emerald-600 bg-emerald-50';
+    if (score >= 80) return 'text-sky-600 bg-sky-50';
+    if (score >= 70) return 'text-amber-600 bg-amber-50';
+    return 'text-rose-600 bg-rose-50';
+  };
+
+  const averageScore = (s: Sikap) => {
+    const scores = [s.disiplin, s.adab, s.kerajinan, s.kejujuran, s.tanggung_jawab].filter(v => v != null) as number[];
+    return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+  };
+
   return (
     <div>
       <div className="mb-5">
-        <h2 className="section-title">Catatan Sikap & Akhlak</h2>
-        <p className="section-subtitle">Pantau perkembangan karakter santri</p>
+        <h2 className="section-title">Penilaian Sikap</h2>
+        <p className="section-subtitle">Nilai karakter santri: disiplin, adab, kerajinan, kejujuran, tanggung jawab</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -137,43 +182,62 @@ export default function SikapPage({ showToast }: { showToast: ShowToast }) {
               {/* Form */}
               <div className="card p-5">
                 <h3 className="font-bold text-slate-800 mb-4 text-sm">
-                  Catatan untuk: <span className="text-emerald-600">{selectedMuridData?.nama}</span>
+                  Penilaian Sikap: <span className="text-emerald-600">{selectedMuridData?.nama}</span>
                 </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-2">Jenis Catatan</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(Object.keys(JENIS_CONFIG) as Jenis[]).map(j => {
-                        const config = JENIS_CONFIG[j];
-                        const Icon = config.icon;
-                        return (
-                          <button
-                            key={j}
-                            type="button"
-                            onClick={() => setJenis(j)}
-                            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all border ${jenis === j ? `${config.bg} ${config.text} ${config.border} ring-2 ring-offset-1` : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                          >
-                            <Icon className="w-3.5 h-3.5" />
-                            {config.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catatan</label>
-                    <textarea
-                      rows={3}
-                      className="input-field text-sm resize-none"
-                      placeholder="Tulis catatan perilaku, prestasi, atau pelanggaran..."
-                      value={catatan}
-                      onChange={e => setCatatan(e.target.value)}
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tanggal</label>
+                    <input
+                      type="date"
+                      value={sikapForm.tanggal}
+                      onChange={e => setSikapForm(p => ({ ...p, tanggal: e.target.value }))}
+                      className="input-field text-sm"
                       required
                     />
                   </div>
+
+                  {/* Sikap Scores */}
+                  <div className="space-y-3">
+                    {SIKAP_FIELDS.map(field => (
+                      <div key={field.key} className="flex items-center gap-3">
+                        <label className="text-xs font-semibold text-slate-600 w-32">{field.label}</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={sikapForm[field.key]}
+                          onChange={e => setSikapForm(p => ({ ...p, [field.key]: Number(e.target.value) }))}
+                          className="flex-1 accent-emerald-600"
+                        />
+                        <span className={`w-12 text-center text-xs font-bold rounded-lg py-1 ${getScoreColor(sikapForm[field.key])}`}>
+                          {sikapForm[field.key]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Average */}
+                  <div className="bg-emerald-50 rounded-xl p-3 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-600">Rata-rata</span>
+                    <span className="text-lg font-bold text-emerald-600">
+                      {((sikapForm.disiplin + sikapForm.adab + sikapForm.kerajinan + sikapForm.kejujuran + sikapForm.tanggung_jawab) / 5).toFixed(1)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catatan</label>
+                    <textarea
+                      rows={2}
+                      className="input-field text-sm resize-none"
+                      placeholder="Catatan tambahan..."
+                      value={sikapForm.catatan}
+                      onChange={e => setSikapForm(p => ({ ...p, catatan: e.target.value }))}
+                    />
+                  </div>
+
                   <div className="flex gap-2 justify-end">
                     {editingId && (
-                      <button type="button" onClick={() => { setEditingId(null); setCatatan(''); }} className="btn-secondary text-sm">
+                      <button type="button" onClick={resetForm} className="btn-secondary text-sm">
                         Batal Edit
                       </button>
                     )}
@@ -188,45 +252,70 @@ export default function SikapPage({ showToast }: { showToast: ShowToast }) {
               {/* History */}
               <div className="card p-5">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm">
-                  <Heart className="w-4 h-4 text-slate-400" />
-                  Histori Sikap Santri
+                  <TrendingUp className="w-4 h-4 text-slate-400" />
+                  Histori Penilaian Sikap
                 </h3>
-                <div className="space-y-3">
-                  {perilakuList.map(p => {
-                    const config = JENIS_CONFIG[p.jenis];
-                    const Icon = config.icon;
-                    return (
-                      <div key={p.id} className={`p-3.5 rounded-xl border group transition-all hover:shadow-sm ${config.bg} ${config.border}`}>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <Icon className={`w-4 h-4 ${config.text}`} />
-                          <span className={`text-xs font-bold uppercase ${config.text}`}>{config.label}</span>
-                          <span className="text-[10px] text-slate-400 ml-auto">
-                            {new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </span>
+                {sikapList.length === 0 ? (
+                  <EmptyState title="Belum ada penilaian" description="Belum ada penilaian sikap tercatat." />
+                ) : (
+                  <div className="space-y-3">
+                    {sikapList.map(s => {
+                      const avg = averageScore(s);
+                      return (
+                        <div key={s.id} className="bg-slate-50 rounded-xl p-4 group">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs text-slate-500 font-medium">
+                              {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-bold ${avg >= 80 ? 'text-emerald-600' : avg >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                {avg.toFixed(1)}
+                              </span>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-white text-slate-400 hover:text-emerald-600">
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => handleDelete(s.id)} className="p-1 rounded hover:bg-white text-slate-400 hover:text-rose-500">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Score bars */}
+                          <div className="space-y-2">
+                            {SIKAP_FIELDS.map(field => {
+                              const value = s[field.key] ?? 0;
+                              return (
+                                <div key={field.key} className="flex items-center gap-2">
+                                  <span className="text-[10px] text-slate-500 w-24">{field.label}</span>
+                                  <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${value >= 80 ? 'bg-emerald-500' : value >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                                      style={{ width: `${value}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] font-semibold text-slate-600 w-6 text-right">{value}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {s.catatan && (
+                            <p className="text-xs text-slate-500 italic mt-2 pt-2 border-t border-slate-200">{s.catatan}</p>
+                          )}
                         </div>
-                        <p className="text-slate-700 font-medium text-sm leading-relaxed pr-8">{p.catatan}</p>
-                        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-white/50 text-slate-400 hover:text-emerald-600 transition-colors">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-lg hover:bg-white/50 text-slate-400 hover:text-rose-500 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {perilakuList.length === 0 && (
-                    <EmptyState title="Belum ada catatan" description="Belum ada rekam jejak sikap tercatat." />
-                  )}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </>
           ) : (
             <div className="card border-dashed border-slate-200 p-12 text-center">
               <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <p className="text-sm text-slate-400 font-medium">
-                Pilih kelas dan santri di sebelah kiri untuk mengelola catatan sikap
+                Pilih kelas dan santri di sebelah kiri untuk mengelola penilaian sikap
               </p>
             </div>
           )}

@@ -12,32 +12,40 @@ import {
   ChevronRight,
   Heart,
   FileQuestion,
+  Home,
+  FileText,
+  Shield,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import type { ActiveTab } from '../types';
+import type { ActiveTab, Profile } from '../types';
 
 interface LayoutProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
-  userEmail?: string;
+  profile?: Profile | null;
   onLogout: () => void;
   children: React.ReactNode;
 }
 
-const navItems: { id: ActiveTab; icon: React.ElementType; label: string }[] = [
+const navItems: { id: ActiveTab; icon: React.ElementType; label: string; adminOnly?: boolean }[] = [
+  { id: 'dashboard', icon: Home, label: 'Beranda' },
   { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
   { id: 'murid', icon: Users, label: 'Santri' },
   { id: 'absensi', icon: ClipboardCheck, label: 'Absensi' },
-  { id: 'kbm', icon: BookOpen, label: 'Buku Saku' },
-  { id: 'sikap', icon: Heart, label: 'Sikap' },
+  { id: 'jurnal', icon: FileText, label: 'Jurnal' },
   { id: 'nilai', icon: BarChart3, label: 'Nilai' },
+  { id: 'sikap', icon: Heart, label: 'Sikap' },
+  { id: 'catatan', icon: BookOpen, label: 'Catatan' },
   { id: 'soal', icon: FileQuestion, label: 'Soal' },
   { id: 'agenda', icon: Bell, label: 'Agenda' },
+  { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true },
 ];
 
-export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, children }: LayoutProps) {
+export default function Layout({ activeTab, setActiveTab, profile, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [now, setNow] = useState(new Date());
+
+  const isAdmin = profile?.role === 'admin';
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -49,7 +57,10 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
     setSidebarOpen(false);
   };
 
+  const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
   const activeLabel = navItems.find(n => n.id === activeTab)?.label ?? '';
+
+  const displayName = profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Ustaz';
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20 md:pb-0 md:pl-64">
@@ -62,13 +73,13 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
             </div>
             <div>
               <p className="font-bold text-base leading-tight">SIM KBM Ustaz</p>
-              <p className="text-[10px] text-emerald-100">Portal Manajemen Kelas</p>
+              <p className="text-[10px] text-emerald-100">V2.0 Multi-Tenant</p>
             </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {navItems.map(item => {
+          {filteredNavItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
@@ -90,7 +101,10 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
             <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-emerald-600" />
             </div>
-            <span className="text-xs font-medium text-slate-600 truncate">{userEmail ?? 'Ustaz'}</span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-800 truncate">{displayName}</p>
+              <p className="text-[10px] text-slate-400">{profile?.role === 'admin' ? 'Administrator' : profile?.role === 'operator' ? 'Operator' : 'Ustaz'}</p>
+            </div>
           </div>
           <button
             onClick={onLogout}
@@ -120,7 +134,7 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
               </button>
             </div>
             <div className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-              {navItems.map(item => {
+              {filteredNavItems.map(item => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
@@ -177,8 +191,8 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
       </header>
 
       {/* Bottom Nav Mobile */}
-      <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] z-30 flex justify-around px-1 py-1.5">
-        {navItems.map(item => {
+      <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] z-30 flex justify-around px-1 py-1.5 overflow-x-auto">
+        {filteredNavItems.slice(0, 6).map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
@@ -196,6 +210,16 @@ export default function Layout({ activeTab, setActiveTab, userEmail, onLogout, c
             </button>
           );
         })}
+        {/* More button */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="flex flex-col items-center justify-center py-1 px-2 rounded-xl min-w-[52px] text-slate-400"
+        >
+          <div className="p-1.5 rounded-xl mb-0.5">
+            <Menu className="w-[18px] h-[18px]" />
+          </div>
+          <span className="text-[9px] leading-none font-medium">Lainnya</span>
+        </button>
       </nav>
 
       {/* Main Content */}

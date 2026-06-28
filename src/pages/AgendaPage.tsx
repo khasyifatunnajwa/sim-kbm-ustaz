@@ -81,7 +81,7 @@ export default function AgendaPage({ showToast }: { showToast: ShowToast }) {
     showToast('Agenda dihapus', 'info');
   };
 
-  const deletePeng = async (id: number) => {
+  const deletePeng = async (id: string | number) => {
     await supabase.from('pengumuman').delete().eq('id', id);
     setPengumumanList(prev => prev.filter(p => p.id !== id));
     showToast('Pengumuman dihapus', 'info');
@@ -164,12 +164,12 @@ export default function AgendaPage({ showToast }: { showToast: ShowToast }) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="font-bold text-slate-800 text-sm">{p.judul}</span>
-                          <span className={`badge text-[10px] ${KAT_COLOR[p.kategori] ?? 'bg-slate-100 text-slate-600'}`}>{p.kategori}</span>
+                          <span className={`badge text-[10px] ${KAT_COLOR[p.kategori ?? ''] ?? 'bg-slate-100 text-slate-600'}`}>{p.kategori}</span>
                         </div>
-                        <p className="text-xs text-slate-400 mb-2">{formatDate(p.tanggal)}</p>
+                        <p className="text-xs text-slate-400 mb-2">{p.tanggal ? formatDate(p.tanggal) : ''}</p>
                         <p className="text-sm text-slate-700 leading-relaxed">{p.isi}</p>
                       </div>
-                      <button onClick={() => deletePeng(p.id)} className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex-shrink-0">
+                      <button onClick={() => deletePeng(String(p.id))} className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex-shrink-0">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
