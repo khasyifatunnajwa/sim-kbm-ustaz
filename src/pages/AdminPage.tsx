@@ -52,7 +52,7 @@ export default function AdminPage({
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('tahun_ajaran').select('*').order('nama'),
         supabase.from('semester').select('*').order('nama'),
-        supabase.from('kelas').select('*').eq('aktif', true).order('nama_kelas'),
+        supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
         supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
       ]);
 
@@ -202,8 +202,9 @@ export default function AdminPage({
     setSaving(true);
     const payload = {
       nama_kelas: kelasForm.nama_kelas,
-      tingkat: Number(kelasForm.tingkat),
+      tingkat: kelasForm.tingkat,
       kode: kelasForm.kode || null,
+      user_id: profile?.id,
     };
     let error;
     if (editingId) {
@@ -242,6 +243,7 @@ export default function AdminPage({
       nama_mapel: mapelForm.nama_mapel,
       kelompok: mapelForm.kelompok,
       kode: mapelForm.kode || null,
+      user_id: profile?.id,
     };
     const { error } = editingId
       ? await supabase.from('mata_pelajaran').update(payload).eq('id', editingId)
