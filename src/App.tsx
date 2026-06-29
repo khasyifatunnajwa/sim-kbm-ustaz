@@ -150,7 +150,7 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
   const [loading, setLoading] = useState(false);
 
   const friendlyError = (msg: string) => {
-    if (msg.includes('Invalid login credentials')) return 'ID Login atau kata sandi salah.';
+    if (msg.includes('Invalid login credentials')) return 'ID Login/Email atau kata sandi salah.';
     if (msg.includes('Email not confirmed')) return 'Email belum dikonfirmasi.';
     if (msg.includes('User already registered')) return 'ID Login sudah terdaftar.';
     if (msg.includes('Password should be')) return 'Kata sandi minimal 6 karakter.';
@@ -162,14 +162,32 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idLogin || !password) {
-      showToast('Isi ID Login dan kata sandi', 'error');
+      showToast('Isi ID Login/Email dan kata sandi', 'error');
       return;
     }
 
     setLoading(true);
     try {
-      // Convert ID Login to dummy email for Supabase Auth
-      const email = `${idLogin.toLowerCase().replace(/[^a-z0-9]/g, '')}@madrasah.local`;
+      let email: string;
+
+      // Check if input is already an email
+      if (idLogin.includes('@')) {
+        email = idLogin.toLowerCase().trim();
+      } else {
+        // Try to lookup real email from profiles table by id_login
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id_login', idLogin.toLowerCase().trim())
+          .maybeSingle();
+
+        if (profile?.email) {
+          email = profile.email;
+        } else {
+          // Fallback: try id_login as email prefix with madrasah.local
+          email = `${idLogin.toLowerCase().replace(/[^a-z0-9]/g, '')}@madrasah.local`;
+        }
+      }
 
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -216,13 +234,13 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">ID Login</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">ID Login / Email</label>
               <input
                 type="text"
                 value={idLogin}
                 onChange={e => setIdLogin(e.target.value)}
                 className="input-field"
-                placeholder="Contoh: ustaz01"
+                placeholder="ID Login atau alamat email"
                 required
                 autoComplete="username"
               />
