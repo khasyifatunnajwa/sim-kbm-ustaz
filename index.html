@@ -17,6 +17,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SIM KBM" />
 
+    <!-- Disable cache for this HTML file -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
     <!-- Open Graph -->
     <meta property="og:title" content="SIM KBM Ustaz" />
     <meta property="og:description" content="Sistem Informasi Manajemen Kegiatan Belajar Mengajar Madrasah" />
@@ -31,11 +36,25 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Register Service Worker
+      // Unregister old service workers
       if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(registration => registration.unregister());
+        }).catch(err => console.log('[SW] Error unregistering:', err));
+
+        // Register new service worker
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(console.error);
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(err => {
+            console.log('[SW] Registration failed:', err);
+          });
         });
+      }
+
+      // Clear sessionStorage on page load for clean state
+      if (!sessionStorage.getItem('_init_complete')) {
+        // First time loading
+        sessionStorage.clear();
+        sessionStorage.setItem('_init_complete', 'true');
       }
     </script>
   </body>

@@ -1,25 +1,14 @@
 // SIM KBM Ustaz V2.0 - Service Worker
-const CACHE_NAME = 'simkbm-v3.0.0'; // Changed version to clear old cache
-const STATIC_ASSETS = [
-  '/manifest.json'
-  // Note: Don't cache index.html - let browser always fetch fresh
-];
+const CACHE_NAME = 'simkbm-v4.0.0';
+const STALE_CACHE_TIMEOUT = 30000; // 30 seconds
 
-// Install event - cache static assets only
+// Install event
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(err => {
-        console.error('[SW] Error during install:', err);
-        // Don't fail install if static assets can't be cached
-      });
-    })
-  );
+  console.log('[SW] Installing v4.0.0...');
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - remove old caches
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating...');
   event.waitUntil(
@@ -37,142 +26,101 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - network first strategy
+// Fetch event with strict caching rules
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
 
-  // Skip chrome extensions and other non-http(s)
-  if (!url.protocol.startsWith('http')) {
-    return;
-  }
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
 
-  // NEVER cache HTML pages - always fetch fresh from network
-  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+  // Skip non-http(s)
+  if (!url.protocol.startsWith('http')) return;
+
+  // RULE 1: NEVER cache navigation/HTML requests
+  if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Don't cache HTML
+          console.log('[SW] Navigation request from network:', url.pathname);
           return response;
         })
         .catch((error) => {
-          console.error('[SW] Fetch error:', error);
-          // Return offline page only for navigation
-          if (event.request.mode === 'navigate') {
-            return new Response(
-              '<!DOCTYPE html><html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center"><h1>Offline</h1><p>Tidak dapat terhubung ke server. Periksa koneksi internet Anda.</p></div></body></html>',
-              { 
-                status: 503, 
-                headers: { 'Content-Type': 'text/html' } 
-              }
-            );
-          }
-          return new Response('Offline', { status: 503 });
+          console.error('[SW] Navigation fetch failed:', error);
+          return new Response(
+            '<!DOCTYPE html><html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh"><div style="text-align:center"><h1>Offline</h1><p>Tidak dapat terhubung. Periksa internet Anda.</p></div></body></html>',
+            { status: 503, headers: { 'Content-Type': 'text/html' } }
+          );
         })
     );
     return;
   }
 
-  // For API requests (Supabase) - network only, no cache
+  // RULE 2: NEVER cache Supabase/API requests
   if (url.hostname.includes('supabase.co') || url.pathname.includes('/functions/')) {
     event.respondWith(
       fetch(event.request)
-        .then(response => response)
+        .then((response) => response)
         .catch(() => {
+          console.log('[SW] API request failed, no fallback');
           return new Response(JSON.stringify({ error: 'Offline' }), {
             status: 503,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
           });
         })
     );
     return;
   }
 
-  // For other assets (JS, CSS, fonts, images) - cache first, fallback to network
-  if (url.pathname.match(/\.(js|css|woff2?|ttf|svg|png|jpg|jpeg|gif|webp)$/i)) {
+  // RULE 3: For static assets (.js, .css, fonts, images) - use cache-first
+  if (url.pathname.match(/\.(js|css|woff2?|ttf|svg|png|jpg|jpeg|gif|webp|json)$/i)) {
     event.respondWith(
-      caches.match(event.request)
-        .then((cachedResponse) => {
-          if (cachedResponse) {
-            // Update cache in background
-            fetch(event.request).then(response => {
-              if (response && response.status === 200) {
-                caches.open(CACHE_NAME).then(cache => {
-                  cache.put(event.request, response.clone());
-                });
-              }
-            }).catch(() => {
-              // Silently fail if network is down
-            });
-            return cachedResponse;
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((response) => {
+          if (response) {
+            console.log('[SW] Static asset from cache:', url.pathname);
+            // Update cache in background (fire-and-forget)
+            fetch(event.request)
+              .then((freshResponse) => {
+                if (freshResponse && freshResponse.status === 200) {
+                  cache.put(event.request, freshResponse.clone());
+                }
+              })
+              .catch(() => {});
+            return response;
           }
 
           // Not in cache, fetch from network
+          console.log('[SW] Static asset from network:', url.pathname);
           return fetch(event.request)
             .then((response) => {
-              // Clone and cache successful responses
               if (response && response.status === 200) {
                 const responseClone = response.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, responseClone);
-                });
+                cache.put(event.request, responseClone);
               }
               return response;
             })
-            .catch(() => {
-              // Return placeholder if offline
-              return new Response('Asset not available offline', { status: 503 });
+            .catch((error) => {
+              console.error('[SW] Static asset fetch failed:', url.pathname, error);
+              return new Response('Asset not available', { status: 503 });
             });
-        })
+        });
+      })
     );
     return;
   }
 
-  // Default: network first, no cache
+  // RULE 4: Default - network first with timeout
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return new Response('Offline', { status: 503 });
-    })
-  );
-});
-
-// Background sync for offline data
-self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync:', event.tag);
-  if (event.tag === 'sync-data') {
-    event.waitUntil(syncData());
-  }
-});
-
-async function syncData() {
-  console.log('[SW] Syncing data...');
-  // Placeholder for background sync logic
-}
-
-// Push notification handler
-self.addEventListener('push', (event) => {
-  const data = event.data?.json() ?? {};
-  const title = data.title || 'SIM KBM Ustaz';
-  const options = {
-    body: data.body || 'Ada notifikasi baru',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    data: data.url || '/'
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
-});
-
-// Notification click handler
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data)
+    Promise.race([
+      fetch(event.request),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Network timeout')), STALE_CACHE_TIMEOUT)
+      ),
+    ])
+      .then((response) => response)
+      .catch(() => {
+        console.log('[SW] Default strategy failed:', url.href);
+        return new Response('Offline', { status: 503 });
+      })
   );
 });
