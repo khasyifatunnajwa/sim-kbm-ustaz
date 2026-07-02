@@ -358,18 +358,9 @@ export default function App() {
   // Simpler: check profiles count. If RLS blocks anon read, assume setup NOT needed
   // (an authenticated user would have created their profile already).
   const checkSetupNeeded = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .limit(1);
-
-      // If anon can't read (RLS), error is expected -> assume not needing setup
-      if (error) return false;
-      return (!data || data.length === 0);
-    } catch {
-      return false;
-    }
+    // Setup is handled via database migration — admin user is pre-created.
+    // This screen should never appear.
+    return false;
   };
 
   // Initialize
