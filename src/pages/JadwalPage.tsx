@@ -24,8 +24,8 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
 
   const [form, setForm] = useState({
     hari: 'Senin', 
-    jam_mulai: '07:00', 
-    jam_selesai: '08:00',
+    jam_mulai: '14:00', 
+    jam_selesai: '15:00',
     kelas: '', 
     pelajaran: '', 
     ruangan: '', 
@@ -63,8 +63,8 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
     setEditingId(null);
     setForm({ 
       hari: 'Senin', 
-      jam_mulai: '07:00', 
-      jam_selesai: '08:00', 
+      jam_mulai: '14:00', 
+      jam_selesai: '15:00', 
       kelas: '', 
       pelajaran: '', 
       ruangan: '', 
