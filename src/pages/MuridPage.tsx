@@ -35,7 +35,7 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
         .from('murid')
         .select('*')
         .order('nama');
-      
+
       if (error) throw error;
       if (data) setMuridList(data as Murid[]);
     } catch (error: any) {
@@ -120,10 +120,22 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
         if (error) throw error;
         showToast('Data santri berhasil diperbarui', 'success');
       } else {
-        // Mode Insert New
+        // Mode Insert New (Perbaikan Penambahan user_id)
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          showToast('Sesi Anda telah habis, silakan login kembali', 'error');
+          return;
+        }
+
         const { error } = await supabase
           .from('murid')
-          .insert([form]);
+          .insert([
+            {
+              ...form,
+              user_id: user.id
+            }
+          ]);
 
         if (error) throw error;
         showToast('Santri baru berhasil ditambahkan', 'success');
