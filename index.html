@@ -55,13 +55,6 @@
           });
         });
       }
-
-      // Clear sessionStorage for fresh state
-      if (!window.location.hash.includes('_init')) {
-        console.log('[INIT] Clearing sessionStorage');
-        sessionStorage.clear();
-        window.history.replaceState({}, '', window.location.pathname + '#_init');
-      }
     </script>
   </body>
 </html>

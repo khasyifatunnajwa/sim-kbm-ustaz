@@ -389,6 +389,7 @@ export type ActiveTab =
   | 'catatan'
   | 'soal'
   | 'agenda'
+  | 'rapor'
   | 'pengumuman'
   | 'admin';
 

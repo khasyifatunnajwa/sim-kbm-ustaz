@@ -16,6 +16,7 @@ import {
   FileText,
   Shield,
   Download,
+  GraduationCap,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { ActiveTab, Profile } from '../types';
@@ -40,6 +41,7 @@ const navItems: { id: ActiveTab; icon: React.ElementType; label: string; adminOn
   { id: 'catatan', icon: BookOpen, label: 'Catatan' },
   { id: 'soal', icon: FileQuestion, label: 'Soal' },
   { id: 'agenda', icon: Bell, label: 'Agenda' },
+  { id: 'rapor', icon: GraduationCap, label: 'Rapor' },
   { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true },
 ];
 

@@ -16,6 +16,7 @@ import SikapPage from './pages/SikapPage';
 import CatatanPage from './pages/CatatanPage';
 import SoalPage from './pages/SoalPage';
 import AgendaPage from './pages/AgendaPage';
+import RaporPage from './pages/RaporPage';
 import AdminPage from './pages/AdminPage';
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
@@ -341,15 +342,19 @@ export default function App() {
     }
   };
 
-  // Check setup
+  // Check setup - use auth.admin via edge function would be ideal,
+  // but we can check if ANY auth user exists by attempting a dummy sign-in.
+  // Simpler: check profiles count. If RLS blocks anon read, assume setup NOT needed
+  // (an authenticated user would have created their profile already).
   const checkSetupNeeded = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id', { count: 'exact' })
+        .select('id', { count: 'exact', head: true })
         .limit(1);
 
-      if (error) return true;
+      // If anon can't read (RLS), error is expected -> assume not needing setup
+      if (error) return false;
       return (!data || data.length === 0);
     } catch {
       return false;
@@ -382,7 +387,7 @@ export default function App() {
 
           // Restore tab
           const saved = sessionStorage.getItem('activeTab') as ActiveTab;
-          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'agenda', 'admin'].includes(saved)) {
+          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'agenda', 'rapor', 'admin'].includes(saved)) {
             setActiveTab(saved);
           }
         } else {
@@ -401,18 +406,21 @@ export default function App() {
 
     initApp();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        const p = await fetchProfile(session.user.id);
-        if (p) setProfile(p);
-        setNeedsSetup(false);
-        setError(null);
-      } else {
-        setUser(null);
-        setProfile(null);
-        setActiveTab('dashboard');
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Wrap async work in IIFE to avoid deadlock inside onAuthStateChange
+      (async () => {
+        if (session?.user) {
+          setUser(session.user);
+          const p = await fetchProfile(session.user.id);
+          if (p) setProfile(p);
+          setNeedsSetup(false);
+          setError(null);
+        } else {
+          setUser(null);
+          setProfile(null);
+          setActiveTab('dashboard');
+        }
+      })();
     });
 
     return () => subscription?.unsubscribe();
@@ -480,6 +488,7 @@ export default function App() {
       case 'catatan': return <CatatanPage showToast={showToast} />;
       case 'soal': return <SoalPage showToast={showToast} />;
       case 'agenda': return <AgendaPage showToast={showToast} />;
+      case 'rapor': return <RaporPage showToast={showToast} />;
       case 'admin': return <AdminPage showToast={showToast} profile={profile} />;
       default: return null;
     }
