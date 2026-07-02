@@ -192,20 +192,31 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
       if (idLogin.includes('@')) {
         email = idLogin.toLowerCase().trim();
       } else {
+        // Lookup email by id_login via edge function (bypasses RLS)
         try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id_login', idLogin.toLowerCase().trim())
-            .maybeSingle();
-
-          if (profile?.email) {
-            email = profile.email;
+          const resp = await fetch(`${SUPABASE_URL}/functions/v1/lookup-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_login: idLogin.toLowerCase().trim() }),
+          });
+          if (resp.ok) {
+            const result = await resp.json();
+            if (result.email) {
+              email = result.email;
+            } else {
+              showToast('ID Login tidak ditemukan. Gunakan email untuk login.', 'error');
+              setLoading(false);
+              return;
+            }
           } else {
-            email = `${idLogin.toLowerCase().replace(/[^a-z0-9]/g, '')}@madrasah.local`;
+            showToast('Gagal mencari ID Login. Gunakan email untuk login.', 'error');
+            setLoading(false);
+            return;
           }
         } catch {
-          email = `${idLogin.toLowerCase().replace(/[^a-z0-9]/g, '')}@madrasah.local`;
+          showToast('Koneksi bermasalah. Gunakan email untuk login.', 'error');
+          setLoading(false);
+          return;
         }
       }
 
