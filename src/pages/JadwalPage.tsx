@@ -10,6 +10,11 @@ import type { JadwalMengajar, AgendaPenting, Pengumuman, ShowToast } from '../ty
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
+interface KelasOption {
+  id: string;
+  kode: string;
+}
+
 function getTodayHari(): string {
   const today = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
   return HARI.find(h => today.toLowerCase().startsWith(h.toLowerCase())) ?? 'Senin';
@@ -24,6 +29,7 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
   const [jadwal, setJadwal] = useState<JadwalMengajar[]>([]);
   const [agendaList, setAgendaList] = useState<AgendaPenting[]>([]);
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
+  const [kelasDaftar, setKelasDaftar] = useState<KelasOption[]>([]); // Menyimpan pilihan kelas
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -40,15 +46,27 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchData = async () => {
     setLoading(true);
-    const [jr, ar, pr] = await Promise.all([
-      supabase.from('jadwal_mengajar').select('*').order('jam_mulai'),
-      supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
-      supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
-    ]);
-    if (jr.data) setJadwal(jr.data as JadwalMengajar[]);
-    if (ar.data) setAgendaList(ar.data as AgendaPenting[]);
-    if (pr.data) setPengumumanList(pr.data as Pengumuman[]);
-    setLoading(false);
+    try {
+      const [jr, ar, pr, kr] = await Promise.all([
+        supabase.from('jadwal_mengajar').select('*').order('jam_mulai'),
+        supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
+        supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
+        supabase.from('kelas').select('id, kode'), // Ambil data tabel kelas
+      ]);
+
+      if (jr.data) setJadwal(jr.data as JadwalMengajar[]);
+      if (ar.data) setAgendaList(ar.data as AgendaPenting[]);
+      if (pr.data) setPengumumanList(pr.data as Pengumuman[]);
+      if (kr.data) {
+        // Mengurutkan abjad kelas agar rapi di dropdown
+        const sortedKelas = [...kr.data].sort((a, b) => a.kode.localeCompare(b.kode));
+        setKelasDaftar(sortedKelas);
+      }
+    } catch (error: any) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -295,6 +313,7 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
             const items = grouped[hari];
             if (!items.length) return null;
             const isToday = hari === todayHari;
+
             return (
               <div key={hari} className={`card overflow-hidden ${isToday ? 'ring-2 ring-emerald-300' : ''}`}>
                 <div className={`px-4 py-2.5 flex items-center justify-between ${isToday ? 'bg-emerald-600' : 'bg-slate-50 border-b border-slate-100'}`}>
@@ -342,15 +361,31 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
                 {HARI.map(h => <option key={h}>{h}</option>)}
               </select>
             </div>
+            
+            {/* --- FITUR DROPDOWN KELAS --- */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
-              <input type="text" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" placeholder="cth. 3A" required />
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
+              <select
+                required
+                value={form.kelas}
+                onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
+                className="input-field text-sm bg-white"
+              >
+                <option value="">-- Pilih Kelas --</option>
+                {kelasDaftar.map((k) => (
+                  <option key={k.id} value={k.kode}>
+                    {k.kode}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+          
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran</label>
-            <input type="text" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" placeholder="cth. Fiqih, Nahwu Wadhih..." required />
+            <input type="text" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" placeholder="cth. Fiqih, Nahwu..." required />
           </div>
+          
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Jam Mulai</label>
@@ -361,14 +396,17 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
               <input type="time" value={form.jam_selesai} onChange={e => setForm(p => ({ ...p, jam_selesai: e.target.value }))} className="input-field text-sm" required />
             </div>
           </div>
+          
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Ruangan (opsional)</label>
             <input type="text" value={form.ruangan} onChange={e => setForm(p => ({ ...p, ruangan: e.target.value }))} className="input-field text-sm" placeholder="cth. Kelas A, Musholla..." />
           </div>
+          
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catatan (opsional)</label>
             <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Catatan tambahan..." />
           </div>
+          
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
