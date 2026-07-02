@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, CalendarDays, MapPin, Clock, AlertCircle, Search, Inbox
+  Plus, Trash2, Pencil, CalendarDays, MapPin, Clock, AlertCircle, Search, Inbox, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -137,7 +137,6 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
     }
   };
 
-  // Fitur Pencarian & Pengelompokan Modern
   const filteredJadwal = useMemo(() => {
     return jadwal.filter(j => 
       j.pelajaran.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -156,7 +155,7 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
   const todayHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][new Date().getDay()];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* HEADER & SEARCH BARS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
         <div>
@@ -168,7 +167,6 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {/* Fitur Pencarian Modern */}
           <div className="relative flex-1 sm:min-w-[250px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input 
@@ -213,7 +211,7 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {HARI.map(hari => {
             const items = groupedJadwal[hari];
             if (!items || items.length === 0) return null;
@@ -221,9 +219,9 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
             const isToday = hari === todayHari;
 
             return (
-              <div key={hari} className={`bg-white rounded-2xl shadow-sm overflow-hidden border ${isToday ? 'border-emerald-300 ring-4 ring-emerald-50' : 'border-slate-100'}`}>
+              <div key={hari} className={`bg-white rounded-2xl shadow-sm overflow-hidden border ${isToday ? 'border-emerald-300 ring-4 ring-emerald-50/50' : 'border-slate-100'}`}>
                 {/* Header Hari */}
-                <div className={`px-6 py-4 flex items-center justify-between border-b ${isToday ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50/80 border-slate-100'}`}>
+                <div className={`px-5 py-4 md:px-6 flex items-center justify-between border-b ${isToday ? 'bg-emerald-50/80 border-emerald-100' : 'bg-slate-50/80 border-slate-100'}`}>
                   <div className="flex items-center gap-3">
                     <h3 className={`text-lg font-bold ${isToday ? 'text-emerald-800' : 'text-slate-800'}`}>{hari}</h3>
                     {isToday && (
@@ -296,60 +294,69 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
                   </table>
                 </div>
 
-                {/* --- TAMPILAN MOBILE (Kartu Tumpuk) --- */}
-                <div className="md:hidden divide-y divide-slate-100">
+                {/* --- TAMPILAN MOBILE BARY (Modern Event Cards) --- */}
+                <div className="md:hidden bg-slate-50/50 p-3 flex flex-col gap-3">
                   {items.map(j => (
-                    <div key={j.id} className="p-5 flex flex-col gap-4">
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-md font-bold border border-emerald-200">{j.kelas}</span>
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
-                              <Clock className="w-3.5 h-3.5 text-emerald-500" />
-                              {j.jam_mulai.slice(0, 5)} - {j.jam_selesai.slice(0, 5)}
-                            </div>
+                    <div key={j.id} className="relative bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
+                      {/* Aksen warna hijau di kiri kartu layaknya kalender modern */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
+                      
+                      <div className="pl-2">
+                        {/* Waktu & Kelas (Header Kartu) */}
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="flex items-center gap-1.5 text-emerald-700 font-bold text-sm bg-emerald-50 px-2 py-1 rounded-lg">
+                            <Clock className="w-3.5 h-3.5" />
+                            {j.jam_mulai.slice(0, 5)} - {j.jam_selesai.slice(0, 5)}
                           </div>
-                          <h4 className="font-bold text-slate-800 text-lg leading-tight">{j.pelajaran}</h4>
+                          <span className="bg-slate-800 text-white text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-md shadow-sm">
+                            Kelas {j.kelas}
+                          </span>
                         </div>
-                      </div>
 
-                      <div className="flex flex-col gap-2 text-sm">
-                        {j.ruangan && (
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <MapPin className="w-4 h-4 text-slate-400" /> {j.ruangan}
-                          </div>
-                        )}
-                        {j.catatan && (
-                          <div className="flex items-start gap-2 text-amber-700 bg-amber-50 p-2.5 rounded-lg text-xs border border-amber-100">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            <span>{j.catatan}</span>
-                          </div>
-                        )}
-                      </div>
+                        {/* Mata Pelajaran */}
+                        <h4 className="font-extrabold text-slate-800 text-lg md:text-xl leading-tight mb-3">
+                          {j.pelajaran}
+                        </h4>
 
-                      <div className="flex items-center gap-2 pt-2 mt-1 border-t border-slate-50">
-                        <button onClick={() => openEdit(j)} className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 text-slate-700 hover:text-emerald-700 transition-colors text-sm font-semibold">
-                          <Pencil className="w-4 h-4" /> Edit
-                        </button>
-                        <button onClick={() => handleDelete(j.id)} className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-rose-50 border border-slate-200 text-slate-700 hover:text-rose-600 transition-colors text-sm font-semibold">
-                          <Trash2 className="w-4 h-4" /> Hapus
-                        </button>
+                        {/* Info Ruangan & Catatan */}
+                        <div className="flex flex-col gap-2 mb-4">
+                          {j.ruangan && (
+                            <div className="flex items-center gap-2 text-slate-600 text-sm font-medium">
+                              <MapPin className="w-4 h-4 text-slate-400" />
+                              {j.ruangan}
+                            </div>
+                          )}
+                          {j.catatan && (
+                            <div className="flex items-start gap-2 text-amber-700 bg-amber-50 p-2.5 rounded-lg text-xs font-medium border border-amber-100">
+                              <AlertCircle className="w-4 h-4 shrink-0" />
+                              <span>{j.catatan}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Tombol Aksi Bawah */}
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-50">
+                          <button onClick={() => openEdit(j)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-colors text-xs font-bold">
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button onClick={() => handleDelete(j.id)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors text-xs font-bold">
+                            <Trash2 className="w-3.5 h-3.5" /> Hapus
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
+
               </div>
             );
           })}
         </div>
       )}
 
-      {/* MODAL FORM TAMBAH / EDIT JADWAL */}
-      {/* Kode modal tetap sama persis seperti yang Anda miliki, saya tidak merubahnya agar fungsi backend tidak terganggu */}
+      {/* MODAL FORM */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingId ? 'Edit Jadwal' : 'Tambah Jadwal Baru'}>
         <form onSubmit={handleSubmit} className="space-y-5">
-           {/* ... Isi form biarkan sama persis seperti sebelumnya ... */}
-           {/* Saya persingkat di preview ini, gunakan struktur Modal bawaan Anda yang sudah rapi */}
            <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Hari <span className="text-rose-500">*</span></label>
