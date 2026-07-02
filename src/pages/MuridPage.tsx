@@ -7,8 +7,15 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import type { Murid, ShowToast } from '../types';
 
+// Interface untuk menampung data kelas dari database
+interface KelasOption {
+  id: string;
+  nama_kelas: string;
+}
+
 export default function MuridPage({ showToast }: { showToast: ShowToast }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
+  const [kelasDaftar, setKelasDaftar] = useState<KelasOption[]>([]); // State untuk menyimpan opsi kelas dari admin
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -20,7 +27,7 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
 
   const [form, setForm] = useState({
     nama: '',
-    kelas: '',
+    kelas: '', // Ini akan menyimpan nama_kelas yang dipilih
     domisili: '',
     alamat: '',
     nomor_whatsapp: '',
@@ -29,7 +36,6 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
 
   // Fetch data murid dari Supabase
   const fetchMurid = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('murid')
@@ -40,17 +46,38 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
       if (data) setMuridList(data as Murid[]);
     } catch (error: any) {
       showToast(error.message || 'Gagal mengambil data murid', 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Fetch daftar kelas dari tabel kelas (Menu Admin)
+  const fetchKelasOptions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kelas')
+        .select('id, nama_kelas')
+        .eq('is_active', true) // Hanya mengambil kelas yang aktif
+        .order('nama_kelas');
+
+      if (error) throw error;
+      if (data) setKelasDaftar(data as KelasOption[]);
+    } catch (error: any) {
+      showToast(error.message || 'Gagal mengambil opsi data kelas', 'error');
+    }
+  };
+
+  // Gabungkan fetch data saat halaman dimuat
+  const initPage = async () => {
+    setLoading(true);
+    await Promise.all([fetchMurid(), fetchKelasOptions()]);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    fetchMurid();
+    initPage();
   }, []);
 
-  // Ambil daftar kelas unik untuk opsi filter
-  const kelasOptions = useMemo(
+  // Ambil daftar kelas unik berdasarkan data murid yang ada untuk opsi filter pencarian atas
+  const kelasFilterOptions = useMemo(
     () => [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
     [muridList]
   );
@@ -120,7 +147,7 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
         if (error) throw error;
         showToast('Data santri berhasil diperbarui', 'success');
       } else {
-        // Mode Insert New (Perbaikan Penambahan user_id)
+        // Mode Insert New
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
@@ -218,7 +245,7 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
             className="w-full pl-9 pr-4 py-2.5 bg-white rounded-xl border border-slate-200 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           >
             <option value="all">Semua Kelas</option>
-            {kelasOptions.map(kelas => (
+            {kelasFilterOptions.map(kelas => (
               <option key={kelas} value={kelas}>Kelas {kelas}</option>
             ))}
           </select>
@@ -317,16 +344,22 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            {/* PERBAIKAN: Input Teks Kelas diubah menjadi Dropdown Pilihan */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <input
-                type="text"
+              <select
                 required
                 value={form.kelas}
                 onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
                 className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="Contoh: 3A"
-              />
+              >
+                <option value="">-- Pilih Kelas --</option>
+                {kelasDaftar.map((k) => (
+                  <option key={k.id} value={k.nama_kelas}>
+                    Kelas {k.nama_kelas}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status Aktif</label>
