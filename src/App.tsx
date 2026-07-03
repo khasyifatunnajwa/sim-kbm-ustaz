@@ -438,9 +438,15 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      // ignore
+    }
     sessionStorage.clear();
+    setUser(null);
+    setProfile(null);
     setActiveTab('dashboard');
-    await supabase.auth.signOut();
   };
 
   const handleRetry = () => {
