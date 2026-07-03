@@ -1,10 +1,10 @@
 // SIM KBM Ustaz V2.0 - Service Worker
-const CACHE_NAME = 'simkbm-v4.0.0';
+const CACHE_NAME = 'simkbm-v4.0.1';
 const STALE_CACHE_TIMEOUT = 30000; // 30 seconds
 
 // Install event
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v4.0.0...');
+  console.log('[SW] Installing v4.0.1...');
   self.skipWaiting();
 });
 
