@@ -233,19 +233,24 @@ export default function AbsensiPage({ showToast }: { showToast: ShowToast }) {
                 {muridFiltered.map((m, i) => {
                   const status = attendance[m.id] ?? 'Hadir';
                   return (
-                    <div key={m.id} className="card p-3.5 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <span className="text-slate-600 font-bold text-xs">{i + 1}</span>
+                    <div key={m.id} className="card p-3">
+                      <div className="flex items-center gap-2.5 mb-2.5">
+                        <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <span className="text-slate-600 font-bold text-xs">{i + 1}</span>
+                        </div>
+                        <p className="font-semibold text-slate-800 text-sm flex-1 min-w-0 truncate">{m.nama}</p>
+                        <span className={`badge text-[9px] flex-shrink-0 ${status === 'Hadir' ? 'badge-success' : status === 'Izin' ? 'badge-warning' : status === 'Sakit' ? 'badge-info' : 'badge-danger'}`}>
+                          {status}
+                        </span>
                       </div>
-                      <p className="font-semibold text-slate-800 text-sm flex-1 min-w-0 truncate">{m.nama}</p>
-                      <div className="flex gap-1 flex-shrink-0">
+                      <div className="grid grid-cols-4 gap-1.5">
                         {STATUS_LIST.map(s => {
                           const Icon = STATUS_CONFIG[s].icon;
                           return (
                             <button
                               key={s}
                               onClick={() => setAttendance(prev => ({ ...prev, [m.id]: s }))}
-                              className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${status === s ? STATUS_CONFIG[s].active : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+                              className={`py-2 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center gap-1 ${status === s ? STATUS_CONFIG[s].active : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
                             >
                               <Icon className="w-3 h-3" />
                               {s}

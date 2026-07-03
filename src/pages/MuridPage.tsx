@@ -27,17 +27,23 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
     status_aktif: true,
   });
 
+  const [kelasList, setKelasList] = useState<string[]>([]);
+
   // Fetch data murid dari Supabase
   const fetchMurid = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('murid')
-        .select('*')
-        .order('nama');
-      
-      if (error) throw error;
-      if (data) setMuridList(data as Murid[]);
+      const [muridRes, kelasRes] = await Promise.all([
+        supabase.from('murid').select('*').order('nama'),
+        supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
+      ]);
+
+      if (muridRes.error) throw muridRes.error;
+      if (muridRes.data) setMuridList(muridRes.data as Murid[]);
+      if (kelasRes.data) {
+        const kelas = (kelasRes.data as any[]).map(k => k.nama_kelas).filter(Boolean).sort();
+        setKelasList(kelas);
+      }
     } catch (error: any) {
       showToast(error.message || 'Gagal mengambil data murid', 'error');
     } finally {
@@ -49,10 +55,10 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
     fetchMurid();
   }, []);
 
-  // Ambil daftar kelas unik untuk opsi filter
+  // Ambil daftar kelas dari tabel kelas
   const kelasOptions = useMemo(
-    () => [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
-    [muridList]
+    () => kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
+    [kelasList, muridList]
   );
 
   // Filter & Pencarian Data Murid
@@ -307,14 +313,15 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <input
-                type="text"
+              <select
                 required
                 value={form.kelas}
                 onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
                 className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="Contoh: 3A"
-              />
+              >
+                <option value="">Pilih Kelas</option>
+                {kelasOptions.map(kelas => <option key={kelas} value={kelas}>{kelas}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status Aktif</label>

@@ -12,6 +12,7 @@ type FilterTab = 'semua' | 'hari_ini' | 'minggu_ini';
 export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
   const [jurnalList, setJurnalList] = useState<JurnalKBM[]>([]);
   const [kelasList, setKelasList] = useState<string[]>([]);
+  const [mapelList, setMapelList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -38,10 +39,15 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
   }, []);
 
   const fetchKelasOptions = async () => {
-    const { data } = await supabase.from('jadwal_mengajar').select('kelas').order('kelas');
-    if (data) {
-      const kelas = [...new Set(data.map(j => j.kelas))] as string[];
+    const { data: kelasData } = await supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas');
+    if (kelasData) {
+      const kelas = (kelasData as any[]).map(k => k.nama_kelas).filter(Boolean) as string[];
       setKelasList(kelas);
+    }
+    const { data: mapelData } = await supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel');
+    if (mapelData) {
+      const mapel = (mapelData as any[]).map(m => m.nama_mapel).filter(Boolean) as string[];
+      setMapelList(mapel);
     }
   };
 
@@ -302,14 +308,15 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pelajaran *</label>
-              <input
-                type="text"
+              <select
                 value={form.pelajaran}
                 onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))}
                 className="input-field text-sm"
-                placeholder="Fiqih, Nahwu, dll"
                 required
-              />
+              >
+                <option value="">Pilih Pelajaran</option>
+                {mapelList.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
             </div>
           </div>
 

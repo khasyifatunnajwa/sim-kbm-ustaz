@@ -9,9 +9,16 @@ import { generatePDF, shareWA } from '../lib/pdf';
 import type { Murid, Penilaian, DetailNilai, ShowToast } from '../types';
 
 type Tab = 'input' | 'riwayat' | 'rapor';
-type JenisUjian = 'Ulangan' | 'Ujian Tulis' | 'Ujian Lisan' | 'Tugas' | 'Hafalan' | 'Praktik' | 'Lainnya';
+type JenisUjian = 'Ulangan' | 'Ujian Tulis' | 'Ujian Lisan' | 'Baca Kitab' | 'Tugas' | 'Hafalan' | 'Praktik' | 'Lainnya';
 
-const JENIS_UJIAN: JenisUjian[] = ['Ulangan', 'Ujian Tulis', 'Ujian Lisan', 'Tugas', 'Hafalan', 'Praktik', 'Lainnya'];
+const JENIS_UJIAN: JenisUjian[] = ['Ulangan', 'Ujian Tulis', 'Ujian Lisan', 'Baca Kitab', 'Tugas', 'Hafalan', 'Praktik', 'Lainnya'];
+
+const NAMA_PENILAIAN_OPTIONS = [
+  'Ulangan Harian', 'Ulangan Tengah Semester (UTS)', 'Ulangan Akhir Semester (UAS)',
+  'Ujian Tulis', 'Ujian Lisan', 'Baca Kitab', 'Tugas Harian', 'Tugas Mingguan',
+  'Hafalan Juz 1', 'Hafalan Juz 2', 'Hafalan Juz 3', 'Hafalan Juz 5',
+  'Hafalan Juz 10', 'Hafalan Juz 30', 'Praktik', 'Lainnya',
+];
 
 export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
   const [tab, setTab] = useState<Tab>('input');
@@ -47,18 +54,23 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
     // Fetch murid
     const { data: muridData } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
     if (muridData) {
-      const murid = muridData as Murid[];
-      setMuridList(murid);
-      const kelas = [...new Set(murid.map(m => m.kelas).filter((k): k is string => Boolean(k)))].sort();
+      setMuridList(muridData as Murid[]);
+    }
+
+    // Fetch kelas from kelas table
+    const { data: kelasData } = await supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas');
+    if (kelasData) {
+      const kelas = (kelasData as any[]).map(k => k.nama_kelas).filter(Boolean).sort();
       setKelasOptions(kelas);
       if (kelas.length) setSelectedKelas(kelas[0]);
     }
 
-    // Fetch mapel from jadwal_mengajar (existing table)
-    const { data: jadwalData } = await supabase.from('jadwal_mengajar').select('pelajaran');
-    if (jadwalData) {
-      const mapel = [...new Set(jadwalData.map(j => j.pelajaran).filter(Boolean))].sort();
+    // Fetch mapel from mata_pelajaran table
+    const { data: mapelData } = await supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel');
+    if (mapelData) {
+      const mapel = (mapelData as any[]).map(m => m.nama_mapel).filter(Boolean).sort();
       setMapelOptions(mapel);
+      if (mapel.length) setInputMapel(mapel[0]);
     }
 
     setLoading(false);
@@ -378,7 +390,10 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Penilaian</label>
-              <input type="text" value={inputNama} onChange={e => setInputNama(e.target.value)} className="input-field text-sm" placeholder="UTS, UAS, dll" required />
+              <select value={inputNama} onChange={e => setInputNama(e.target.value)} className="input-field text-sm" required>
+                <option value="">Pilih Penilaian</option>
+                {NAMA_PENILAIAN_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Bobot (%)</label>
