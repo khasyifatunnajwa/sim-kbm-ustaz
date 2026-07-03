@@ -5,7 +5,7 @@ import {
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { Kelas, BukuSaku, Muhafadhoh, KbmHarian, ShowToast } from '../types';
+import type { Kelas, BukuSaku, Muhafadhoh, KbmHarian, MataPelajaran, ShowToast } from '../types';
 
 type Tab = 'batas' | 'hafalan' | 'catatan';
 
@@ -15,6 +15,7 @@ type HafalWithKelas = Muhafadhoh & { kelas?: { nama_kelas: string } };
 export default function KbmPage({ showToast }: { showToast: ShowToast }) {
   const [tab, setTab] = useState<Tab>('batas');
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [bukuList, setBukuList] = useState<BukuWithKelas[]>([]);
   const [hafalList, setHafalList] = useState<HafalWithKelas[]>([]);
   const [catatanList, setCatatanList] = useState<KbmHarian[]>([]);
@@ -31,13 +32,15 @@ export default function KbmPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [kr, bukuR, hafalR, catatanR] = await Promise.all([
+    const [kr, mr, bukuR, hafalR, catatanR] = await Promise.all([
       supabase.from('kelas').select('*').eq('aktif', true).order('tingkat'),
+      supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
       supabase.from('buku_saku').select('*, kelas(nama_kelas)').order('created_at', { ascending: false }),
       supabase.from('muhafadhoh').select('*, kelas(nama_kelas)').order('tanggal', { ascending: false }).limit(50),
       supabase.from('kbm_harian').select('*').is('pelajaran', null).order('tanggal', { ascending: false }).limit(50),
     ]);
     if (kr.data) setKelasList(kr.data as Kelas[]);
+    if (mr.data) setMapelList(mr.data as MataPelajaran[]);
     if (bukuR.data) setBukuList(bukuR.data as BukuWithKelas[]);
     if (hafalR.data) setHafalList(hafalR.data as HafalWithKelas[]);
     if (catatanR.data) setCatatanList(catatanR.data as KbmHarian[]);
@@ -323,7 +326,10 @@ export default function KbmPage({ showToast }: { showToast: ShowToast }) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pelajaran</label>
-                <input type="text" value={bukuForm.pelajaran} onChange={e => setBukuForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" required />
+                <select value={bukuForm.pelajaran} onChange={e => setBukuForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" required>
+                  <option value="">Pilih Pelajaran</option>
+                  {mapelList.map(m => <option key={m.id} value={m.nama_mapel}>{m.nama_mapel}</option>)}
+                </select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">

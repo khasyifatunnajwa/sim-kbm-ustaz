@@ -3,7 +3,7 @@ import {
   FileQuestion, Plus, Trash2, Pencil, FileText, Share2, Search, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { BankSoal, ShowToast } from '../types';
+import type { BankSoal, Kelas, MataPelajaran, ShowToast } from '../types';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import { jsPDF } from 'jspdf';
@@ -19,11 +19,19 @@ export default function SoalPage({ showToast }: { showToast: ShowToast }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [form, setForm] = useState({ pelajaran: '', kelas: '', batasan: '', isi_soal: '' });
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
 
   const fetchSoal = async () => {
     setLoading(true);
-    const { data } = await supabase.from('bank_soal').select('*').order('created_at', { ascending: false });
-    if (data) setSoalList(data as BankSoal[]);
+    const [soalRes, kelasRes, mapelRes] = await Promise.all([
+      supabase.from('bank_soal').select('*').order('created_at', { ascending: false }),
+      supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
+      supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
+    ]);
+    if (soalRes.data) setSoalList(soalRes.data as BankSoal[]);
+    if (kelasRes.data) setKelasList(kelasRes.data as Kelas[]);
+    if (mapelRes.data) setMapelList(mapelRes.data as MataPelajaran[]);
     setLoading(false);
   };
 
@@ -188,11 +196,17 @@ export default function SoalPage({ showToast }: { showToast: ShowToast }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran *</label>
-              <input type="text" className="input-field text-sm" placeholder="Fiqih" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} required />
+              <select className="input-field text-sm" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} required>
+                <option value="">Pilih Pelajaran</option>
+                {mapelList.map(m => <option key={m.id} value={m.nama_mapel}>{m.nama_mapel}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <input type="text" className="input-field text-sm" placeholder="3A" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} required />
+              <select className="input-field text-sm" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} required>
+                <option value="">Pilih Kelas</option>
+                {kelasList.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
+              </select>
             </div>
           </div>
           <div>

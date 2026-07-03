@@ -1,23 +1,28 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
-  CheckCircle, Timer, TrendingUp
+  CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
+  Sparkles, ChevronRight, BookMarked
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, ShowToast } from '../types';
+import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab } from '../types';
 
 interface DashboardPageProps {
   showToast: ShowToast;
   profile: Profile | null;
+  setActiveTab?: (tab: ActiveTab) => void;
 }
 
-export default function DashboardPage({ profile }: DashboardPageProps) {
+export default function DashboardPage({ profile, setActiveTab }: DashboardPageProps) {
   const [loading, setLoading] = useState(true);
   const [jadwalHariIni, setJadwalHariIni] = useState<JadwalMengajar[]>([]);
   const [agendaList, setAgendaList] = useState<AgendaPenting[]>([]);
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
+  const [jurnalList, setJurnalList] = useState<JurnalKBM[]>([]);
   const [absensiStats, setAbsensiStats] = useState({ hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 });
   const [muridCount, setMuridCount] = useState(0);
+  const [jadwalCount, setJadwalCount] = useState(0);
+  const [jurnalCount, setJurnalCount] = useState(0);
   const [now, setNow] = useState(new Date());
 
   const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -36,46 +41,27 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch jadwal hari ini
-      const { data: jadwalData } = await supabase
-        .from('jadwal_mengajar')
-        .select('*')
-        .eq('hari', todayHari)
-        .order('jam_mulai');
+      const [jadwalData, agendaData, pengumumanData, absensiData, muridRes, jadwalRes, jurnalRes, jurnalRecent] = await Promise.all([
+        supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).order('jam_mulai'),
+        supabase.from('agenda_penting').select('*').gte('tanggal', todayDate).order('tanggal', { ascending: true }).limit(5),
+        supabase.from('pengumuman').select('*').order('created_at', { ascending: false }).limit(3),
+        supabase.from('absensi').select('status').eq('tanggal', todayDate),
+        supabase.from('murid').select('*', { count: 'exact', head: true }).eq('status_aktif', true),
+        supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true }),
+        supabase.from('jurnal_kbm').select('*', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('jurnal_kbm').select('*').eq('is_active', true).order('tanggal', { ascending: false }).limit(3),
+      ]);
 
-      // Fetch agenda mendatang
-      const { data: agendaData } = await supabase
-        .from('agenda_penting')
-        .select('*')
-        .gte('tanggal', todayDate)
-        .order('tanggal', { ascending: true })
-        .limit(5);
-
-      // Fetch pengumuman
-      const { data: pengumumanData } = await supabase
-        .from('pengumuman')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      // Fetch absensi stats hari ini
-      const { data: absensiData } = await supabase
-        .from('absensi')
-        .select('status')
-        .eq('tanggal', todayDate);
-
-      // Fetch murid count
-      const { count: muridTotal } = await supabase
-        .from('murid')
-        .select('*', { count: 'exact', head: true })
-        .eq('status_aktif', true);
-
-      setJadwalHariIni((jadwalData || []) as JadwalMengajar[]);
-      setAgendaList((agendaData || []) as AgendaPenting[]);
-      setPengumumanList((pengumumanData || []) as Pengumuman[]);
+      setJadwalHariIni((jadwalData.data || []) as JadwalMengajar[]);
+      setAgendaList((agendaData.data || []) as AgendaPenting[]);
+      setPengumumanList((pengumumanData.data || []) as Pengumuman[]);
+      setJurnalList((jurnalRecent.data || []) as JurnalKBM[]);
+      setMuridCount(muridRes.count || 0);
+      setJadwalCount(jadwalRes.count || 0);
+      setJurnalCount(jurnalRes.count || 0);
 
       const absenStats = { hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 };
-      (absensiData || []).forEach((a: any) => {
+      (absensiData.data || []).forEach((a: any) => {
         if (a.status === 'Hadir') absenStats.hadir++;
         else if (a.status === 'Izin') absenStats.izin++;
         else if (a.status === 'Sakit') absenStats.sakit++;
@@ -83,7 +69,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
         absenStats.total++;
       });
       setAbsensiStats(absenStats);
-      setMuridCount(muridTotal || 0);
     } catch (error) {
       console.error('Error fetching dashboard:', error);
     } finally {
@@ -91,7 +76,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
     }
   };
 
-  // Find ongoing or next class
   const ongoingClass = useMemo(() => {
     const nowMin = now.getHours() * 60 + now.getMinutes();
     return jadwalHariIni.find(j => {
@@ -111,7 +95,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
     });
   }, [jadwalHariIni, now]);
 
-  // Countdown to next class
   const countdown = useMemo(() => {
     if (!nextClass) return null;
     const [h, m] = nextClass.jam_mulai.split(':').map(Number);
@@ -133,6 +116,8 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
     return 'Selamat Malam';
   };
 
+  const marqueeText = `Ahlan Ustaz ${profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || ''} — ${greeting()}! Semoga harimu penuh berkah dan ilmu yang bermanfaat. ${jadwalHariIni.length > 0 ? `Anda memiliki ${jadwalHariIni.length} jadwal mengajar hari ini.` : 'Tidak ada jadwal mengajar hari ini.'} ${agendaList.length > 0 ? `Ada ${agendaList.length} agenda mendatang yang perlu diperhatikan.` : ''} Tetap semangat dalam mengajar!`;
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -145,9 +130,9 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
 
   return (
     <div className="space-y-4">
-      {/* Greeting Header */}
+      {/* Greeting Header with Marquee */}
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
-        <div className="p-5">
+        <div className="p-5 pb-3">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
               <BookOpen className="w-6 h-6" />
@@ -214,10 +199,23 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
             </div>
           )}
         </div>
+
+        {/* Running Text Marquee */}
+        <div className="bg-emerald-800/50 border-t border-white/10 py-2.5 overflow-hidden">
+          <div className="flex items-center gap-2 px-4">
+            <Sparkles className="w-4 h-4 text-amber-300 flex-shrink-0 animate-pulse" />
+            <div className="flex-1 overflow-hidden relative">
+              <div className="flex whitespace-nowrap animate-marquee">
+                <span className="text-sm text-emerald-50 font-medium px-4">{marqueeText}</span>
+                <span className="text-sm text-emerald-50 font-medium px-4">{marqueeText}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="card p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
@@ -241,7 +239,63 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
             </div>
           </div>
         </div>
+
+        <div className="card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+              <CalendarDays className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-800">{jadwalCount}</p>
+              <p className="text-xs text-slate-500">Total Jadwal</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center">
+              <FileText className="w-5 h-5 text-violet-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-800">{jurnalCount}</p>
+              <p className="text-xs text-slate-500">Jurnal KBM</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Quick Actions */}
+      {setActiveTab && (
+        <div className="card p-4">
+          <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
+            <Sparkles className="w-4 h-4 text-emerald-500" />
+            Aksi Cepat
+          </h3>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { tab: 'jurnal' as ActiveTab, icon: FileText, label: 'Jurnal', color: 'bg-violet-50 text-violet-600' },
+              { tab: 'absensi' as ActiveTab, icon: CheckCircle, label: 'Absensi', color: 'bg-emerald-50 text-emerald-600' },
+              { tab: 'nilai' as ActiveTab, icon: GraduationCap, label: 'Nilai', color: 'bg-sky-50 text-sky-600' },
+              { tab: 'catatan' as ActiveTab, icon: BookMarked, label: 'Catatan', color: 'bg-amber-50 text-amber-600' },
+            ].map(a => {
+              const Icon = a.icon;
+              return (
+                <button
+                  key={a.tab}
+                  onClick={() => setActiveTab(a.tab)}
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-slate-50 transition-colors active:scale-95"
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.color}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-600">{a.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Absensi Stats */}
       {absensiStats.total > 0 && (
@@ -314,8 +368,43 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
         )}
       </div>
 
-      {/* Agenda & Pengumuman */}
+      {/* Jurnal Terakhir + Agenda */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Jurnal Terakhir */}
+        {jurnalList.length > 0 && (
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-violet-50 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-violet-600" />
+                </div>
+                <h3 className="font-bold text-slate-700 text-sm">Jurnal Terakhir</h3>
+              </div>
+              {setActiveTab && (
+                <button onClick={() => setActiveTab('jurnal')} className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all">
+                  Lihat <ChevronRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              {jurnalList.map(j => (
+                <div key={j.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50">
+                  <div className="w-9 h-9 bg-violet-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-violet-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 truncate">{j.materi || j.pelajaran || 'Jurnal KBM'}</p>
+                    <p className="text-[10px] text-slate-400">
+                      {new Date(j.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      {j.kelas && ` • ${j.kelas}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Agenda */}
         {agendaList.length > 0 && (
           <div className="card p-4">
@@ -341,30 +430,30 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
             </div>
           </div>
         )}
-
-        {/* Pengumuman */}
-        {pengumumanList.length > 0 && (
-          <div className="card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 bg-sky-50 rounded-lg flex items-center justify-center">
-                <Megaphone className="w-4 h-4 text-sky-600" />
-              </div>
-              <h3 className="font-bold text-slate-700 text-sm">Pengumuman</h3>
-            </div>
-            <div className="space-y-2">
-              {pengumumanList.map(p => (
-                <div key={p.id} className="bg-slate-50 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-slate-700">{p.judul}</span>
-                    <span className="badge badge-info text-[9px]">{p.kategori ?? ''}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 line-clamp-2">{p.isi}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Pengumuman */}
+      {pengumumanList.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 bg-sky-50 rounded-lg flex items-center justify-center">
+              <Megaphone className="w-4 h-4 text-sky-600" />
+            </div>
+            <h3 className="font-bold text-slate-700 text-sm">Pengumuman</h3>
+          </div>
+          <div className="space-y-2">
+            {pengumumanList.map(p => (
+              <div key={p.id} className="bg-slate-50 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold text-slate-700">{p.judul}</span>
+                  {p.kategori && <span className="badge badge-info text-[9px]">{p.kategori}</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 line-clamp-2">{p.isi}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -480,7 +480,7 @@ export default function App() {
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardPage showToast={showToast} profile={profile} />;
+      case 'dashboard': return <DashboardPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />;
       case 'jadwal': return <JadwalPage showToast={showToast} />;
       case 'murid': return <MuridPage showToast={showToast} />;
       case 'absensi': return <AbsensiPage showToast={showToast} />;

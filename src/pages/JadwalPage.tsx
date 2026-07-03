@@ -6,7 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { JadwalMengajar, AgendaPenting, Pengumuman, ShowToast } from '../types';
+import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
@@ -24,6 +24,8 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
   const [jadwal, setJadwal] = useState<JadwalMengajar[]>([]);
   const [agendaList, setAgendaList] = useState<AgendaPenting[]>([]);
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -40,14 +42,18 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchData = async () => {
     setLoading(true);
-    const [jr, ar, pr] = await Promise.all([
+    const [jr, ar, pr, kr, mr] = await Promise.all([
       supabase.from('jadwal_mengajar').select('*').order('jam_mulai'),
       supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
       supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
+      supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
+      supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
     ]);
     if (jr.data) setJadwal(jr.data as JadwalMengajar[]);
     if (ar.data) setAgendaList(ar.data as AgendaPenting[]);
     if (pr.data) setPengumumanList(pr.data as Pengumuman[]);
+    if (kr.data) setKelasList(kr.data as Kelas[]);
+    if (mr.data) setMapelList(mr.data as MataPelajaran[]);
     setLoading(false);
   };
 
@@ -344,12 +350,18 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
-              <input type="text" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" placeholder="cth. 3A" required />
+              <select value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" required>
+                <option value="">Pilih Kelas</option>
+                {kelasList.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
+              </select>
             </div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran</label>
-            <input type="text" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" placeholder="cth. Fiqih, Nahwu Wadhih..." required />
+            <select value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" required>
+              <option value="">Pilih Pelajaran</option>
+              {mapelList.map(m => <option key={m.id} value={m.nama_mapel}>{m.nama_mapel}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
