@@ -41,15 +41,31 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      const isUstaz = profile?.role !== 'admin';
+      const userId = profile?.id ?? ''
       const [jadwalData, agendaData, pengumumanData, absensiData, muridRes, jadwalRes, jurnalRes, jurnalRecent] = await Promise.all([
-        supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).order('jam_mulai'),
-        supabase.from('agenda_penting').select('*').gte('tanggal', todayDate).order('tanggal', { ascending: true }).limit(5),
-        supabase.from('pengumuman').select('*').order('created_at', { ascending: false }).limit(3),
-        supabase.from('absensi').select('status').eq('tanggal', todayDate),
+        isUstaz
+          ? supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).eq('user_id', userId).order('jam_mulai')
+          : supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).order('jam_mulai'),
+        isUstaz
+          ? supabase.from('agenda_penting').select('*').eq('user_id', userId).gte('tanggal', todayDate).order('tanggal', { ascending: true }).limit(5)
+          : supabase.from('agenda_penting').select('*').gte('tanggal', todayDate).order('tanggal', { ascending: true }).limit(5),
+        isUstaz
+          ? supabase.from('pengumuman').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(3)
+          : supabase.from('pengumuman').select('*').order('created_at', { ascending: false }).limit(3),
+        isUstaz
+          ? supabase.from('absensi').select('status').eq('tanggal', todayDate).eq('user_id', userId)
+          : supabase.from('absensi').select('status').eq('tanggal', todayDate),
         supabase.from('murid').select('*', { count: 'exact', head: true }).eq('status_aktif', true),
-        supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true }),
-        supabase.from('jurnal_kbm').select('*', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('jurnal_kbm').select('*').eq('is_active', true).order('tanggal', { ascending: false }).limit(3),
+        isUstaz
+          ? supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true }).eq('user_id', userId)
+          : supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true }),
+        isUstaz
+          ? supabase.from('jurnal_kbm').select('*', { count: 'exact', head: true }).eq('is_active', true).eq('user_id', userId)
+          : supabase.from('jurnal_kbm').select('*', { count: 'exact', head: true }).eq('is_active', true),
+        isUstaz
+          ? supabase.from('jurnal_kbm').select('*').eq('is_active', true).eq('user_id', userId).order('tanggal', { ascending: false }).limit(3)
+          : supabase.from('jurnal_kbm').select('*').eq('is_active', true).order('tanggal', { ascending: false }).limit(3),
       ]);
 
       setJadwalHariIni((jadwalData.data || []) as JadwalMengajar[]);

@@ -4,7 +4,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
-import type { Murid, Sikap, ShowToast } from '../types';
+import type { Murid, Sikap, ShowToast, Profile } from '../types';
+import { getUstazScope } from '../lib/ustazData';
 
 const SIKAP_FIELDS = [
   { key: 'disiplin', label: 'Disiplin', color: 'emerald' },
@@ -14,7 +15,7 @@ const SIKAP_FIELDS = [
   { key: 'tanggung_jawab', label: 'Tanggung Jawab', color: 'slate' },
 ] as const;
 
-export default function SikapPage({ showToast }: { showToast: ShowToast }) {
+export default function SikapPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [sikapList, setSikapList] = useState<Sikap[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +46,12 @@ export default function SikapPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: muridData } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
+    const scope = await getUstazScope(profile);
+    let muridQuery = supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
+    if (!scope.isAdmin && scope.kelasList.length > 0) {
+      muridQuery = muridQuery.in('kelas', scope.kelasList);
+    }
+    const { data: muridData } = await muridQuery;
     if (muridData) setMuridList(muridData as Murid[]);
     setLoading(false);
   };
@@ -58,10 +64,12 @@ export default function SikapPage({ showToast }: { showToast: ShowToast }) {
   }, [selectedMurid]);
 
   const loadSikap = async (muridId: string) => {
-    const { data } = await supabase.from('sikap')
+    const isAdmin = profile?.role === 'admin';
+    let q = supabase.from('sikap')
       .select('*')
-      .eq('murid_id', muridId)
-      .order('tanggal', { ascending: false });
+      .eq('murid_id', muridId);
+    if (!isAdmin) q = q.eq('user_id', profile?.id ?? '');
+    const { data } = await q.order('tanggal', { ascending: false });
     if (data) setSikapList(data as Sikap[]);
   };
 

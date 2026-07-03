@@ -3,13 +3,14 @@ import {
   Plus, Trash2, Pencil, BookOpen, Calendar, Target, Save
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { JurnalKBM, ShowToast } from '../types';
+import type { JurnalKBM, Profile, ShowToast } from '../types';
 
 type FilterTab = 'semua' | 'hari_ini' | 'minggu_ini';
 
-export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
+export default function JurnalPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [jurnalList, setJurnalList] = useState<JurnalKBM[]>([]);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [mapelList, setMapelList] = useState<string[]>([]);
@@ -34,32 +35,21 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
   });
 
   useEffect(() => {
-    fetchJurnal();
-    fetchKelasOptions();
-  }, []);
+    (async () => {
+      const scope = await getUstazScope(profile);
+      setKelasList(scope.kelasList);
+      setMapelList(scope.mapelList);
+      fetchJurnal(scope);
+    })();
+  }, [profile]);
 
-  const fetchKelasOptions = async () => {
-    const { data: kelasData } = await supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas');
-    if (kelasData) {
-      const kelas = (kelasData as any[]).map(k => k.nama_kelas).filter(Boolean) as string[];
-      setKelasList(kelas);
-    }
-    const { data: mapelData } = await supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel');
-    if (mapelData) {
-      const mapel = (mapelData as any[]).map(m => m.nama_mapel).filter(Boolean) as string[];
-      setMapelList(mapel);
-    }
-  };
-
-  const fetchJurnal = async () => {
+  const fetchJurnal = async (scope?: { isAdmin: boolean; kelasList: string[] }) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('jurnal_kbm')
-      .select('*')
-      .eq('is_active', true)
-      .order('tanggal', { ascending: false })
-      .limit(100);
-
+    let query = supabase.from('jurnal_kbm').select('*').eq('is_active', true).order('tanggal', { ascending: false }).limit(100);
+    if (profile?.role !== 'admin') {
+      query = query.eq('user_id', profile?.id ?? '');
+    }
+    const { data, error } = await query;
     if (error) {
       showToast(error.message, 'error');
     } else {
@@ -70,7 +60,6 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
 
   const filteredJurnal = useMemo(() => {
     let filtered = jurnalList;
-
     if (filterTab === 'hari_ini') {
       filtered = filtered.filter(j => j.tanggal === today);
     } else if (filterTab === 'minggu_ini') {
@@ -78,11 +67,9 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
       weekAgo.setDate(weekAgo.getDate() - 7);
       filtered = filtered.filter(j => new Date(j.tanggal) >= weekAgo);
     }
-
     if (selectedKelas) {
       filtered = filtered.filter(j => j.kelas === selectedKelas);
     }
-
     return filtered;
   }, [jurnalList, filterTab, selectedKelas, today]);
 
@@ -90,7 +77,7 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
     setEditingId(null);
     setForm({
       kelas: kelasList[0] || '',
-      pelajaran: '',
+      pelajaran: mapelList[0] || '',
       tanggal: today,
       materi: '',
       target: '',
@@ -185,7 +172,6 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
         </button>
       </div>
 
-      {/* Filter Tabs */}
       <div className="flex gap-2 mb-4">
         {tabs.map(t => (
           <button
@@ -283,7 +269,6 @@ export default function JurnalPage({ showToast }: { showToast: ShowToast }) {
         </div>
       )}
 
-      {/* Modal */}
       <Modal
         isOpen={showModal}
         onClose={() => { setShowModal(false); setEditingId(null); }}

@@ -3,13 +3,13 @@ import {
   FileQuestion, Plus, Trash2, Pencil, FileText, Share2, Search, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { BankSoal, Kelas, MataPelajaran, ShowToast } from '../types';
+import type { BankSoal, Kelas, MataPelajaran, ShowToast, Profile } from '../types';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import { jsPDF } from 'jspdf';
 import { shareWA } from '../lib/pdf';
 
-export default function SoalPage({ showToast }: { showToast: ShowToast }) {
+export default function SoalPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [soalList, setSoalList] = useState<BankSoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,8 +24,11 @@ export default function SoalPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchSoal = async () => {
     setLoading(true);
+    const isAdmin = profile?.role === 'admin';
+    const soalQuery = supabase.from('bank_soal').select('*').order('created_at', { ascending: false });
+    if (!isAdmin) soalQuery.eq('user_id', profile?.id ?? '');
     const [soalRes, kelasRes, mapelRes] = await Promise.all([
-      supabase.from('bank_soal').select('*').order('created_at', { ascending: false }),
+      soalQuery,
       supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
       supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
     ]);

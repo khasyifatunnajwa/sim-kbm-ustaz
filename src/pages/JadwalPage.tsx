@@ -6,7 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, ShowToast } from '../types';
+import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, Profile, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
@@ -20,7 +20,7 @@ function parseTimeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
-export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
+export default function JadwalPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [jadwal, setJadwal] = useState<JadwalMengajar[]>([]);
   const [agendaList, setAgendaList] = useState<AgendaPenting[]>([]);
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
@@ -33,7 +33,7 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
   const [now, setNow] = useState(new Date());
 
   const [form, setForm] = useState({
-    hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:00',
+    hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00',
     kelas: '', pelajaran: '', ruangan: '', catatan: '',
   });
 
@@ -42,8 +42,11 @@ export default function JadwalPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchData = async () => {
     setLoading(true);
+    const jadwalQuery = profile?.role === 'admin'
+      ? supabase.from('jadwal_mengajar').select('*').order('jam_mulai')
+      : supabase.from('jadwal_mengajar').select('*').eq('user_id', profile?.id ?? '').order('jam_mulai');
     const [jr, ar, pr, kr, mr] = await Promise.all([
-      supabase.from('jadwal_mengajar').select('*').order('jam_mulai'),
+      jadwalQuery,
       supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
       supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
       supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),

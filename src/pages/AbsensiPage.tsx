@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   ClipboardCheck, Save, CheckCircle, AlertCircle, XCircle, Clock,
-  FileText, Share2, Calendar, BarChart3, Pencil,
+  FileText, Share2, Calendar, BarChart3, Pencil, BookOpen,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUstazScope } from '../lib/ustazData';
 import EmptyState from '../components/EmptyState';
 import { generatePDF, shareWA } from '../lib/pdf';
-import type { Murid, Absensi, ShowToast } from '../types';
+import type { Murid, Absensi, Profile, ShowToast } from '../types';
 
 type Status = 'Hadir' | 'Izin' | 'Sakit' | 'Alpha';
 type Tab = 'input' | 'rekap';
@@ -27,11 +28,13 @@ const STATUS_BADGE: Record<Status, string> = {
 };
 void STATUS_BADGE;
 
-export default function AbsensiPage({ showToast }: { showToast: ShowToast }) {
+export default function AbsensiPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [tab, setTab] = useState<Tab>('input');
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
+  const [mapelOptions, setMapelOptions] = useState<string[]>([]);
   const [selectedKelas, setSelectedKelas] = useState<string>('');
+  const [selectedMapel, setSelectedMapel] = useState<string>('');
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState<Record<string, Status>>({});
   const [loading, setLoading] = useState(false);
@@ -49,14 +52,21 @@ export default function AbsensiPage({ showToast }: { showToast: ShowToast }) {
   const todayInfo = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   useEffect(() => {
-    supabase.from('murid').select('*').eq('status_aktif', true).order('nama').then(({ data }) => {
-      const murid = (data ?? []) as Murid[];
+    (async () => {
+      const scope = await getUstazScope(profile);
+      setKelasOptions(scope.kelasList);
+      setMapelOptions(scope.mapelList);
+      if (scope.kelasList.length) setSelectedKelas(scope.kelasList[0]);
+      if (scope.mapelList.length) setSelectedMapel(scope.mapelList[0]);
+
+      const { data } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
+      let murid = (data ?? []) as Murid[];
+      if (!scope.isAdmin && scope.kelasList.length > 0) {
+        murid = murid.filter(m => scope.kelasList.includes(m.kelas || ''));
+      }
       setMuridList(murid);
-      const kelas = [...new Set(murid.map(m => m.kelas).filter((k): k is string => Boolean(k)))].sort();
-      setKelasOptions(kelas);
-      if (kelas.length) setSelectedKelas(kelas[0]);
-    });
-  }, []);
+    })();
+  }, [profile]);
 
   const muridFiltered = useMemo(
     () => muridList.filter(m => m.kelas === selectedKelas),
@@ -189,12 +199,19 @@ export default function AbsensiPage({ showToast }: { showToast: ShowToast }) {
               <Calendar className="w-4 h-4 text-emerald-600" />
               <span className="text-sm font-bold text-slate-700">{todayInfo}</span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pilih Kelas</label>
                 <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
                   <option value="">Pilih Kelas</option>
                   {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pelajaran</label>
+                <select value={selectedMapel} onChange={e => setSelectedMapel(e.target.value)} className="input-field text-sm">
+                  <option value="">Pilih Pelajaran</option>
+                  {mapelOptions.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>

@@ -3,10 +3,11 @@ import {
   Plus, Trash2, BarChart3, FileText, Share2, Save, Calendar, TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import { generatePDF, shareWA } from '../lib/pdf';
-import type { Murid, Penilaian, DetailNilai, ShowToast } from '../types';
+import type { Murid, Penilaian, DetailNilai, Profile, ShowToast } from '../types';
 
 type Tab = 'input' | 'riwayat' | 'rapor';
 type JenisUjian = 'Ulangan' | 'Ujian Tulis' | 'Ujian Lisan' | 'Baca Kitab' | 'Tugas' | 'Hafalan' | 'Praktik' | 'Lainnya';
@@ -20,7 +21,7 @@ const NAMA_PENILAIAN_OPTIONS = [
   'Hafalan Juz 10', 'Hafalan Juz 30', 'Praktik', 'Lainnya',
 ];
 
-export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
+export default function NilaiPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [tab, setTab] = useState<Tab>('input');
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
@@ -30,12 +31,10 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // Penilaian state
   const [penilaianList, setPenilaianList] = useState<Penilaian[]>([]);
   const [detailNilaiMap, setDetailNilaiMap] = useState<Record<string, DetailNilai[]>>({});
   const [selectedPenilaian, setSelectedPenilaian] = useState<string>('');
 
-  // Input state: batch entry
   const [inputMapel, setInputMapel] = useState('');
   const [inputJenis, setInputJenis] = useState<JenisUjian>('Ulangan');
   const [inputNama, setInputNama] = useState('');
@@ -47,32 +46,22 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [profile]);
 
   const fetchData = async () => {
     setLoading(true);
-    // Fetch murid
+    const scope = await getUstazScope(profile);
+    setKelasOptions(scope.kelasList);
+    setMapelOptions(scope.mapelList);
+    if (scope.kelasList.length) setSelectedKelas(scope.kelasList[0]);
+    if (scope.mapelList.length) setInputMapel(scope.mapelList[0]);
+
     const { data: muridData } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
-    if (muridData) {
-      setMuridList(muridData as Murid[]);
+    let murid = (muridData ?? []) as Murid[];
+    if (!scope.isAdmin && scope.kelasList.length > 0) {
+      murid = murid.filter(m => scope.kelasList.includes(m.kelas || ''));
     }
-
-    // Fetch kelas from kelas table
-    const { data: kelasData } = await supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas');
-    if (kelasData) {
-      const kelas = (kelasData as any[]).map(k => k.nama_kelas).filter(Boolean).sort();
-      setKelasOptions(kelas);
-      if (kelas.length) setSelectedKelas(kelas[0]);
-    }
-
-    // Fetch mapel from mata_pelajaran table
-    const { data: mapelData } = await supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel');
-    if (mapelData) {
-      const mapel = (mapelData as any[]).map(m => m.nama_mapel).filter(Boolean).sort();
-      setMapelOptions(mapel);
-      if (mapel.length) setInputMapel(mapel[0]);
-    }
-
+    setMuridList(murid);
     setLoading(false);
   };
 
@@ -86,13 +75,13 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
   }, [selectedKelas]);
 
   const loadPenilaianKelas = async (kelas: string) => {
-    const { data } = await supabase.from('penilaian')
-      .select('*')
-      .eq('kelas', kelas)
-      .order('tanggal', { ascending: false });
+    let query = supabase.from('penilaian').select('*').eq('kelas', kelas).order('tanggal', { ascending: false });
+    if (profile?.role !== 'admin') {
+      query = query.eq('user_id', profile?.id ?? '');
+    }
+    const { data } = await query;
     if (data) {
       setPenilaianList(data as Penilaian[]);
-      // Load detail nilai for each penilaian
       const ids = (data || []).map(p => p.id);
       if (ids.length > 0) {
         const { data: detailData } = await supabase.from('detail_nilai').select('*').in('penilaian_id', ids);
@@ -106,11 +95,12 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
           });
           setDetailNilaiMap(map);
         }
+      } else {
+        setDetailNilaiMap({});
       }
     }
   };
 
-  // ===== INPUT NILAI =====
   const openInputModal = () => {
     setInputMapel(mapelOptions[0] || '');
     setInputJenis('Ulangan');
@@ -137,7 +127,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
 
     setSaving(true);
     try {
-      // Create penilaian
       const { data: penilaianData, error: penilaianError } = await supabase
         .from('penilaian')
         .insert([{
@@ -154,7 +143,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
       if (penilaianError) throw penilaianError;
       if (!penilaianData) throw new Error('Gagal membuat penilaian');
 
-      // Create detail_nilai
       const detailRecords = entries.map(([muridId, skor]) => ({
         penilaian_id: penilaianData.id,
         murid_id: muridId,
@@ -175,7 +163,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
   };
 
   const deletePenilaian = async (id: string) => {
-    // Delete detail_nilai first
     await supabase.from('detail_nilai').delete().eq('penilaian_id', id);
     await supabase.from('penilaian').delete().eq('id', id);
     setPenilaianList(prev => prev.filter(p => p.id !== id));
@@ -190,18 +177,15 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
     if (!selectedPenilaian) return;
     const penilaian = penilaianList.find(p => p.id === selectedPenilaian);
     if (!penilaian) return;
-
     const details = detailNilaiMap[selectedPenilaian] || [];
     const headers = ['No', 'Nama', 'Nilai'];
     const body = details.map((d, i) => {
       const murid = muridList.find(m => m.id === d.murid_id);
       return [i + 1, murid?.nama || '-', d.nilai || 0];
     });
-
     generatePDF(
       `${penilaian.nama_penilaian} - ${penilaian.mapel} (${penilaian.kelas})`,
-      headers,
-      body,
+      headers, body,
       [`Tanggal: ${formatDate(penilaian.tanggal)}`, `Jenis: ${penilaian.jenis}`, `Bobot: ${penilaian.bobot}%`]
     );
   };
@@ -210,7 +194,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
     if (!selectedPenilaian) return;
     const penilaian = penilaianList.find(p => p.id === selectedPenilaian);
     if (!penilaian) return;
-
     const details = detailNilaiMap[selectedPenilaian] || [];
     let text = `*HASIL ${penilaian.nama_penilaian}*\n\n`;
     text += `Mata Pelajaran: ${penilaian.mapel}\n`;
@@ -248,7 +231,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
         </button>
       </div>
 
-      {/* Filter Kelas */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {kelasOptions.map(k => (
           <button key={k} onClick={() => setSelectedKelas(k)}
@@ -303,7 +285,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
                     </div>
                   </div>
 
-                  {/* Selected penilaian details */}
                   {selectedPenilaian === p.id && (
                     <div className="mt-4 pt-4 border-t border-slate-100">
                       <div className="flex gap-2 mb-3">
@@ -338,7 +319,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
           </div>
         )
       ) : (
-        /* Riwayat Tab */
         <div className="card p-5">
           <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm">
             <Calendar className="w-4 h-4" />
@@ -368,7 +348,6 @@ export default function NilaiPage({ showToast }: { showToast: ShowToast }) {
         </div>
       )}
 
-      {/* Modal Input Nilai */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Input Nilai Santri" size="lg">
         <form onSubmit={handleSaveBatch} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">

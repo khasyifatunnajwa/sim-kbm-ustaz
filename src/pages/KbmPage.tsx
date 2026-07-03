@@ -5,14 +5,15 @@ import {
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { Kelas, BukuSaku, Muhafadhoh, KbmHarian, MataPelajaran, ShowToast } from '../types';
+import type { Kelas, BukuSaku, Muhafadhoh, KbmHarian, MataPelajaran, ShowToast, Profile } from '../types';
+import { getUstazScope } from '../lib/ustazData';
 
 type Tab = 'batas' | 'hafalan' | 'catatan';
 
 type BukuWithKelas = BukuSaku & { kelas?: { nama_kelas: string } };
 type HafalWithKelas = Muhafadhoh & { kelas?: { nama_kelas: string } };
 
-export default function KbmPage({ showToast }: { showToast: ShowToast }) {
+export default function KbmPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [tab, setTab] = useState<Tab>('batas');
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
@@ -32,15 +33,38 @@ export default function KbmPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchAll = async () => {
     setLoading(true);
+    const scope = await getUstazScope(profile);
+    const isAdmin = scope.isAdmin;
+    const userId = profile?.id ?? '';
+
+    // kelasList & mapelList from scope (string arrays) -> fetch full rows for admins, or filter for ustaz
     const [kr, mr, bukuR, hafalR, catatanR] = await Promise.all([
       supabase.from('kelas').select('*').eq('aktif', true).order('tingkat'),
       supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
-      supabase.from('buku_saku').select('*, kelas(nama_kelas)').order('created_at', { ascending: false }),
-      supabase.from('muhafadhoh').select('*, kelas(nama_kelas)').order('tanggal', { ascending: false }).limit(50),
-      supabase.from('kbm_harian').select('*').is('pelajaran', null).order('tanggal', { ascending: false }).limit(50),
+      (async () => {
+        let q = supabase.from('buku_saku').select('*, kelas(nama_kelas)').order('created_at', { ascending: false });
+        if (!isAdmin) q = q.eq('user_id', userId);
+        return q;
+      })(),
+      (async () => {
+        let q = supabase.from('muhafadhoh').select('*, kelas(nama_kelas)').order('tanggal', { ascending: false }).limit(50);
+        if (!isAdmin) q = q.eq('user_id', userId);
+        return q;
+      })(),
+      (async () => {
+        let q = supabase.from('kbm_harian').select('*').is('pelajaran', null).order('tanggal', { ascending: false }).limit(50);
+        if (!isAdmin) q = q.eq('user_id', userId);
+        return q;
+      })(),
     ]);
-    if (kr.data) setKelasList(kr.data as Kelas[]);
-    if (mr.data) setMapelList(mr.data as MataPelajaran[]);
+    if (kr.data) {
+      const allKelas = kr.data as Kelas[];
+      setKelasList(isAdmin ? allKelas : allKelas.filter(k => scope.kelasList.includes(k.nama_kelas)));
+    }
+    if (mr.data) {
+      const allMapel = mr.data as MataPelajaran[];
+      setMapelList(isAdmin ? allMapel : allMapel.filter(m => scope.mapelList.includes(m.nama_mapel)));
+    }
     if (bukuR.data) setBukuList(bukuR.data as BukuWithKelas[]);
     if (hafalR.data) setHafalList(hafalR.data as HafalWithKelas[]);
     if (catatanR.data) setCatatanList(catatanR.data as KbmHarian[]);

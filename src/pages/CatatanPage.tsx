@@ -6,7 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { CatatanGuru, ShowToast, KategoriCatatan, StatusCatatan } from '../types';
+import type { CatatanGuru, ShowToast, KategoriCatatan, StatusCatatan, Profile } from '../types';
 
 const KATEGORI_CONFIG: Record<KategoriCatatan, { color: string; bg: string; border: string }> = {
   Umum:     { color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200' },
@@ -18,7 +18,7 @@ const KATEGORI_CONFIG: Record<KategoriCatatan, { color: string; bg: string; bord
 const KATEGORI_LIST: KategoriCatatan[] = ['Umum', 'Acara', 'Undangan', 'Agenda'];
 const STATUS_LIST: StatusCatatan[] = ['Belum Selesai', 'Selesai'];
 
-export default function CatatanPage({ showToast }: { showToast: ShowToast }) {
+export default function CatatanPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [catatanList, setCatatanList] = useState<CatatanGuru[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,11 +46,13 @@ export default function CatatanPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchCatatan = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const isAdmin = profile?.role === 'admin';
+    let q = supabase
       .from('catatan_guru')
       .select('*')
-      .eq('is_active', true)
-      .order('tanggal_waktu', { ascending: true });
+      .eq('is_active', true);
+    if (!isAdmin) q = q.eq('user_id', profile?.id ?? '');
+    const { data, error } = await q.order('tanggal_waktu', { ascending: true });
 
     if (error) {
       showToast(error.message, 'error');

@@ -3,7 +3,7 @@ import { Plus, Trash2, Calendar, Megaphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { AgendaPenting, Pengumuman, ShowToast } from '../types';
+import type { AgendaPenting, Pengumuman, ShowToast, Profile } from '../types';
 
 type Tab = 'agenda' | 'pengumuman';
 
@@ -19,7 +19,7 @@ const KAT_COLOR: Record<string, string> = {
   Acara: 'badge-success', Darurat: 'badge-danger',
 };
 
-export default function AgendaPage({ showToast }: { showToast: ShowToast }) {
+export default function AgendaPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [tab, setTab] = useState<Tab>('agenda');
   const [agendaList, setAgendaList] = useState<AgendaPenting[]>([]);
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
@@ -34,10 +34,15 @@ export default function AgendaPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [ar, pr] = await Promise.all([
-      supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
-      supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }),
-    ]);
+    const isAdmin = profile?.role === 'admin';
+    const userId = profile?.id ?? '';
+    const agendaQ = supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true });
+    const pengQ = supabase.from('pengumuman').select('*').order('tanggal', { ascending: false });
+    if (!isAdmin) {
+      agendaQ.eq('user_id', userId);
+      pengQ.eq('user_id', userId);
+    }
+    const [ar, pr] = await Promise.all([agendaQ, pengQ]);
     if (ar.data) setAgendaList(ar.data);
     if (pr.data) setPengumumanList(pr.data);
     setLoading(false);

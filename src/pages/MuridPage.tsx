@@ -3,11 +3,12 @@ import {
   Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import type { Murid, ShowToast } from '../types';
+import type { Murid, Profile, ShowToast } from '../types';
 
-export default function MuridPage({ showToast }: { showToast: ShowToast }) {
+export default function MuridPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,16 +34,21 @@ export default function MuridPage({ showToast }: { showToast: ShowToast }) {
   const fetchMurid = async () => {
     setLoading(true);
     try {
-      const [muridRes, kelasRes] = await Promise.all([
-        supabase.from('murid').select('*').order('nama'),
-        supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
-      ]);
+      const scope = await getUstazScope(profile);
+      setKelasList(scope.kelasList);
 
-      if (muridRes.error) throw muridRes.error;
-      if (muridRes.data) setMuridList(muridRes.data as Murid[]);
-      if (kelasRes.data) {
-        const kelas = (kelasRes.data as any[]).map(k => k.nama_kelas).filter(Boolean).sort();
-        setKelasList(kelas);
+      const { data, error } = await supabase
+        .from('murid')
+        .select('*')
+        .order('nama');
+
+      if (error) throw error;
+      if (data) {
+        let muridData = data as Murid[];
+        if (!scope.isAdmin && scope.kelasList.length > 0) {
+          muridData = muridData.filter(m => scope.kelasList.includes(m.kelas || ''));
+        }
+        setMuridList(muridData);
       }
     } catch (error: any) {
       showToast(error.message || 'Gagal mengambil data murid', 'error');

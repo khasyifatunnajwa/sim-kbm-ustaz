@@ -481,15 +481,15 @@ export default function App() {
   const renderPage = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />;
-      case 'jadwal': return <JadwalPage showToast={showToast} />;
-      case 'murid': return <MuridPage showToast={showToast} />;
-      case 'absensi': return <AbsensiPage showToast={showToast} />;
-      case 'jurnal': return <JurnalPage showToast={showToast} />;
-      case 'nilai': return <NilaiPage showToast={showToast} />;
-      case 'sikap': return <SikapPage showToast={showToast} />;
-      case 'catatan': return <CatatanPage showToast={showToast} />;
-      case 'soal': return <SoalPage showToast={showToast} />;
-      case 'agenda': return <AgendaPage showToast={showToast} />;
+      case 'jadwal': return <JadwalPage showToast={showToast} profile={profile} />;
+      case 'murid': return <MuridPage showToast={showToast} profile={profile} />;
+      case 'absensi': return <AbsensiPage showToast={showToast} profile={profile} />;
+      case 'jurnal': return <JurnalPage showToast={showToast} profile={profile} />;
+      case 'nilai': return <NilaiPage showToast={showToast} profile={profile} />;
+      case 'sikap': return <SikapPage showToast={showToast} profile={profile} />;
+      case 'catatan': return <CatatanPage showToast={showToast} profile={profile} />;
+      case 'soal': return <SoalPage showToast={showToast} profile={profile} />;
+      case 'agenda': return <AgendaPage showToast={showToast} profile={profile} />;
       case 'rapor': return <RaporPage showToast={showToast} />;
       case 'admin': return <AdminPage showToast={showToast} profile={profile} />;
       default: return null;
