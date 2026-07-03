@@ -42,7 +42,8 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     setLoading(true);
     try {
       const isUstaz = profile?.role !== 'admin';
-      const userId = profile?.id ?? ''
+      const userId = profile?.id ?? '';
+      
       const [jadwalData, agendaData, pengumumanData, absensiData, muridRes, jadwalRes, jurnalRes, jurnalRecent] = await Promise.all([
         isUstaz
           ? supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).eq('user_id', userId).order('jam_mulai')
@@ -72,6 +73,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
       setAgendaList((agendaData.data || []) as AgendaPenting[]);
       setPengumumanList((pengumumanData.data || []) as Pengumuman[]);
       setJurnalList((jurnalRecent.data || []) as JurnalKBM[]);
+      
       setMuridCount(muridRes.count || 0);
       setJadwalCount(jadwalRes.count || 0);
       setJurnalCount(jurnalRes.count || 0);
@@ -132,7 +134,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     return 'Selamat Malam';
   };
 
-  const marqueeText = `Ahlan Ustaz ${profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || ''} — ${greeting()}! Semoga harimu penuh berkah dan ilmu yang bermanfaat. ${jadwalHariIni.length > 0 ? `Anda memiliki ${jadwalHariIni.length} jadwal mengajar hari ini.` : 'Tidak ada jadwal mengajar hari ini.'} ${agendaList.length > 0 ? `Ada ${agendaList.length} agenda mendatang yang perlu diperhatikan.` : ''} Tetap semangat dalam mengajar!`;
+  const marqueeText = `Ahlan Ustaz ${profile?.nama_panggilan || profile?.nama_lengkap || ''} — ${greeting()}! Semoga harimu penuh berkah dan ilmu yang bermanfaat. ${jadwalHariIni.length > 0 ? `Anda memiliki ${jadwalHariIni.length} jadwal mengajar hari ini.` : 'Tidak ada jadwal mengajar hari ini.'} ${agendaList.length > 0 ? `Ada ${agendaList.length} agenda mendatang yang perlu diperhatikan.` : ''} Tetap semangat dalam mengajar!`;
 
   if (loading) {
     return (
@@ -154,7 +156,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
               <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || ''}</p>
+              <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
               <p className="text-emerald-100 text-sm">
                 {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
@@ -250,7 +252,8 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
               <CheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-800">{absensiStats.total > 0 ? Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
+              <p className="text-2xl font-bold text-slate-800">{absensiStats.total > 0 ?
+Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
               <p className="text-xs text-slate-500">Kehadiran Hari Ini</p>
             </div>
           </div>
