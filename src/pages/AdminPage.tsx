@@ -51,7 +51,17 @@ export default function AdminPage({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
 
-  // Fetch all tahun ajaran for dropdowns
+  // Tab configurations
+  const masterTabs = [
+    { id: 'users', label: 'Pengguna', icon: Users },
+    { id: 'tahun', label: 'Tahun Ajaran', icon: Calendar },
+    { id: 'semester', label: 'Semester', icon: BookOpen },
+    { id: 'kelas', label: 'Kelas', icon: Building2 },
+    { id: 'mapel', label: 'Mata Pelajaran', icon: BookOpen },
+    { id: 'ruangan', label: 'Ruangan', icon: Building2 },
+  ];
+
+  // Fetch all tahun ajaran for semester dropdown
   const [allTahunAjaran, setAllTahunAjaran] = useState<TahunAjaran[]>([]);
 
   useEffect(() => {
@@ -78,109 +88,54 @@ export default function AdminPage({
 
       switch (masterTab) {
         case 'users': {
-          let queryBuilder = supabase
-            .from('profiles')
-            .select('*', { count: 'exact' });
-
-          if (searchQuery) {
-            queryBuilder = queryBuilder.or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
-          }
-
-          const { data, error, count } = await queryBuilder
-            .order('created_at', { ascending: false })
-            .range(start, end);
-
+          let queryBuilder = supabase.from('profiles').select('*', { count: 'exact' });
+          if (searchQuery) queryBuilder = queryBuilder.or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+          const { data, error, count } = await queryBuilder.order('created_at', { ascending: false }).range(start, end);
           if (error) throw error;
           setUsers(data || []);
           setTotalCount(count || 0);
           break;
         }
         case 'tahun': {
-          let queryBuilder = supabase
-            .from('tahun_ajaran')
-            .select('*', { count: 'exact' });
-
-          if (searchQuery) {
-            queryBuilder = queryBuilder.ilike('tahun', `%${searchQuery}%`);
-          }
-
-          const { data, error, count } = await queryBuilder
-            .order('tahun', { ascending: false })
-            .range(start, end);
-
+          let queryBuilder = supabase.from('tahun_ajaran').select('*', { count: 'exact' });
+          if (searchQuery) queryBuilder = queryBuilder.ilike('tahun', `%${searchQuery}%`);
+          const { data, error, count } = await queryBuilder.order('tahun', { ascending: false }).range(start, end);
           if (error) throw error;
           setTahunAjaran(data || []);
           setTotalCount(count || 0);
           break;
         }
         case 'semester': {
-          let queryBuilder = supabase
-            .from('semester')
-            .select('*, tahun_ajaran(tahun)', { count: 'exact' });
-
-          if (searchQuery) {
-            queryBuilder = queryBuilder.ilike('semester', `%${searchQuery}%`);
-          }
-
-          const { data, error, count } = await queryBuilder
-            .order('created_at', { ascending: false })
-            .range(start, end);
-
+          let queryBuilder = supabase.from('semester').select('*, tahun_ajaran(tahun)', { count: 'exact' });
+          if (searchQuery) queryBuilder = queryBuilder.ilike('semester', `%${searchQuery}%`);
+          const { data, error, count } = await queryBuilder.order('created_at', { ascending: false }).range(start, end);
           if (error) throw error;
           setSemester(data || []);
           setTotalCount(count || 0);
           break;
         }
         case 'kelas': {
-          let queryBuilder = supabase
-            .from('kelas')
-            .select('*', { count: 'exact' });
-
-          if (searchQuery) {
-            queryBuilder = queryBuilder.ilike('nama', `%${searchQuery}%`);
-          }
-
-          const { data, error, count } = await queryBuilder
-            .order('tingkat', { ascending: true })
-            .order('nama', { ascending: true })
-            .range(start, end);
-
+          let queryBuilder = supabase.from('kelas').select('*', { count: 'exact' });
+          if (searchQuery) queryBuilder = queryBuilder.ilike('nama', `%${searchQuery}%`);
+          const { data, error, count } = await queryBuilder.order('tingkat', { ascending: true }).order('nama', { ascending: true }).range(start, end);
           if (error) throw error;
           setKelas(data || []);
           setTotalCount(count || 0);
           break;
         }
         case 'mapel': {
-          let queryBuilder = supabase
-            .from('mata_pelajaran')
-            .select('*', { count: 'exact' });
-
-          if (searchQuery) {
-            queryBuilder = queryBuilder.or(`nama.ilike.%${searchQuery}%,kode.ilike.%${searchQuery}%`);
-          }
-
-          const { data, error, count } = await queryBuilder
-            .order('kode', { ascending: true })
-            .range(start, end);
-
+          let queryBuilder = supabase.from('mata_pelajaran').select('*', { count: 'exact' });
+          if (searchQuery) queryBuilder = queryBuilder.or(`nama.ilike.%${searchQuery}%,kode.ilike.%${searchQuery}%`);
+          const { data, error, count } = await queryBuilder.order('kode', { ascending: true }).range(start, end);
           if (error) throw error;
           setMataPelajaran(data || []);
           setTotalCount(count || 0);
           break;
         }
         case 'ruangan': {
-          let queryBuilder = supabase
-            .from('ruangan')
-            .select('*', { count: 'exact' });
-
-          if (searchQuery) {
-            queryBuilder = queryBuilder.or(`nama.ilike.%${searchQuery}%,kode.ilike.%${searchQuery}%`);
-          }
-
-          const { data, error, count } = await queryBuilder
-            .order('nama', { ascending: true })
-            .range(start, end);
-
+          let queryBuilder = supabase.from('ruangan').select('*', { count: 'exact' });
+          if (searchQuery) queryBuilder = queryBuilder.or(`nama.ilike.%${searchQuery}%,kode.ilike.%${searchQuery}%`);
+          const { data, error, count } = await queryBuilder.order('nama', { ascending: true }).range(start, end);
           if (error) throw error;
           setRuangan(data || []);
           setTotalCount(count || 0);
@@ -207,13 +162,10 @@ export default function AdminPage({
           }
 
           if (editingId) {
-            const { error } = await supabase
-              .from('profiles')
-              .update({
-                full_name: formData.full_name,
-                role: formData.role,
-              })
-              .eq('id', editingId);
+            const { error } = await supabase.from('profiles').update({
+              full_name: formData.full_name,
+              role: formData.role,
+            }).eq('id', editingId);
 
             if (error) throw error;
             showToast('User berhasil diperbarui', 'success');
@@ -236,95 +188,55 @@ export default function AdminPage({
               const errorData = await response.json();
               throw new Error(errorData.error || 'Gagal membuat user');
             }
-
             showToast('User berhasil dibuat', 'success');
           }
           break;
         }
         case 'tahun': {
-          if (!formData.tahun || !formData.status) {
-            showToast('Semua field harus diisi', 'error');
-            return;
-          }
-          if (formData.status === 'aktif') {
-            await supabase.from('tahun_ajaran').update({ status: 'non-aktif' }).neq('id', editingId || '');
-          }
-          if (editingId) {
-            const { error } = await supabase.from('tahun_ajaran').update({ tahun: formData.tahun, status: formData.status }).eq('id', editingId);
-            if (error) throw error;
-            showToast('Tahun ajaran berhasil diperbarui', 'success');
-          } else {
-            const { error } = await supabase.from('tahun_ajaran').insert([{ tahun: formData.tahun, status: formData.status }]);
-            if (error) throw error;
-            showToast('Tahun ajaran berhasil dibuat', 'success');
-          }
+          if (!formData.tahun || !formData.status) return showToast('Semua field harus diisi', 'error');
+          if (formData.status === 'aktif') await supabase.from('tahun_ajaran').update({ status: 'non-aktif' }).neq('id', editingId || '');
+          const { error } = editingId 
+            ? await supabase.from('tahun_ajaran').update({ tahun: formData.tahun, status: formData.status }).eq('id', editingId)
+            : await supabase.from('tahun_ajaran').insert([{ tahun: formData.tahun, status: formData.status }]);
+          if (error) throw error;
+          showToast(editingId ? 'Diperbarui' : 'Ditambahkan', 'success');
           break;
         }
         case 'semester': {
-          if (!formData.semester || !formData.status || !formData.tahun_ajaran_id) {
-            showToast('Semua field harus diisi', 'error');
-            return;
-          }
-          if (formData.status === 'aktif') {
-            await supabase.from('semester').update({ status: 'non-aktif' }).eq('tahun_ajaran_id', formData.tahun_ajaran_id).neq('id', editingId || '');
-          }
-          if (editingId) {
-            const { error } = await supabase.from('semester').update({ semester: formData.semester, status: formData.status, tahun_ajaran_id: formData.tahun_ajaran_id }).eq('id', editingId);
-            if (error) throw error;
-            showToast('Semester berhasil diperbarui', 'success');
-          } else {
-            const { error } = await supabase.from('semester').insert([{ semester: formData.semester, status: formData.status, tahun_ajaran_id: formData.tahun_ajaran_id }]);
-            if (error) throw error;
-            showToast('Semester berhasil dibuat', 'success');
-          }
+          if (!formData.semester || !formData.status || !formData.tahun_ajaran_id) return showToast('Semua field harus diisi', 'error');
+          if (formData.status === 'aktif') await supabase.from('semester').update({ status: 'non-aktif' }).eq('tahun_ajaran_id', formData.tahun_ajaran_id).neq('id', editingId || '');
+          const { error } = editingId 
+            ? await supabase.from('semester').update({ semester: formData.semester, status: formData.status, tahun_ajaran_id: formData.tahun_ajaran_id }).eq('id', editingId)
+            : await supabase.from('semester').insert([{ semester: formData.semester, status: formData.status, tahun_ajaran_id: formData.tahun_ajaran_id }]);
+          if (error) throw error;
+          showToast(editingId ? 'Diperbarui' : 'Ditambahkan', 'success');
           break;
         }
         case 'kelas': {
-          if (!formData.nama || !formData.tingkat || !formData.tipe) {
-            showToast('Semua field harus diisi', 'error');
-            return;
-          }
-          if (editingId) {
-            const { error } = await supabase.from('kelas').update({ nama: formData.nama, tingkat: parseInt(formData.tingkat), tipe: formData.tipe }).eq('id', editingId);
-            if (error) throw error;
-            showToast('Kelas berhasil diperbarui', 'success');
-          } else {
-            const { error } = await supabase.from('kelas').insert([{ nama: formData.nama, tingkat: parseInt(formData.tingkat), tipe: formData.tipe }]);
-            if (error) throw error;
-            showToast('Kelas berhasil dibuat', 'success');
-          }
+          if (!formData.nama || !formData.tingkat || !formData.tipe) return showToast('Semua field harus diisi', 'error');
+          const { error } = editingId
+            ? await supabase.from('kelas').update({ nama: formData.nama, tingkat: parseInt(formData.tingkat), tipe: formData.tipe }).eq('id', editingId)
+            : await supabase.from('kelas').insert([{ nama: formData.nama, tingkat: parseInt(formData.tingkat), tipe: formData.tipe }]);
+          if (error) throw error;
+          showToast(editingId ? 'Diperbarui' : 'Ditambahkan', 'success');
           break;
         }
         case 'mapel': {
-          if (!formData.kode || !formData.nama || !formData.kelompok) {
-            showToast('Semua field harus diisi', 'error');
-            return;
-          }
-          if (editingId) {
-            const { error } = await supabase.from('mata_pelajaran').update({ kode: formData.kode, nama: formData.nama, kelompok: formData.kelompok }).eq('id', editingId);
-            if (error) throw error;
-            showToast('Mata pelajaran berhasil diperbarui', 'success');
-          } else {
-            const { error } = await supabase.from('mata_pelajaran').insert([{ kode: formData.kode, nama: formData.nama, kelompok: formData.kelompok }]);
-            if (error) throw error;
-            showToast('Mata pelajaran berhasil dibuat', 'success');
-          }
+          if (!formData.kode || !formData.nama || !formData.kelompok) return showToast('Semua field harus diisi', 'error');
+          const { error } = editingId
+            ? await supabase.from('mata_pelajaran').update({ kode: formData.kode, nama: formData.nama, kelompok: formData.kelompok }).eq('id', editingId)
+            : await supabase.from('mata_pelajaran').insert([{ kode: formData.kode, nama: formData.nama, kelompok: formData.kelompok }]);
+          if (error) throw error;
+          showToast(editingId ? 'Diperbarui' : 'Ditambahkan', 'success');
           break;
         }
         case 'ruangan': {
-          if (!formData.nama || !formData.kode || !formData.kapasitas) {
-            showToast('Semua field harus diisi', 'error');
-            return;
-          }
-          if (editingId) {
-            const { error } = await supabase.from('ruangan').update({ nama: formData.nama, kode: formData.kode, kapasitas: parseInt(formData.kapasitas) }).eq('id', editingId);
-            if (error) throw error;
-            showToast('Ruangan berhasil diperbarui', 'success');
-          } else {
-            const { error } = await supabase.from('ruangan').insert([{ nama: formData.nama, kode: formData.kode, kapasitas: parseInt(formData.kapasitas) }]);
-            if (error) throw error;
-            showToast('Ruangan berhasil dibuat', 'success');
-          }
+          if (!formData.nama || !formData.kode || !formData.kapasitas) return showToast('Semua field harus diisi', 'error');
+          const { error } = editingId
+            ? await supabase.from('ruangan').update({ nama: formData.nama, kode: formData.kode, kapasitas: parseInt(formData.kapasitas) }).eq('id', editingId)
+            : await supabase.from('ruangan').insert([{ nama: formData.nama, kode: formData.kode, kapasitas: parseInt(formData.kapasitas) }]);
+          if (error) throw error;
+          showToast(editingId ? 'Diperbarui' : 'Ditambahkan', 'success');
           break;
         }
       }
@@ -375,7 +287,6 @@ export default function AdminPage({
         if (error) throw error;
         showToast('Data berhasil dihapus', 'success');
       }
-
       fetchData();
     } catch (error: any) {
       showToast(error.message, 'error');
@@ -407,7 +318,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Peran</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.role || ''}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 disabled={!!editingId}
@@ -422,18 +333,18 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap</label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Nama Lengkap"
                 value={formData.full_name || ''}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email / Username</label>
               <input
-                type="email"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                placeholder="email@example.com"
+                type="text"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
+                placeholder="email@example.com / NISN"
                 value={formData.email || ''}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={!!editingId}
@@ -441,11 +352,11 @@ export default function AdminPage({
             </div>
             {!editingId && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Password Default</label>
                 <input
                   type="password"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
+                  placeholder="Minimal 6 karakter"
                   value={formData.password || ''}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
@@ -460,7 +371,7 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Tahun Ajaran</label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Contoh: 2024/2025"
                 value={formData.tahun || ''}
                 onChange={(e) => setFormData({ ...formData, tahun: e.target.value })}
@@ -469,7 +380,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.status || ''}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               >
@@ -486,7 +397,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Tahun Ajaran</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.tahun_ajaran_id || ''}
                 onChange={(e) => setFormData({ ...formData, tahun_ajaran_id: e.target.value })}
               >
@@ -499,7 +410,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Semester</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.semester || ''}
                 onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
               >
@@ -511,7 +422,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.status || ''}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               >
@@ -528,7 +439,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Tingkat</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.tingkat || ''}
                 onChange={(e) => setFormData({ ...formData, tingkat: e.target.value })}
               >
@@ -542,7 +453,7 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Nama Kelas</label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Contoh: A, B, Unggulan"
                 value={formData.nama || ''}
                 onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
@@ -551,7 +462,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Tipe Kelas</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.tipe || ''}
                 onChange={(e) => setFormData({ ...formData, tipe: e.target.value })}
               >
@@ -569,7 +480,7 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Kode Mapel</label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Contoh: MTK-01"
                 value={formData.kode || ''}
                 onChange={(e) => setFormData({ ...formData, kode: e.target.value })}
@@ -579,7 +490,7 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Nama Mata Pelajaran</label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Nama Mapel"
                 value={formData.nama || ''}
                 onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
@@ -588,7 +499,7 @@ export default function AdminPage({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Kelompok</label>
               <select
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 value={formData.kelompok || ''}
                 onChange={(e) => setFormData({ ...formData, kelompok: e.target.value })}
               >
@@ -607,7 +518,7 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Kode Ruangan</label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Contoh: LAB-01"
                 value={formData.kode || ''}
                 onChange={(e) => setFormData({ ...formData, kode: e.target.value })}
@@ -617,7 +528,7 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Nama Ruangan</label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Nama Ruangan"
                 value={formData.nama || ''}
                 onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
@@ -627,71 +538,13 @@ export default function AdminPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Kapasitas</label>
               <input
                 type="number"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 placeholder="Contoh: 30"
                 value={formData.kapasitas || ''}
                 onChange={(e) => setFormData({ ...formData, kapasitas: e.target.value })}
               />
             </div>
           </div>
-        );
-    }
-  };
-
-  const renderTableHeader = () => {
-    switch (masterTab) {
-      case 'users':
-        return (
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">User</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Peran</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Dibuat</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
-          </tr>
-        );
-      case 'tahun':
-        return (
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tahun Ajaran</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
-          </tr>
-        );
-      case 'semester':
-        return (
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tahun Ajaran</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Semester</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
-          </tr>
-        );
-      case 'kelas':
-        return (
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tingkat</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Kelas</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tipe</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
-          </tr>
-        );
-      case 'mapel':
-        return (
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Kode</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Mata Pelajaran</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Kelompok</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
-          </tr>
-        );
-      case 'ruangan':
-        return (
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Kode</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Ruangan</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Kapasitas</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
-          </tr>
         );
     }
   };
@@ -717,7 +570,6 @@ export default function AdminPage({
             <EmptyState
               title={`Belum ada data ${masterTab === 'users' ? 'user' : masterTab}`}
               description="Klik tombol Tambah Baru untuk menambahkan data pertama Anda."
-              icon={Database}
             />
           </td>
         </tr>
@@ -727,14 +579,14 @@ export default function AdminPage({
     switch (masterTab) {
       case 'users':
         return users.map((user) => (
-          <tr key={user.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
+          <tr key={user.id} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0">
             <td className="px-6 py-4 whitespace-nowrap">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
-                  {user.full_name?.charAt(0).toUpperCase()}
+                  {user.full_name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-800">{user.full_name}</div>
+                  <div className="text-sm font-bold text-slate-800">{user.full_name || 'Tanpa Nama'}</div>
                   <div className="text-xs text-slate-500">{user.email}</div>
                 </div>
               </div>
@@ -754,11 +606,11 @@ export default function AdminPage({
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div className="flex justify-end gap-1">
-                <button onClick={() => openModal(user)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                <button onClick={() => openModal(user)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl">
                   <Pencil className="w-4 h-4" />
                 </button>
                 {profile?.id !== user.id && (
-                  <button onClick={() => handleDelete(user.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                  <button onClick={() => handleDelete(user.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
@@ -768,7 +620,7 @@ export default function AdminPage({
         ));
       case 'tahun':
         return tahunAjaran.map((t) => (
-          <tr key={t.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
+          <tr key={t.id} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{t.tahun}</td>
             <td className="px-6 py-4 whitespace-nowrap">
               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
@@ -780,10 +632,10 @@ export default function AdminPage({
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div className="flex justify-end gap-1">
-                <button onClick={() => openModal(t)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                <button onClick={() => openModal(t)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(t.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                <button onClick={() => handleDelete(t.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -792,7 +644,7 @@ export default function AdminPage({
         ));
       case 'semester':
         return semester.map((s) => (
-          <tr key={s.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
+          <tr key={s.id} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-600">{(s as any).tahun_ajaran?.tahun}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">Semester {s.semester}</td>
             <td className="px-6 py-4 whitespace-nowrap">
@@ -805,10 +657,10 @@ export default function AdminPage({
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div className="flex justify-end gap-1">
-                <button onClick={() => openModal(s)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                <button onClick={() => openModal(s)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(s.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                <button onClick={() => handleDelete(s.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -817,7 +669,7 @@ export default function AdminPage({
         ));
       case 'kelas':
         return kelas.map((k) => (
-          <tr key={k.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
+          <tr key={k.id} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0">
             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">Tingkat {k.tingkat}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">Kelas {k.tingkat} {k.nama}</td>
             <td className="px-6 py-4 whitespace-nowrap">
@@ -829,10 +681,10 @@ export default function AdminPage({
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div className="flex justify-end gap-1">
-                <button onClick={() => openModal(k)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                <button onClick={() => openModal(k)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(k.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                <button onClick={() => handleDelete(k.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -841,7 +693,7 @@ export default function AdminPage({
         ));
       case 'mapel':
         return mataPelajaran.map((m) => (
-          <tr key={m.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
+          <tr key={m.id} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">{m.kode}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{m.nama}</td>
             <td className="px-6 py-4 whitespace-nowrap">
@@ -851,10 +703,10 @@ export default function AdminPage({
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div className="flex justify-end gap-1">
-                <button onClick={() => openModal(m)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                <button onClick={() => openModal(m)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(m.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                <button onClick={() => handleDelete(m.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -863,16 +715,16 @@ export default function AdminPage({
         ));
       case 'ruangan':
         return ruangan.map((r) => (
-          <tr key={r.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
+          <tr key={r.id} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">{r.kode}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{r.nama}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{r.kapasitas} Kursi</td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div className="flex justify-end gap-1">
-                <button onClick={() => openModal(r)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
+                <button onClick={() => openModal(r)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(r.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                <button onClick={() => handleDelete(r.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -921,14 +773,7 @@ export default function AdminPage({
         <>
           {/* Master Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-            {[
-              { id: 'users', label: 'Pengguna', icon: User },
-              { id: 'tahun', label: 'Tahun Ajaran', icon: Calendar },
-              { id: 'semester', label: 'Semester', icon: Calendar },
-              { id: 'kelas', label: 'Kelas', icon: Building2 },
-              { id: 'mapel', label: 'Mata Pelajaran', icon: BookOpen },
-              { id: 'ruangan', label: 'Ruangan', icon: Building2 },
-            ].map((tab) => {
+            {masterTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = masterTab === tab.id;
               return (
@@ -982,7 +827,12 @@ export default function AdminPage({
             <div className="overflow-x-auto">
               <table className="w-full min-w-full divide-y divide-slate-100">
                 <thead className="bg-slate-50/70">
-                  {renderTableHeader()}
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Info</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Detail</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status / Ket</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {renderTableRows()}
@@ -995,8 +845,7 @@ export default function AdminPage({
               <div className="p-4 border-t border-slate-50 bg-slate-50/30">
                 <Pagination
                   currentPage={page}
-                  totalCount={totalCount}
-                  pageSize={PAGE_SIZE}
+                  totalPages={Math.ceil(totalCount / PAGE_SIZE)}
                   onPageChange={setPage}
                 />
               </div>
@@ -1009,14 +858,14 @@ export default function AdminPage({
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
               onClick={() => setAkademikTab('siswa')}
-              className={`flex items-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${akademikTab === 'siswa' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
+              className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${akademikTab === 'siswa' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
             >
               <GraduationCap className="w-4 h-4" />
               Data Siswa
             </button>
             <button
               onClick={() => setAkademikTab('ustaz')}
-              className={`flex items-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${akademikTab === 'ustaz' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
+              className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${akademikTab === 'ustaz' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
             >
               <Users className="w-4 h-4" />
               Data Ustaz
@@ -1032,7 +881,7 @@ export default function AdminPage({
       <Modal
         isOpen={showModal}
         onClose={() => { setShowModal(false); setEditingId(null); }}
-        title={editingId ? `Edit Data ${masterTab}` : `Tambah ${masterTab} Baru`}
+        title={editingId ? `Edit ${masterTabs.find(t => t.id === masterTab)?.label}` : `Tambah ${masterTabs.find(t => t.id === masterTab)?.label}`}
       >
         <form onSubmit={handleSave} className="space-y-6">
           {renderModalContent()}
