@@ -10,21 +10,18 @@ interface BackButtonOptions {
 export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackButtonOptions) {
   const historyRef = useRef<ActiveTab[]>(['dashboard']);
   const stateRef = useRef({ activeTab, setActiveTab, onExitDialog });
-  const isNavigatingBack = useRef(false);
 
+  // Keep ref updated
   stateRef.current = { activeTab, setActiveTab, onExitDialog };
 
-  // Track user-initiated tab changes to build history
+  // Track tab changes to build history
   useEffect(() => {
-    if (isNavigatingBack.current) {
-      isNavigatingBack.current = false;
-      return;
-    }
     const hist = historyRef.current;
     const last = hist[hist.length - 1];
     if (activeTab !== last) {
       hist.push(activeTab);
-      if (hist.length > 30) hist.shift();
+      // Cap history length
+      if (hist.length > 20) hist.shift();
     }
   }, [activeTab]);
 
@@ -32,26 +29,24 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     const { activeTab: current, setActiveTab: setTab, onExitDialog: exitDialog } = stateRef.current;
     const hist = historyRef.current;
 
-    // If on dashboard and no history to go back to, show exit dialog
+    // If on dashboard and history is just dashboard, show exit dialog
     if (current === 'dashboard' && hist.length <= 1) {
       exitDialog();
       return;
     }
 
-    // Pop current tab from history
+    // Pop current
     if (hist.length > 1) {
       hist.pop();
       const prev = hist[hist.length - 1];
       if (prev && prev !== current) {
-        isNavigatingBack.current = true;
         setTab(prev);
         return;
       }
     }
 
-    // No previous tab in history — go to dashboard
+    // If we can't go back in history, go to dashboard
     if (current !== 'dashboard') {
-      isNavigatingBack.current = true;
       setTab('dashboard');
     } else {
       exitDialog();
@@ -60,10 +55,12 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
 
   // Listen to popstate (browser back / Android back)
   useEffect(() => {
+    // Push a dummy state so we can intercept back
     window.history.pushState({ app: 'simkbm', depth: 0 }, '');
 
     const onPopState = () => {
       handleBack();
+      // Re-push to prevent actual navigation
       window.history.pushState({ app: 'simkbm', depth: 0 }, '');
     };
 
@@ -73,6 +70,7 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     };
   }, [handleBack]);
 
+  // Reset history when user logs out (when activeTab resets to dashboard from external)
   const resetHistory = useCallback(() => {
     historyRef.current = ['dashboard'];
   }, []);
