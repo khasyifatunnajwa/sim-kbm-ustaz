@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
   CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
-  Sparkles, ChevronRight, BookMarked
+  Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab } from '../types';
@@ -24,6 +24,9 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
   const [jadwalCount, setJadwalCount] = useState(0);
   const [jurnalCount, setJurnalCount] = useState(0);
   const [now, setNow] = useState(new Date());
+  const [broadcastList, setBroadcastList] = useState<Pengumuman[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
   const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const todayHari = namaHari[new Date().getDay()];
@@ -34,6 +37,16 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-advance carousel
+  useEffect(() => {
+    const visible = broadcastList.filter(p => !dismissedIds.includes(String(p.id)));
+    if (visible.length <= 1) return;
+    const t = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % visible.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [broadcastList, dismissedIds]);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -41,6 +54,18 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      // Fetch broadcast pengumuman (Publish, within date range)
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data: broadcastData } = await supabase
+        .from('pengumuman')
+        .select('*')
+        .eq('status', 'Publish')
+        .lte('tanggal_mulai', todayStr)
+        .or(`tanggal_selesai.is.null,tanggal_selesai.gte.${todayStr}`)
+        .order('prioritas', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (broadcastData) setBroadcastList(broadcastData as Pengumuman[]);
       const isUstaz = profile?.role !== 'admin';
       const userId = profile?.id ?? '';
       
@@ -148,6 +173,14 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
   return (
     <div className="space-y-4">
+      {/* Broadcast Pengumuman Banner Carousel */}
+      <BroadcastBanner
+        list={broadcastList}
+        currentSlide={currentSlide}
+        setCurrentSlide={setCurrentSlide}
+        dismissedIds={dismissedIds}
+        setDismissedIds={setDismissedIds}
+      />
       {/* Greeting Header with Marquee */}
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
         <div className="p-5 pb-3">
@@ -472,6 +505,102 @@ Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+const PRIORITAS_ORDER: Record<string, number> = { Darurat: 3, Penting: 2, Normal: 1 };
+const JENIS_BANNER_STYLE: Record<string, { bg: string; border: string; icon: string; iconBg: string }> = {
+  Penting: { bg: 'from-rose-50 to-rose-100', border: 'border-rose-300', icon: 'text-rose-600', iconBg: 'bg-rose-100' },
+  Peringatan: { bg: 'from-amber-50 to-amber-100', border: 'border-amber-300', icon: 'text-amber-600', iconBg: 'bg-amber-100' },
+  Agenda: { bg: 'from-emerald-50 to-emerald-100', border: 'border-emerald-300', icon: 'text-emerald-600', iconBg: 'bg-emerald-100' },
+  Pengumuman: { bg: 'from-sky-50 to-sky-100', border: 'border-sky-300', icon: 'text-sky-600', iconBg: 'bg-sky-100' },
+};
+
+function BroadcastBanner({
+  list, currentSlide, setCurrentSlide, dismissedIds, setDismissedIds,
+}: {
+  list: Pengumuman[];
+  currentSlide: number;
+  setCurrentSlide: React.Dispatch<React.SetStateAction<number>>;
+  dismissedIds: string[];
+  setDismissedIds: React.Dispatch<React.SetStateAction<string[]>>;
+}) {
+  const visible = list
+    .filter(p => !dismissedIds.includes(String(p.id)))
+    .sort((a, b) => (PRIORITAS_ORDER[b.prioritas || 'Normal'] || 0) - (PRIORITAS_ORDER[a.prioritas || 'Normal'] || 0));
+
+  if (visible.length === 0) return null;
+
+  const current = visible[currentSlide % visible.length];
+  if (!current) return null;
+
+  const style = JENIS_BANNER_STYLE[current.jenis || 'Pengumuman'] || JENIS_BANNER_STYLE.Pengumuman;
+  const isDarurat = current.prioritas === 'Darurat';
+
+  const dismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedIds(prev => [...prev, String(current.id)]);
+    setCurrentSlide(0);
+  };
+
+  return (
+    <div className={`relative bg-gradient-to-r ${style.bg} border-2 ${style.border} rounded-2xl overflow-hidden shadow-sm`}>
+      {isDarurat && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500 animate-pulse" />
+      )}
+      <div className="p-4 flex items-start gap-3">
+        <div className={`w-10 h-10 ${style.iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+          {isDarurat ? (
+            <AlertTriangle className={`w-5 h-5 ${style.icon} animate-pulse`} />
+          ) : (
+            <Megaphone className={`w-5 h-5 ${style.icon}`} />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-bold text-slate-800 text-sm">{current.judul}</span>
+            {current.jenis && <span className={`badge text-[9px] ${style.icon} bg-white/60`}>{current.jenis}</span>}
+            {current.prioritas === 'Darurat' && <span className="badge text-[9px] bg-rose-600 text-white">Darurat</span>}
+            {current.prioritas === 'Penting' && <span className="badge text-[9px] bg-amber-500 text-white">Penting</span>}
+          </div>
+          <p className="text-xs text-slate-700 line-clamp-2 leading-relaxed">{current.isi}</p>
+        </div>
+        <button onClick={dismiss} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white/40 transition-colors flex-shrink-0">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Carousel dots */}
+      {visible.length > 1 && (
+        <div className="flex items-center justify-center gap-1.5 pb-2.5">
+          {visible.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentSlide(i)}
+              className={`h-1.5 rounded-full transition-all ${i === (currentSlide % visible.length) ? 'w-5 bg-slate-700' : 'w-1.5 bg-slate-300'}`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Navigation arrows for multiple */}
+      {visible.length > 1 && (
+        <>
+          <button
+            onClick={() => setCurrentSlide(prev => (prev - 1 + visible.length) % visible.length)}
+            className="absolute left-1 top-1/2 -translate-y-1/2 p-1 rounded-lg bg-white/40 hover:bg-white/60 text-slate-600 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setCurrentSlide(prev => (prev + 1) % visible.length)}
+            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-lg bg-white/40 hover:bg-white/60 text-slate-600 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </>
       )}
     </div>
   );

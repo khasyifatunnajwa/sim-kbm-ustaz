@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   ClipboardCheck, Save, CheckCircle, AlertCircle, XCircle, Clock,
-  FileText, Share2, Calendar, BarChart3, Pencil, BookOpen,
+  FileText, Share2, Calendar, BarChart3, Pencil,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';

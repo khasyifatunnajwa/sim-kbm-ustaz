@@ -4,7 +4,6 @@ import {
   BookOpen,
   BarChart3,
   Users,
-  Bell,
   LogOut,
   Menu,
   X,
@@ -40,7 +39,7 @@ const navItems: { id: ActiveTab; icon: React.ElementType; label: string; adminOn
   { id: 'sikap', icon: Heart, label: 'Sikap' },
   { id: 'catatan', icon: BookOpen, label: 'Catatan' },
   { id: 'soal', icon: FileQuestion, label: 'Soal' },
-  { id: 'agenda', icon: Bell, label: 'Agenda' },
+  { id: 'izin', icon: FileText, label: 'Izin' },
   { id: 'rapor', icon: GraduationCap, label: 'Rapor' },
   { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true },
 ];

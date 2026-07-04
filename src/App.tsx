@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { BookOpen, Loader2, Shield, AlertCircle } from 'lucide-react';
+import { BookOpen, Loader2, Shield, AlertCircle, LogOut } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import ToastContainer from './components/ToastContainer';
+import Modal from './components/Modal';
 import { useToast } from './hooks/useToast';
+import { useBackButton } from './hooks/useBackButton';
 import type { ActiveTab, ShowToast, Profile } from './types';
 
 import DashboardPage from './pages/DashboardPage';
@@ -15,9 +17,10 @@ import NilaiPage from './pages/NilaiPage';
 import SikapPage from './pages/SikapPage';
 import CatatanPage from './pages/CatatanPage';
 import SoalPage from './pages/SoalPage';
-import AgendaPage from './pages/AgendaPage';
+import IzinPage from './pages/IzinPage';
 import RaporPage from './pages/RaporPage';
 import AdminPage from './pages/AdminPage';
+import AdminPengumumanPage from './pages/AdminPengumumanPage';
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
@@ -315,6 +318,7 @@ export default function App() {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [error, setError] = useState<string | null>(null);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const initRef = useRef(false);
   const { toasts, showToast, removeToast } = useToast();
 
@@ -389,7 +393,7 @@ export default function App() {
 
           // Restore tab
           const saved = sessionStorage.getItem('activeTab') as ActiveTab;
-          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'agenda', 'rapor', 'admin'].includes(saved)) {
+          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin'].includes(saved)) {
             setActiveTab(saved);
           }
         } else {
@@ -436,6 +440,12 @@ export default function App() {
   const handleTabChange = (tab: ActiveTab) => {
     if (tab !== activeTab) setActiveTab(tab);
   };
+
+  useBackButton({
+    activeTab,
+    setActiveTab: handleTabChange,
+    onExitDialog: () => setShowExitDialog(true),
+  });
 
   const handleLogout = async () => {
     try {
@@ -495,9 +505,10 @@ export default function App() {
       case 'sikap': return <SikapPage showToast={showToast} profile={profile} />;
       case 'catatan': return <CatatanPage showToast={showToast} profile={profile} />;
       case 'soal': return <SoalPage showToast={showToast} profile={profile} />;
-      case 'agenda': return <AgendaPage showToast={showToast} profile={profile} />;
+      case 'izin': return <IzinPage showToast={showToast} profile={profile} />;
       case 'rapor': return <RaporPage showToast={showToast} />;
-      case 'admin': return <AdminPage showToast={showToast} profile={profile} />;
+      case 'admin': return <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />;
+      case 'pengumuman': return <AdminPengumumanPage showToast={showToast} />;
       default: return null;
     }
   };
@@ -513,6 +524,28 @@ export default function App() {
         {renderPage()}
       </Layout>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <Modal
+        isOpen={showExitDialog}
+        onClose={() => setShowExitDialog(false)}
+        title="Keluar Aplikasi"
+        size="sm"
+      >
+        <div className="flex items-start gap-3 mb-5">
+          <div className="p-2 rounded-xl bg-amber-50">
+            <LogOut className="w-5 h-5 text-amber-500" />
+          </div>
+          <p className="text-sm text-slate-600 leading-relaxed">Apakah Anda ingin keluar dari aplikasi?</p>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button onClick={() => setShowExitDialog(false)} className="btn-secondary text-sm">Batal</button>
+          <button
+            onClick={() => { setShowExitDialog(false); handleLogout(); }}
+            className="text-sm px-5 py-2.5 rounded-xl font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-sm shadow-rose-100 transition-all active:scale-95"
+          >
+            Ya, Keluar
+          </button>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -268,15 +268,48 @@ export interface Pengumuman {
   judul: string;
   isi?: string;
   kategori?: string; // For legacy table compatibility
-  prioritas?: PrioritasPengumuman;
+  jenis?: string; // Pengumuman | Agenda | Peringatan | Penting
+  prioritas?: string; // Normal | Penting | Darurat
   aktif?: boolean;
   tanggal?: string; // For legacy table compatibility
   tanggal_mulai?: string;
   tanggal_selesai?: string;
+  status?: string; // Draft | Publish | Arsip
+  lampiran?: string;
+  dibuat_oleh?: string;
   created_at: string;
   updated_at?: string;
   deleted_at?: string;
   is_active?: boolean;
+}
+
+export interface Ruangan {
+  id: string;
+  user_id: string;
+  nama_ruangan: string;
+  kode?: string;
+  kapasitas?: number;
+  keterangan?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface IzinMengajar {
+  id: string;
+  user_id: string;
+  nama_ustaz: string;
+  jenis_izin: string; // Sakit | Izin | Cuti | Tugas | Lainnya
+  lama_izin: string; // hari_ini | beberapa_hari
+  tanggal_mulai: string;
+  tanggal_selesai?: string;
+  mata_pelajaran?: string;
+  kelas?: string;
+  guru_pengganti?: string;
+  catatan?: string;
+  status: string; // diajukan | disetujui | ditolak
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface Notifikasi {
@@ -388,7 +421,7 @@ export type ActiveTab =
   | 'sikap'
   | 'catatan'
   | 'soal'
-  | 'agenda'
+  | 'izin'
   | 'rapor'
   | 'pengumuman'
   | 'admin';
