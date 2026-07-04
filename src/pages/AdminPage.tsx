@@ -48,7 +48,15 @@ export default function AdminPage({
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
 
   // Form states
-  const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz' as UserRole, is_active: true });
+  const [userForm, setUserForm] = useState({ 
+    nama_lengkap: '', 
+    nama_panggilan: '', 
+    nomor_whatsapp: '', 
+    id_login: '', 
+    password: '', 
+    role: 'ustaz' as UserRole, 
+    is_active: true 
+  });
   const [tahunForm, setTahunForm] = useState({ nama: '', aktif: false });
   const [semesterForm, setSemesterForm] = useState({ nama: '', aktif: false });
   const [kelasForm, setKelasForm] = useState({ nama_kelas: '', tingkat: '1', kode: '' });
@@ -93,12 +101,14 @@ export default function AdminPage({
   // ========== GENERIC HANDLERS ==========
   const openAdd = () => {
     setEditingId(null);
-    if (masterTab === 'users') setUserForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz', is_active: true });
-    if (masterTab === 'tahun') setTahunForm({ nama: '', aktif: false });
-    if (masterTab === 'semester') setSemesterForm({ nama: '', aktif: false });
-    if (masterTab === 'kelas') setKelasForm({ nama_kelas: '', tingkat: '1', kode: '' });
-    if (masterTab === 'mapel') setMapelForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' });
-    if (masterTab === 'ruangan') setRuanganForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '' });
+    if (masterTab === 'users') {
+      setUserForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', id_login: '', password: '', role: 'ustaz', is_active: true });
+    } else if (masterTab === 'tahun') setTahunForm({ nama: '', aktif: false });
+    else if (masterTab === 'semester') setSemesterForm({ nama: '', aktif: false });
+    else if (masterTab === 'kelas') setKelasForm({ nama_kelas: '', tingkat: '1', kode: '' });
+    else if (masterTab === 'mapel') setMapelForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' });
+    else if (masterTab === 'ruangan') setRuanganForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '' });
+    
     setShowModal(true);
   };
 
@@ -108,6 +118,7 @@ export default function AdminPage({
     try {
       if (masterTab === 'users') {
         if (editingId) {
+          // MODE EDIT: Langsung update ke tabel profiles
           const { error } = await supabase.from('profiles').update({
             nama_lengkap: userForm.nama_lengkap,
             nama_panggilan: userForm.nama_panggilan,
@@ -115,12 +126,32 @@ export default function AdminPage({
             role: userForm.role,
             is_active: userForm.is_active,
           }).eq('id', editingId);
+          
           if (error) throw error;
-          showToast('User diperbarui!', 'success');
+          showToast('Data user diperbarui!', 'success');
         } else {
-          showToast('Untuk membuat user baru, gunakan Admin API', 'info');
-          setSaving(false);
-          return;
+          // MODE TAMBAH: Panggil Edge Function agar Admin tidak ter-logout
+          const { data, error } = await supabase.functions.invoke('create-admin-user', {
+            body: { 
+              // Menambahkan domain dummy agar Supabase Auth menerimanya sebagai email
+              email: `${userForm.id_login.trim().toLowerCase()}@sim-kbm.com`, 
+              password: userForm.password,
+              user_metadata: {
+                nama_lengkap: userForm.nama_lengkap,
+                nama_panggilan: userForm.nama_panggilan,
+                nomor_whatsapp: userForm.nomor_whatsapp,
+                role: userForm.role,
+                is_active: userForm.is_active,
+                id_login: userForm.id_login.trim().toLowerCase()
+              }
+            }
+          });
+          
+          if (error) {
+            console.error("Error Function:", error);
+            throw new Error('Gagal membuat user. Pastikan ID Login belum digunakan.');
+          }
+          showToast('User berhasil ditambahkan!', 'success');
         }
       } else if (masterTab === 'tahun') {
         const { error } = editingId
@@ -161,6 +192,7 @@ export default function AdminPage({
         if (error) throw error;
         showToast(editingId ? 'Diperbarui!' : 'Ditambahkan!', 'success');
       }
+      
       setShowModal(false);
       setEditingId(null);
       fetchMasterData();
@@ -179,9 +211,11 @@ export default function AdminPage({
     else if (masterTab === 'semester') table = 'semester';
     else if (masterTab === 'kelas') table = 'kelas';
     if (!table) return;
+    
+    // Perhatian: Menghapus dari 'profiles' mungkin tidak menghapus dari tabel Auth bawaan Supabase
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) { showToast(error.message, 'error'); return; }
-    showToast('Dihapus', 'info');
+    showToast('Data dihapus', 'info');
     fetchMasterData();
   };
 
@@ -192,6 +226,8 @@ export default function AdminPage({
         nama_lengkap: item.nama_lengkap || '',
         nama_panggilan: item.nama_panggilan || '',
         nomor_whatsapp: item.nomor_whatsapp || '',
+        id_login: item.id_login || '',
+        password: '', // Kosongkan saat edit karena password tidak bisa dilihat
         role: (item.role || 'ustaz') as UserRole,
         is_active: item.is_active ?? true,
       });
@@ -273,44 +309,123 @@ export default function AdminPage({
     if (masterTab === 'users') {
       return (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Banner Info UI Modern */}
+          <div className="bg-[#effaf5] text-emerald-800 px-4 py-3 rounded-xl text-sm leading-relaxed border border-emerald-100 flex gap-2">
+            <div>
+              <span className="font-bold">Info:</span> ID Login digunakan untuk login. Password minimal 6 karakter.
+            </div>
+          </div>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Lengkap</label>
-            <input type="text" value={userForm.nama_lengkap} onChange={e => setUserForm(p => ({ ...p, nama_lengkap: e.target.value }))} className="input-field text-sm" placeholder="Nama lengkap" required />
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nama Lengkap *</label>
+            <input 
+              type="text" 
+              value={userForm.nama_lengkap} 
+              onChange={e => setUserForm(p => ({ ...p, nama_lengkap: e.target.value }))} 
+              className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all" 
+              placeholder="Rozaq" 
+              required 
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Panggilan</label>
-              <input type="text" value={userForm.nama_panggilan} onChange={e => setUserForm(p => ({ ...p, nama_panggilan: e.target.value }))} className="input-field text-sm" placeholder="Panggilan" />
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nama Panggilan</label>
+              <input 
+                type="text" 
+                value={userForm.nama_panggilan} 
+                onChange={e => setUserForm(p => ({ ...p, nama_panggilan: e.target.value }))} 
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all" 
+                placeholder="Rozaq" 
+              />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">No. WA</label>
-              <input type="text" value={userForm.nomor_whatsapp} onChange={e => setUserForm(p => ({ ...p, nomor_whatsapp: e.target.value }))} className="input-field text-sm" placeholder="08xxx" />
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">No. WA</label>
+              <input 
+                type="text" 
+                value={userForm.nomor_whatsapp} 
+                onChange={e => setUserForm(p => ({ ...p, nomor_whatsapp: e.target.value }))} 
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all" 
+                placeholder="08xxx" 
+              />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Role</label>
-              <select value={userForm.role} onChange={e => setUserForm(p => ({ ...p, role: e.target.value as any }))} className="input-field text-sm">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">ID Login *</label>
+              <input 
+                type="text" 
+                value={userForm.id_login} 
+                onChange={e => setUserForm(p => ({ ...p, id_login: e.target.value }))} 
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all disabled:bg-slate-50 disabled:text-slate-400" 
+                placeholder="alfattah" 
+                required 
+                disabled={!!editingId} // Tidak bisa ubah ID jika sedang mode Edit
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Password {editingId ? '(Abaikan)' : '*'}</label>
+              <input 
+                type="password" 
+                value={userForm.password} 
+                onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} 
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all disabled:bg-slate-50 disabled:text-slate-400" 
+                placeholder="••••••" 
+                required={!editingId} 
+                minLength={6} 
+                disabled={!!editingId} // Keamanan: Di frontend ini password tidak diubah via form edit biasa
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Role</label>
+              <select 
+                value={userForm.role} 
+                onChange={e => setUserForm(p => ({ ...p, role: e.target.value as any }))} 
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              >
                 <option value="admin">Admin</option>
                 <option value="operator">Operator</option>
                 <option value="ustaz">Ustaz</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status</label>
-              <select value={userForm.is_active ? 'true' : 'false'} onChange={e => setUserForm(p => ({ ...p, is_active: e.target.value === 'true' }))} className="input-field text-sm">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Status</label>
+              <select 
+                value={userForm.is_active ? 'true' : 'false'} 
+                onChange={e => setUserForm(p => ({ ...p, is_active: e.target.value === 'true' }))} 
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              >
                 <option value="true">Aktif</option>
                 <option value="false">Non-aktif</option>
               </select>
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
+
+          <div className="flex gap-3 pt-4 mt-2">
+            <button 
+              type="button" 
+              onClick={() => setShowModal(false)} 
+              className="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors text-sm"
+            >
+              Batal
+            </button>
+            <button 
+              type="submit" 
+              disabled={saving} 
+              className="flex-1 py-2.5 bg-[#0f7652] text-white font-semibold rounded-xl hover:bg-[#0c5d41] transition-colors text-sm shadow-sm"
+            >
+              {saving ? 'Menyimpan...' : 'Simpan'}
+            </button>
           </div>
         </form>
       );
     }
+    
+    // (Render tab lainnya dibiarkan utuh)
     if (masterTab === 'tahun') {
       return (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -446,6 +561,7 @@ export default function AdminPage({
             <p className="font-semibold text-slate-800 text-sm truncate">{u.nama_lengkap || 'User'}</p>
             <div className="flex items-center gap-2">
               <span className={`badge text-[10px] ${u.role === 'admin' ? 'badge-danger' : u.role === 'operator' ? 'badge-warning' : 'badge-success'}`}>{u.role}</span>
+              {u.id_login && <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">ID: {u.id_login}</span>}
               {u.nomor_whatsapp && <span className="text-xs text-slate-400">{u.nomor_whatsapp}</span>}
             </div>
           </div>
@@ -460,6 +576,7 @@ export default function AdminPage({
         </div>
       );
     }
+    // Render fungsi list lainnya (Tahun, Semester, Kelas, Mapel, Ruangan) tetap sama persis seperti sebelumnya
     if (masterTab === 'tahun') {
       const t = item as TahunAjaran;
       return (
@@ -580,7 +697,6 @@ export default function AdminPage({
         </button>
       </div>
 
-      {/* Pengumuman Quick Access (always visible) */}
       {setActiveTab && (
         <button
           onClick={() => setActiveTab('pengumuman')}
@@ -599,7 +715,6 @@ export default function AdminPage({
 
       {section === 'master' ? (
         <>
-          {/* Master Data Tabs */}
           <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
             {masterTabs.map(t => {
               const Icon = t.icon;
@@ -617,7 +732,6 @@ export default function AdminPage({
             })}
           </div>
 
-          {/* Search */}
           <div className="relative mb-4">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
@@ -634,13 +748,11 @@ export default function AdminPage({
             )}
           </div>
 
-          {/* Add Button */}
           <button onClick={openAdd} className="btn-primary flex items-center gap-2 mb-4 w-full sm:w-auto">
             <Plus className="w-4 h-4" />
             <span>Tambah {masterTabs.find(t => t.id === masterTab)?.label}</span>
           </button>
 
-          {/* List */}
           {loading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="card p-4 animate-pulse h-16 bg-slate-50 rounded-2xl" />)}</div>
           ) : pagedList.length === 0 ? (
@@ -656,7 +768,6 @@ export default function AdminPage({
         </>
       ) : (
         <>
-          {/* Data Akademik Tabs */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
               onClick={() => setAkademikTab('siswa')}
@@ -673,13 +784,10 @@ export default function AdminPage({
               Data Ustaz
             </button>
           </div>
-
-          {/* Data Akademik Content */}
           {akademikTab === 'siswa' ? <DataSiswaPage showToast={showToast} /> : <DataUstazPage showToast={showToast} />}
         </>
       )}
 
-      {/* Modal */}
       <Modal
         isOpen={showModal}
         onClose={() => { setShowModal(false); setEditingId(null); }}
