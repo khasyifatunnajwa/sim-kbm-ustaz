@@ -9,7 +9,7 @@ import EmptyState from '../components/EmptyState';
 import { shareWA } from '../lib/pdf';
 import type { IzinMengajar, Profile, ShowToast } from '../types';
 
-const JENIS_IZIN = ['Sakit', 'Izin', 'Cuti', 'Tugas', 'Lainnya'] as const;
+const JENIS_IZIN = ['Sakit', 'Bepergian', 'Tugas Pesantren', 'Lainnya'] as const;
 const STATUS_STYLE: Record<string, string> = {
   diajukan: 'bg-amber-100 text-amber-700',
   disetujui: 'bg-emerald-100 text-emerald-700',
@@ -26,7 +26,8 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
 
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({
-    jenis_izin: 'Izin' as typeof JENIS_IZIN[number],
+    jenis_izin: 'Sakit' as string,
+    jenis_lainnya: '',
     lama_izin: 'hari_ini' as 'hari_ini' | 'beberapa_hari',
     tanggal_mulai: today,
     tanggal_selesai: '',
@@ -61,7 +62,8 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
 
   const openAdd = () => {
     setForm({
-      jenis_izin: 'Izin',
+      jenis_izin: 'Sakit',
+      jenis_lainnya: '',
       lama_izin: 'hari_ini',
       tanggal_mulai: today,
       tanggal_selesai: '',
@@ -73,17 +75,23 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     setShowModal(true);
   };
 
+  const getJenisLabel = () => form.jenis_izin === 'Lainnya' ? (form.jenis_lainnya || 'Lainnya') : form.jenis_izin;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.mata_pelajaran || !form.kelas) {
       showToast('Mata pelajaran dan kelas wajib diisi', 'error');
       return;
     }
+    if (form.jenis_izin === 'Lainnya' && !form.jenis_lainnya.trim()) {
+      showToast('Jelaskan jenis izin pada kolom Lainnya', 'error');
+      return;
+    }
     const namaUstaz = profile?.nama_panggilan || profile?.nama_lengkap || 'Ustaz';
     setSaving(true);
     const payload = {
       nama_ustaz: namaUstaz,
-      jenis_izin: form.jenis_izin,
+      jenis_izin: getJenisLabel(),
       lama_izin: form.lama_izin,
       tanggal_mulai: form.tanggal_mulai,
       tanggal_selesai: form.lama_izin === 'hari_ini' ? form.tanggal_mulai : (form.tanggal_selesai || null),
@@ -108,28 +116,50 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     showToast('Izin dihapus', 'info');
   };
 
-  const buildWAMessage = (data: { jenis_izin: string; lama_izin: 'hari_ini' | 'beberapa_hari'; tanggal_mulai: string; tanggal_selesai: string; mata_pelajaran: string; kelas: string; guru_pengganti: string; catatan: string }) => {
+  const formatDateLong = (d: string) => {
+    const date = new Date(d);
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const buildWAMessage = (data: {
+    jenis_izin: string; jenis_lainnya: string;
+    lama_izin: 'hari_ini' | 'beberapa_hari'; tanggal_mulai: string; tanggal_selesai: string;
+    mata_pelajaran: string; kelas: string; guru_pengganti: string; catatan: string;
+  }) => {
     const nama = profile?.nama_panggilan || profile?.nama_lengkap || 'Ustaz';
+    const jenisLabel = data.jenis_izin === 'Lainnya' ? (data.jenis_lainnya || 'Lainnya') : data.jenis_izin;
     const tanggalText = data.lama_izin === 'hari_ini'
-      ? data.tanggal_mulai
-      : `${data.tanggal_mulai} s/d ${data.tanggal_selesai}`;
-    return `Assalamu'alaikum Warahmatullahi Wabarakatuh.
-Saya mengajukan izin mengajar.
+      ? formatDateLong(data.tanggal_mulai)
+      : `${formatDateLong(data.tanggal_mulai)} s/d ${formatDateLong(data.tanggal_selesai)}`;
+    const alasan = data.catatan || jenisLabel;
+    const pengganti = data.guru_pengganti || '-';
 
-Nama: ${nama}
-Tanggal: ${tanggalText}
-Mata Pelajaran: ${data.mata_pelajaran}
-Kelas: ${data.kelas}
-Jenis Izin: ${data.jenis_izin}
-Guru Pengganti: ${data.guru_pengganti || '-'}
+    return `Assalamu'alaikum warahmatullahi wabarakatuh.
 
-Mohon izin dan pengertiannya.
-Terima kasih.`;
+Dengan hormat, saya yang bertanda tangan di bawah ini:
+*Nama* : *${nama}*
+*Mata Pelajaran* : *${data.mata_pelajaran}*
+*Kelas* : *${data.kelas}*
+*Tanggal Izin* : _${tanggalText}_
+
+Dengan ini mengajukan permohonan izin untuk tidak dapat melaksanakan tugas mengajar pada jadwal tersebut karena _${alasan}_.
+
+Sebagai bentuk tanggung jawab terhadap amanah pembelajaran, saya telah menyerahkan amanah mengajar kepada _Ustaz ${pengganti}_ sebagai guru pengganti, sehingga insyaAllah kegiatan belajar mengajar tetap dapat berlangsung sebagaimana mestinya.
+
+Demikian permohonan izin ini saya sampaikan. Besar harapan saya kiranya Bapak/Ibu Koordinator berkenan memberikan izin.
+
+Atas perhatian, kebijaksanaan, dan pengertiannya saya ucapkan _Jazākumullāhu Khairan Katsīrā_.
+
+Wassalamu'alaikum warahmatullahi wabarakatuh.`;
   };
 
   const handleShareWA = () => {
     if (!form.mata_pelajaran || !form.kelas) {
       showToast('Lengkapi mata pelajaran dan kelas sebelum share', 'error');
+      return;
+    }
+    if (form.jenis_izin === 'Lainnya' && !form.jenis_lainnya.trim()) {
+      showToast('Jelaskan jenis izin pada kolom Lainnya', 'error');
       return;
     }
     shareWA(buildWAMessage(form));
@@ -138,6 +168,7 @@ Terima kasih.`;
   const handleShareExisting = (izin: IzinMengajar) => {
     const data = {
       jenis_izin: izin.jenis_izin,
+      jenis_lainnya: '',
       lama_izin: izin.lama_izin as 'hari_ini' | 'beberapa_hari',
       tanggal_mulai: izin.tanggal_mulai,
       tanggal_selesai: izin.tanggal_selesai || '',
@@ -277,18 +308,28 @@ Terima kasih.`;
           {/* Jenis Izin */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Jenis Izin</label>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {JENIS_IZIN.map(j => (
                 <button
                   key={j}
                   type="button"
                   onClick={() => setForm(p => ({ ...p, jenis_izin: j }))}
-                  className={`py-2 rounded-lg text-[10px] font-bold transition-all border ${form.jenis_izin === j ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200'}`}
+                  className={`py-2.5 rounded-lg text-xs font-bold transition-all border ${form.jenis_izin === j ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200'}`}
                 >
                   {j}
                 </button>
               ))}
             </div>
+            {form.jenis_izin === 'Lainnya' && (
+              <input
+                type="text"
+                value={form.jenis_lainnya}
+                onChange={e => setForm(p => ({ ...p, jenis_lainnya: e.target.value }))}
+                className="input-field text-sm mt-2"
+                placeholder="Tulis jenis izin secara manual..."
+                required
+              />
+            )}
           </div>
 
           {/* Mapel & Kelas */}
@@ -315,10 +356,10 @@ Terima kasih.`;
             <input type="text" value={form.guru_pengganti} onChange={e => setForm(p => ({ ...p, guru_pengganti: e.target.value }))} className="input-field text-sm" placeholder="Nama guru pengganti..." />
           </div>
 
-          {/* Catatan */}
+          {/* Catatan / Alasan */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catatan (opsional)</label>
-            <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Catatan tambahan..." />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Alasan / Catatan (opsional)</label>
+            <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Tulis alasan izin..." />
           </div>
 
           {/* Tombol */}
