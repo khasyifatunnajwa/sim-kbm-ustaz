@@ -72,6 +72,7 @@ export default function AdminPage({
         supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
         supabase.from('ruangan').select('*').eq('is_active', true).order('nama_ruangan'),
       ]);
+
       if (usersRes.data) setUsers(usersRes.data as Profile[]);
       if (tahunRes.data) setTahunList(tahunRes.data as TahunAjaran[]);
       if (semesterRes.data) setSemesterList(semesterRes.data as Semester[]);
@@ -118,9 +119,35 @@ export default function AdminPage({
           if (error) throw error;
           showToast('User diperbarui!', 'success');
         } else {
-          showToast('Untuk membuat user baru, gunakan Admin API', 'info');
-          setSaving(false);
-          return;
+          // --- PERBAIKAN: Fungsi Tambah User Baru ---
+          // Membuat email sementara menggunakan nomor WA atau timestamp jika WA kosong
+          const generatedEmail = userForm.nomor_whatsapp 
+            ? `${userForm.nomor_whatsapp}@sistem.local` 
+            : `user${Date.now()}@sistem.local`;
+          const defaultPassword = 'Ustaz123!@#'; // Password bawaan yang kuat
+
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: generatedEmail,
+            password: defaultPassword,
+          });
+
+          if (authError) throw authError;
+
+          // Update profil tambahan setelah trigger auth dari database selesai berjalan
+          if (authData.user) {
+            const { error: profileError } = await supabase.from('profiles').update({
+              nama_lengkap: userForm.nama_lengkap,
+              nama_panggilan: userForm.nama_panggilan,
+              nomor_whatsapp: userForm.nomor_whatsapp,
+              role: userForm.role,
+              is_active: userForm.is_active,
+            }).eq('id', authData.user.id);
+            
+            if (profileError) throw profileError;
+          }
+
+          showToast(`User berhasil ditambahkan! Password bawaan: ${defaultPassword}`, 'success');
+          // --- SELESAI PERBAIKAN ---
         }
       } else if (masterTab === 'tahun') {
         const { error } = editingId
@@ -179,6 +206,7 @@ export default function AdminPage({
     else if (masterTab === 'semester') table = 'semester';
     else if (masterTab === 'kelas') table = 'kelas';
     if (!table) return;
+
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) { showToast(error.message, 'error'); return; }
     showToast('Dihapus', 'info');
