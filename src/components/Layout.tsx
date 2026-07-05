@@ -62,7 +62,8 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
   };
 
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
-  const activeLabel = navItems.find(n => n.id === activeTab)?.label ?? '';
+  // Jika tab aktif adalah profil, label yang ditampilkan adalah "Profil Pengguna"
+  const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : navItems.find(n => n.id === activeTab)?.label ?? '';
 
   const displayName = profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Ustaz';
 
@@ -101,15 +102,20 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         </div>
 
         <div className="p-3 border-t border-slate-100 space-y-2">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-4 h-4 text-emerald-600" />
+          {/* Ubah area identitas menjadi clickable mengarah ke profil */}
+          <button 
+            onClick={() => handleNav('profil')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'profil' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'profil' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-600'}`}>
+              <User className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-slate-800 truncate">{displayName}</p>
               <p className="text-[10px] text-slate-400">{profile?.role === 'admin' ? 'Administrator' : profile?.role === 'operator' ? 'Operator' : 'Ustaz'}</p>
             </div>
-          </div>
+          </button>
+          
           {/* Install App Button */}
           {isInstallable && !isInstalled && (
             <button
@@ -207,9 +213,13 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             </div>
           </div>
           <div className="md:hidden flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-emerald-600" />
-            </div>
+            {/* Ubah ikon user di header agar klikable untuk mobile */}
+            <button 
+              onClick={() => handleNav('profil')}
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-transform ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600'}`}
+            >
+              <User className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>
