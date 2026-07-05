@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   User, Users, Shield, Plus, Trash2, Pencil, CheckCircle, XCircle,
   BookOpen, Calendar, Search, X, Database, GraduationCap, Megaphone,
-  Building2, BarChart3,
+  Building2, BarChart3, Key
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -39,6 +39,11 @@ export default function AdminPage({
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
+  // State khusus Reset Password
+  const [resetPassId, setResetPassId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
   // Data states
   const [users, setUsers] = useState<Profile[]>([]);
   const [tahunList, setTahunList] = useState<TahunAjaran[]>([]);
@@ -47,7 +52,7 @@ export default function AdminPage({
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
 
-  // Form states (Menambahkan password untuk kebutuhan User Baru)
+  // Form states
   const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz' as UserRole, is_active: true });
   const [tahunForm, setTahunForm] = useState({ nama: '', aktif: false });
   const [semesterForm, setSemesterForm] = useState({ nama: '', aktif: false });
@@ -116,20 +121,16 @@ export default function AdminPage({
           if (error) throw error;
           showToast('User diperbarui!', 'success');
         } else {
-          // --- LOGIKA PEMBUATAN USER BARU (Custom ID) ---
           if (!userForm.nama_panggilan || !userForm.password) {
              showToast('Nama panggilan dan password wajib diisi.', 'error');
              setSaving(false);
              return;
           }
 
-          // 1. Format Username Manual
           const usernameManual = userForm.nama_panggilan.toLowerCase().replace(/\s+/g, '');
-          // PERBAIKAN: Menggunakan .com agar lolos validasi format email dari Supabase
           const generatedEmail = `${usernameManual}@madrasah.com`;
 
-          // 2. Cek Duplikasi ID Login Opsional
-          const { data: existingData, error: checkError } = await supabase
+          const { data: existingData } = await supabase
             .from('profiles')
             .select('id_login')
             .eq('id_login', usernameManual)
@@ -141,13 +142,12 @@ export default function AdminPage({
             return;
           }
 
-          // 3. Proses Auth Sign Up
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: generatedEmail,
             password: userForm.password,
             options: {
               data: {
-                nama_panggilan: userForm.nama_panggilan, // Disimpan ke metadata
+                nama_panggilan: userForm.nama_panggilan,
                 nama_lengkap: userForm.nama_lengkap,
                 role: userForm.role,
               }
@@ -156,7 +156,6 @@ export default function AdminPage({
 
           if (authError) throw authError;
 
-          // 4. Sinkronisasi Data Master ke Profil (Post-Sign Up)
           if (authData?.user) {
             const { error: profileError } = await supabase.from('profiles').update({
               id_login: usernameManual,
@@ -223,6 +222,31 @@ export default function AdminPage({
     setSaving(false);
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      showToast('Password minimal 6 karakter', 'error');
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-password', {
+        body: { userId: resetPassId, newPassword: newPassword }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      showToast('Password berhasil diganti!', 'success');
+      setResetPassId(null);
+      setNewPassword('');
+    } catch (error: any) {
+      showToast(error.message || 'Gagal mereset password', 'error');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     let table = '';
     if (masterTab === 'mapel') table = 'mata_pelajaran';
@@ -245,7 +269,7 @@ export default function AdminPage({
         nama_lengkap: item.nama_lengkap || '',
         nama_panggilan: item.nama_panggilan || '',
         nomor_whatsapp: item.nomor_whatsapp || '',
-        password: '', // Kosongkan password saat edit
+        password: '',
         role: (item.role || 'ustaz') as UserRole,
         is_active: item.is_active ?? true,
       });
@@ -342,7 +366,6 @@ export default function AdminPage({
             </div>
           </div>
 
-          {/* Menambahkan Input Password Jika Create User Baru */}
           {!editingId && (
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password *</label>
@@ -512,12 +535,14 @@ export default function AdminPage({
               <span className={`badge text-[10px] ${u.role === 'admin' ? 'badge-danger' : u.role === 'operator' ? 'badge-warning' : 'badge-success'}`}>{u.role}</span>
               {u.nomor_whatsapp && <span className="text-xs text-slate-400">{u.nomor_whatsapp}</span>}
             </div>
-            {/* Tampilkan id_login jika ada untuk verifikasi cepat */}
             {u.id_login && <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {u.id_login}</p>}
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => toggleUserActive(u)} className={`p-1.5 rounded-lg ${u.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-50'}`}>
               {u.is_active ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+            </button>
+            <button onClick={() => { setResetPassId(u.id); setNewPassword(''); }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Ganti Sandi">
+              <Key className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => openEdit(u)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="w-3.5 h-3.5" />
@@ -737,6 +762,7 @@ export default function AdminPage({
         </>
       )}
 
+      {/* Modal Utama (Tambah/Edit) */}
       <Modal
         isOpen={showModal}
         onClose={() => { setShowModal(false); setEditingId(null); }}
@@ -744,6 +770,34 @@ export default function AdminPage({
         size="sm"
       >
         {renderModalContent()}
+      </Modal>
+
+      {/* Modal Khusus Reset Password */}
+      <Modal
+        isOpen={!!resetPassId}
+        onClose={() => { setResetPassId(null); setNewPassword(''); }}
+        title="Ganti Sandi Pengguna"
+        size="sm"
+      >
+        <form onSubmit={handleResetPassword} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password Baru</label>
+            <input
+              type="text"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              className="input-field text-sm"
+              placeholder="Masukkan password baru..."
+              required
+              minLength={6}
+            />
+            <p className="text-[10px] text-slate-500 mt-1">Minimal 6 karakter. Anda dapat melihat sandi yang Anda ketik.</p>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={() => { setResetPassId(null); setNewPassword(''); }} className="btn-secondary flex-1 text-sm">Batal</button>
+            <button type="submit" disabled={isResetting} className="btn-primary flex-1 text-sm">{isResetting ? 'Memproses...' : 'Simpan Sandi'}</button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
