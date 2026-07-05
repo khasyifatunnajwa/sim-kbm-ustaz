@@ -47,8 +47,8 @@ export default function AdminPage({
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
 
-  // Form states (Menambahkan 'password' pada userForm)
-  const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz' as UserRole, is_active: true, password: '' });
+  // Form states (Menambahkan password untuk kebutuhan User Baru)
+  const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz' as UserRole, is_active: true });
   const [tahunForm, setTahunForm] = useState({ nama: '', aktif: false });
   const [semesterForm, setSemesterForm] = useState({ nama: '', aktif: false });
   const [kelasForm, setKelasForm] = useState({ nama_kelas: '', tingkat: '1', kode: '' });
@@ -72,7 +72,6 @@ export default function AdminPage({
         supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
         supabase.from('ruangan').select('*').eq('is_active', true).order('nama_ruangan'),
       ]);
-
       if (usersRes.data) setUsers(usersRes.data as Profile[]);
       if (tahunRes.data) setTahunList(tahunRes.data as TahunAjaran[]);
       if (semesterRes.data) setSemesterList(semesterRes.data as Semester[]);
@@ -92,7 +91,7 @@ export default function AdminPage({
 
   const openAdd = () => {
     setEditingId(null);
-    if (masterTab === 'users') setUserForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz', is_active: true, password: '' });
+    if (masterTab === 'users') setUserForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz', is_active: true });
     if (masterTab === 'tahun') setTahunForm({ nama: '', aktif: false });
     if (masterTab === 'semester') setSemesterForm({ nama: '', aktif: false });
     if (masterTab === 'kelas') setKelasForm({ nama_kelas: '', tingkat: '1', kode: '' });
@@ -107,7 +106,6 @@ export default function AdminPage({
     try {
       if (masterTab === 'users') {
         if (editingId) {
-          // Edit Profil User
           const { error } = await supabase.from('profiles').update({
             nama_lengkap: userForm.nama_lengkap,
             nama_panggilan: userForm.nama_panggilan,
@@ -116,36 +114,65 @@ export default function AdminPage({
             is_active: userForm.is_active,
           }).eq('id', editingId);
           if (error) throw error;
-          showToast('Profil User diperbarui!', 'success');
+          showToast('User diperbarui!', 'success');
         } else {
-          // --- PEMBUATAN USER BARU ---
-          
-          // 1. Membersihkan nama panggilan untuk dijadikan format email (Hapus spasi & jadikan huruf kecil)
-          const cleanName = userForm.nama_panggilan ? userForm.nama_panggilan.toLowerCase().replace(/\s+/g, '') : `user${Date.now()}`;
-          const generatedEmail = `${cleanName}@sistem.local`;
+          // --- LOGIKA PEMBUATAN USER BARU (Custom ID) ---
+          if (!userForm.nama_panggilan || !userForm.password) {
+             showToast('Nama panggilan dan password wajib diisi.', 'error');
+             setSaving(false);
+             return;
+          }
 
-          // 2. Mendaftarkan user ke Supabase Auth dengan password dari input Admin
+          // 1. Format Username Manual
+          const usernameManual = userForm.nama_panggilan.toLowerCase().replace(/\s+/g, '');
+          const generatedEmail = `${usernameManual}@madrasah.local`;
+
+          // 2. Cek Duplikasi ID Login Opsional
+          const { data: existingData, error: checkError } = await supabase
+            .from('profiles')
+            .select('id_login')
+            .eq('id_login', usernameManual)
+            .maybeSingle();
+            
+          if (existingData) {
+            showToast(`ID Login "${usernameManual}" sudah digunakan. Silakan gunakan nama panggilan lain.`, 'error');
+            setSaving(false);
+            return;
+          }
+
+          // 3. Proses Auth Sign Up
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: generatedEmail,
-            password: userForm.password, // Diambil dari form
+            password: userForm.password,
+            options: {
+              data: {
+                nama_panggilan: userForm.nama_panggilan, // Disimpan ke metadata
+                nama_lengkap: userForm.nama_lengkap,
+                role: userForm.role,
+              }
+            }
           });
 
           if (authError) throw authError;
 
-          // 3. Update data tambahan ke tabel profiles
-          if (authData.user) {
+          // 4. Sinkronisasi Data Master ke Profil (Post-Sign Up)
+          if (authData?.user) {
             const { error: profileError } = await supabase.from('profiles').update({
-              nama_lengkap: userForm.nama_lengkap,
+              id_login: usernameManual,
               nama_panggilan: userForm.nama_panggilan,
+              nama_lengkap: userForm.nama_lengkap,
               nomor_whatsapp: userForm.nomor_whatsapp,
               role: userForm.role,
               is_active: userForm.is_active,
             }).eq('id', authData.user.id);
-            
-            if (profileError) throw profileError;
-          }
 
-          showToast(`User berhasil ditambahkan! Username: ${generatedEmail}`, 'success');
+            if (profileError) {
+              console.error('Update profile error:', profileError);
+              showToast('Berhasil mendaftar, namun sinkronisasi profil gagal', 'warning');
+            } else {
+              showToast('User baru berhasil ditambahkan!', 'success');
+            }
+          }
         }
       } else if (masterTab === 'tahun') {
         const { error } = editingId
@@ -204,7 +231,6 @@ export default function AdminPage({
     else if (masterTab === 'semester') table = 'semester';
     else if (masterTab === 'kelas') table = 'kelas';
     if (!table) return;
-
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) { showToast(error.message, 'error'); return; }
     showToast('Dihapus', 'info');
@@ -218,9 +244,9 @@ export default function AdminPage({
         nama_lengkap: item.nama_lengkap || '',
         nama_panggilan: item.nama_panggilan || '',
         nomor_whatsapp: item.nomor_whatsapp || '',
+        password: '', // Kosongkan password saat edit
         role: (item.role || 'ustaz') as UserRole,
         is_active: item.is_active ?? true,
-        password: '', // Kosongkan saat edit, karena ganti password via endpoint berbeda
       });
     } else if (masterTab === 'tahun') {
       setTahunForm({ nama: item.nama, aktif: item.aktif || false });
@@ -248,6 +274,7 @@ export default function AdminPage({
     showToast(u.is_active ? 'User dinonaktifkan' : 'User diaktifkan', 'success');
   };
 
+  // ========== FILTERED & PAGED DATA ==========
   const getFilteredList = (): any[] => {
     let list: any[] = [];
     if (masterTab === 'users') list = users;
@@ -261,7 +288,7 @@ export default function AdminPage({
       const q = search.toLowerCase();
       list = list.filter((item: any) => {
         const text = [
-          item.nama_lengkap, item.nama_panggilan, item.nama, item.nama_kelas,
+          item.nama_lengkap, item.nama_panggilan, item.id_login, item.nama, item.nama_kelas,
           item.nama_mapel, item.nama_ruangan, item.kode, item.kelompok, item.role,
         ].filter(Boolean).join(' ').toLowerCase();
         return text.includes(q);
@@ -274,6 +301,7 @@ export default function AdminPage({
   const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
   const pagedList = filteredList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // ========== RENDER ==========
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -313,18 +341,12 @@ export default function AdminPage({
             </div>
           </div>
 
-          {/* Menampilkan input password hanya saat TAMBAH USER (editingId = null) */}
+          {/* Menambahkan Input Password Jika Create User Baru */}
           {!editingId && (
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password</label>
-              <input 
-                type="text" 
-                value={userForm.password} 
-                onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} 
-                className="input-field text-sm" 
-                placeholder="Masukkan password login" 
-                required 
-              />
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password *</label>
+              <input type="password" value={userForm.password} onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} className="input-field text-sm" placeholder="Masukkan password login" required={!editingId} />
+              <p className="text-[10px] text-slate-500 mt-1">*ID Login otomatis dibentuk dari nama panggilan</p>
             </div>
           )}
 
@@ -489,6 +511,8 @@ export default function AdminPage({
               <span className={`badge text-[10px] ${u.role === 'admin' ? 'badge-danger' : u.role === 'operator' ? 'badge-warning' : 'badge-success'}`}>{u.role}</span>
               {u.nomor_whatsapp && <span className="text-xs text-slate-400">{u.nomor_whatsapp}</span>}
             </div>
+            {/* Tampilkan id_login jika ada untuk verifikasi cepat */}
+            {u.id_login && <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {u.id_login}</p>}
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => toggleUserActive(u)} className={`p-1.5 rounded-lg ${u.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-50'}`}>
@@ -501,6 +525,7 @@ export default function AdminPage({
         </div>
       );
     }
+    // ... [Bagian List Item master lainnya tetap sama dengan source asli] ...
     if (masterTab === 'tahun') {
       const t = item as TahunAjaran;
       return (
@@ -603,7 +628,6 @@ export default function AdminPage({
         <p className="section-subtitle">Kelola data master dan data akademik</p>
       </div>
 
-      {/* Section Switcher */}
       <div className="grid grid-cols-2 gap-2 mb-5">
         <button
           onClick={() => setSection('master')}
@@ -621,7 +645,6 @@ export default function AdminPage({
         </button>
       </div>
 
-      {/* Pengumuman Quick Access (always visible) */}
       {setActiveTab && (
         <button
           onClick={() => setActiveTab('pengumuman')}
@@ -640,7 +663,6 @@ export default function AdminPage({
 
       {section === 'master' ? (
         <>
-          {/* Master Data Tabs */}
           <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
             {masterTabs.map(t => {
               const Icon = t.icon;
@@ -658,7 +680,6 @@ export default function AdminPage({
             })}
           </div>
 
-          {/* Search */}
           <div className="relative mb-4">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
@@ -675,13 +696,11 @@ export default function AdminPage({
             )}
           </div>
 
-          {/* Add Button */}
           <button onClick={openAdd} className="btn-primary flex items-center gap-2 mb-4 w-full sm:w-auto">
             <Plus className="w-4 h-4" />
             <span>Tambah {masterTabs.find(t => t.id === masterTab)?.label}</span>
           </button>
 
-          {/* List */}
           {loading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="card p-4 animate-pulse h-16 bg-slate-50 rounded-2xl" />)}</div>
           ) : pagedList.length === 0 ? (
@@ -697,7 +716,6 @@ export default function AdminPage({
         </>
       ) : (
         <>
-          {/* Data Akademik Tabs */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
               onClick={() => setAkademikTab('siswa')}
@@ -715,12 +733,10 @@ export default function AdminPage({
             </button>
           </div>
 
-          {/* Data Akademik Content */}
           {akademikTab === 'siswa' ? <DataSiswaPage showToast={showToast} /> : <DataUstazPage showToast={showToast} />}
         </>
       )}
 
-      {/* Modal */}
       <Modal
         isOpen={showModal}
         onClose={() => { setShowModal(false); setEditingId(null); }}
