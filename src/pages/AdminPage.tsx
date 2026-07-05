@@ -125,7 +125,8 @@ export default function AdminPage({
 
           // 1. Format Username Manual
           const usernameManual = userForm.nama_panggilan.toLowerCase().replace(/\s+/g, '');
-          const generatedEmail = `${usernameManual}@madrasah.local`;
+          // PERBAIKAN: Menggunakan .com agar lolos validasi format email dari Supabase
+          const generatedEmail = `${usernameManual}@madrasah.com`;
 
           // 2. Cek Duplikasi ID Login Opsional
           const { data: existingData, error: checkError } = await supabase
@@ -525,7 +526,6 @@ export default function AdminPage({
         </div>
       );
     }
-    // ... [Bagian List Item master lainnya tetap sama dengan source asli] ...
     if (masterTab === 'tahun') {
       const t = item as TahunAjaran;
       return (
