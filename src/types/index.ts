@@ -37,6 +37,7 @@ export interface Profile {
   nama_panggilan?: string;
   email?: string;
   nomor_whatsapp?: string;
+  alamat?: string; // Kolom baru
   foto?: string;
   role: UserRole;
   created_at: string;
@@ -95,19 +96,19 @@ export interface Murid {
   id: string;
   user_id: string;
   kelas_id?: string;
-  kelas?: string; // Legacy text field for existing tables
+  kelas?: string; 
   nis?: string;
   nama: string;
   jenis_kelamin?: 'L' | 'P';
   tempat_lahir?: string;
   tanggal_lahir?: string;
   alamat?: string;
-  domisili?: string; // Legacy field
+  domisili?: string; 
   nama_wali?: string;
   no_hp_wali?: string;
-  nomor_whatsapp?: string; // Legacy field
+  nomor_whatsapp?: string; 
   status?: MuridStatus;
-  status_aktif?: boolean; // Legacy field
+  status_aktif?: boolean; 
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -132,7 +133,6 @@ export interface Jadwal {
   updated_at: string;
   deleted_at?: string;
   is_active: boolean;
-  // Relations
   kelas?: Kelas;
   mapel?: MataPelajaran;
   semester?: Semester;
@@ -155,7 +155,6 @@ export interface JurnalKBM {
   updated_at: string;
   deleted_at?: string;
   is_active: boolean;
-  // Relations
   jadwal?: Jadwal;
 }
 
@@ -171,7 +170,6 @@ export interface Absensi {
   updated_at: string;
   deleted_at?: string;
   is_active: boolean;
-  // Relations
   jadwal?: Jadwal;
   murid?: Murid;
 }
@@ -204,7 +202,6 @@ export interface DetailNilai {
   updated_at: string;
   deleted_at?: string;
   is_active: boolean;
-  // Relations
   penilaian?: Penilaian;
   murid?: Murid;
 }
@@ -224,7 +221,6 @@ export interface Sikap {
   updated_at: string;
   deleted_at?: string;
   is_active: boolean;
-  // Relations
   murid?: Murid;
 }
 
@@ -267,14 +263,14 @@ export interface Pengumuman {
   user_id: string;
   judul: string;
   isi?: string;
-  kategori?: string; // For legacy table compatibility
-  jenis?: string; // Pengumuman | Agenda | Peringatan | Penting
-  prioritas?: string; // Normal | Penting | Darurat
+  kategori?: string;
+  jenis?: string;
+  prioritas?: string;
   aktif?: boolean;
-  tanggal?: string; // For legacy table compatibility
+  tanggal?: string;
   tanggal_mulai?: string;
   tanggal_selesai?: string;
-  status?: string; // Draft | Publish | Arsip
+  status?: string; 
   lampiran?: string;
   dibuat_oleh?: string;
   created_at: string;
@@ -299,15 +295,15 @@ export interface IzinMengajar {
   id: string;
   user_id: string;
   nama_ustaz: string;
-  jenis_izin: string; // Sakit | Izin | Cuti | Tugas | Lainnya
-  lama_izin: string; // hari_ini | beberapa_hari
+  jenis_izin: string;
+  lama_izin: string;
   tanggal_mulai: string;
   tanggal_selesai?: string;
   mata_pelajaran?: string;
   kelas?: string;
   guru_pengganti?: string;
   catatan?: string;
-  status: string; // diajukan | disetujui | ditolak
+  status: string; 
   created_at: string;
   updated_at?: string;
 }
@@ -424,11 +420,11 @@ export type ActiveTab =
   | 'izin'
   | 'rapor'
   | 'pengumuman'
-  | 'admin';
+  | 'admin'
+  | 'profil'; // Tab baru
 
 export type ShowToast = (message: string, type?: 'success' | 'error' | 'info') => void;
 
-// Form types
 export interface MuridFormData {
   nama: string;
   kelas_id?: string;
@@ -454,9 +450,6 @@ export interface JadwalFormData {
   warna?: string;
 }
 
-// ============ LEGACY TYPES (for existing tables) ============
-
-// Legacy: jadwal_mengajar table (text kelas, no FK)
 export interface JadwalMengajar {
   id: string;
   hari: string;
@@ -471,7 +464,6 @@ export interface JadwalMengajar {
   updated_at?: string;
 }
 
-// Legacy: bank_soal table
 export interface BankSoal {
   id: string;
   pelajaran: string;
@@ -483,7 +475,6 @@ export interface BankSoal {
   updated_at?: string;
 }
 
-// Legacy: agenda_penting table (bigint id)
 export interface AgendaPenting {
   id: number;
   judul: string;
@@ -494,7 +485,6 @@ export interface AgendaPenting {
   created_at: string;
 }
 
-// Legacy: nilai table
 export interface Nilai {
   id: string;
   murid_id: string;
@@ -507,7 +497,6 @@ export interface Nilai {
   updated_at?: string;
 }
 
-// Legacy: catatan_perilaku table
 export interface CatatanPerilaku {
   id: string;
   murid_id: string;
@@ -518,7 +507,6 @@ export interface CatatanPerilaku {
   updated_at?: string;
 }
 
-// Legacy: capaian_hafalan table
 export interface CapaianHafalan {
   id: string;
   murid_id: string;
@@ -528,7 +516,6 @@ export interface CapaianHafalan {
   created_at: string;
 }
 
-// Legacy: buku_saku table (bigint id)
 export interface BukuSaku {
   id: number;
   kelas_id?: number;
@@ -542,7 +529,6 @@ export interface BukuSaku {
   kelas?: { nama_kelas: string };
 }
 
-// Legacy: muhafadhoh table (bigint id)
 export interface Muhafadhoh {
   id: number;
   kelas_id?: number;
@@ -556,7 +542,6 @@ export interface Muhafadhoh {
   kelas?: { nama_kelas: string };
 }
 
-// Legacy: kbm_harian table (bigint id)
 export interface KbmHarian {
   id: number;
   tanggal: string;
