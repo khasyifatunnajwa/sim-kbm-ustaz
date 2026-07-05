@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, BarChart3, FileText, Share2, Save, Calendar, TrendingUp
+  Plus, Trash2, BarChart3, FileText, Share2, Save, Calendar, TrendingUp, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
@@ -231,14 +231,23 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
         </button>
       </div>
 
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-        {kelasOptions.map(k => (
-          <button key={k} onClick={() => setSelectedKelas(k)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
-          >
-            {k}
-          </button>
-        ))}
+      {/* Tampilan Pilihan Kelas Baru (Dropdown) */}
+      <div className="mb-4 relative">
+        <select
+          value={selectedKelas}
+          onChange={(e) => setSelectedKelas(e.target.value)}
+          className="input-field text-sm font-semibold appearance-none w-full bg-white cursor-pointer pr-10"
+        >
+          {kelasOptions.length === 0 && <option value="">Belum ada kelas</option>}
+          {kelasOptions.map((k) => (
+            <option key={k} value={k}>
+              Pilihan Kelas: {k}
+            </option>
+          ))}
+        </select>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          <ChevronDown className="w-5 h-5" />
+        </div>
       </div>
 
       {loading ? (
