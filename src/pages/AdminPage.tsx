@@ -47,8 +47,8 @@ export default function AdminPage({
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
 
-  // Form states
-  const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz' as UserRole, is_active: true });
+  // Form states (Menambahkan 'password' pada userForm)
+  const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz' as UserRole, is_active: true, password: '' });
   const [tahunForm, setTahunForm] = useState({ nama: '', aktif: false });
   const [semesterForm, setSemesterForm] = useState({ nama: '', aktif: false });
   const [kelasForm, setKelasForm] = useState({ nama_kelas: '', tingkat: '1', kode: '' });
@@ -85,16 +85,14 @@ export default function AdminPage({
     setLoading(false);
   };
 
-  // Reset search & page when tab changes
   useEffect(() => {
     setSearch('');
     setPage(1);
   }, [masterTab, section]);
 
-  // ========== GENERIC HANDLERS ==========
   const openAdd = () => {
     setEditingId(null);
-    if (masterTab === 'users') setUserForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz', is_active: true });
+    if (masterTab === 'users') setUserForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', role: 'ustaz', is_active: true, password: '' });
     if (masterTab === 'tahun') setTahunForm({ nama: '', aktif: false });
     if (masterTab === 'semester') setSemesterForm({ nama: '', aktif: false });
     if (masterTab === 'kelas') setKelasForm({ nama_kelas: '', tingkat: '1', kode: '' });
@@ -109,6 +107,7 @@ export default function AdminPage({
     try {
       if (masterTab === 'users') {
         if (editingId) {
+          // Edit Profil User
           const { error } = await supabase.from('profiles').update({
             nama_lengkap: userForm.nama_lengkap,
             nama_panggilan: userForm.nama_panggilan,
@@ -117,23 +116,23 @@ export default function AdminPage({
             is_active: userForm.is_active,
           }).eq('id', editingId);
           if (error) throw error;
-          showToast('User diperbarui!', 'success');
+          showToast('Profil User diperbarui!', 'success');
         } else {
-          // --- PERBAIKAN: Fungsi Tambah User Baru ---
-          // Membuat email sementara menggunakan nomor WA atau timestamp jika WA kosong
-          const generatedEmail = userForm.nomor_whatsapp 
-            ? `${userForm.nomor_whatsapp}@sistem.local` 
-            : `user${Date.now()}@sistem.local`;
-          const defaultPassword = 'Ustaz123!@#'; // Password bawaan yang kuat
+          // --- PEMBUATAN USER BARU ---
+          
+          // 1. Membersihkan nama panggilan untuk dijadikan format email (Hapus spasi & jadikan huruf kecil)
+          const cleanName = userForm.nama_panggilan ? userForm.nama_panggilan.toLowerCase().replace(/\s+/g, '') : `user${Date.now()}`;
+          const generatedEmail = `${cleanName}@sistem.local`;
 
+          // 2. Mendaftarkan user ke Supabase Auth dengan password dari input Admin
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: generatedEmail,
-            password: defaultPassword,
+            password: userForm.password, // Diambil dari form
           });
 
           if (authError) throw authError;
 
-          // Update profil tambahan setelah trigger auth dari database selesai berjalan
+          // 3. Update data tambahan ke tabel profiles
           if (authData.user) {
             const { error: profileError } = await supabase.from('profiles').update({
               nama_lengkap: userForm.nama_lengkap,
@@ -146,8 +145,7 @@ export default function AdminPage({
             if (profileError) throw profileError;
           }
 
-          showToast(`User berhasil ditambahkan! Password bawaan: ${defaultPassword}`, 'success');
-          // --- SELESAI PERBAIKAN ---
+          showToast(`User berhasil ditambahkan! Username: ${generatedEmail}`, 'success');
         }
       } else if (masterTab === 'tahun') {
         const { error } = editingId
@@ -222,6 +220,7 @@ export default function AdminPage({
         nomor_whatsapp: item.nomor_whatsapp || '',
         role: (item.role || 'ustaz') as UserRole,
         is_active: item.is_active ?? true,
+        password: '', // Kosongkan saat edit, karena ganti password via endpoint berbeda
       });
     } else if (masterTab === 'tahun') {
       setTahunForm({ nama: item.nama, aktif: item.aktif || false });
@@ -249,7 +248,6 @@ export default function AdminPage({
     showToast(u.is_active ? 'User dinonaktifkan' : 'User diaktifkan', 'success');
   };
 
-  // ========== FILTERED & PAGED DATA ==========
   const getFilteredList = (): any[] => {
     let list: any[] = [];
     if (masterTab === 'users') list = users;
@@ -276,7 +274,6 @@ export default function AdminPage({
   const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
   const pagedList = filteredList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // ========== RENDER ==========
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -307,14 +304,30 @@ export default function AdminPage({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Panggilan</label>
-              <input type="text" value={userForm.nama_panggilan} onChange={e => setUserForm(p => ({ ...p, nama_panggilan: e.target.value }))} className="input-field text-sm" placeholder="Panggilan" />
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Panggilan *</label>
+              <input type="text" value={userForm.nama_panggilan} onChange={e => setUserForm(p => ({ ...p, nama_panggilan: e.target.value }))} className="input-field text-sm" placeholder="Panggilan" required />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">No. WA</label>
               <input type="text" value={userForm.nomor_whatsapp} onChange={e => setUserForm(p => ({ ...p, nomor_whatsapp: e.target.value }))} className="input-field text-sm" placeholder="08xxx" />
             </div>
           </div>
+
+          {/* Menampilkan input password hanya saat TAMBAH USER (editingId = null) */}
+          {!editingId && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password</label>
+              <input 
+                type="text" 
+                value={userForm.password} 
+                onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} 
+                className="input-field text-sm" 
+                placeholder="Masukkan password login" 
+                required 
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Role</label>
