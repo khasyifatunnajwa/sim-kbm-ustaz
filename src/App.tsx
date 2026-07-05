@@ -21,6 +21,7 @@ import IzinPage from './pages/IzinPage';
 import RaporPage from './pages/RaporPage';
 import AdminPage from './pages/AdminPage';
 import AdminPengumumanPage from './pages/AdminPengumumanPage';
+import ProfilPage from './pages/ProfilPage'; // Impor Halaman Profil Baru
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
@@ -78,7 +79,6 @@ function SetupScreen({ showToast, onComplete }: { showToast: ShowToast; onComple
     setLoading(true);
     try {
       const email = `${idLogin.toLowerCase().replace(/[^a-z0-9]/g, '')}@madrasah.local`;
-
       const response = await fetch(`${SUPABASE_URL}/functions/v1/create-admin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -191,11 +191,9 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
     setLoading(true);
     try {
       let email: string;
-
       if (idLogin.includes('@')) {
         email = idLogin.toLowerCase().trim();
       } else {
-        // Lookup email by id_login via edge function (bypasses RLS)
         try {
           const resp = await fetch(`${SUPABASE_URL}/functions/v1/lookup-email`, {
             method: 'POST',
@@ -322,7 +320,6 @@ export default function App() {
   const initRef = useRef(false);
   const { toasts, showToast, removeToast } = useToast();
 
-  // Fetch profile
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -330,7 +327,6 @@ export default function App() {
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-
       if (error && error.code !== 'PGRST116') {
         console.error('Profile fetch error:', error);
         return null;
@@ -342,7 +338,6 @@ export default function App() {
           .insert([{ id: userId, role: 'ustaz', is_active: true }])
           .select()
           .maybeSingle();
-
         if (createError) {
           console.error('Profile create error:', createError);
           return null;
@@ -357,17 +352,10 @@ export default function App() {
     }
   };
 
-  // Check setup - use auth.admin via edge function would be ideal,
-  // but we can check if ANY auth user exists by attempting a dummy sign-in.
-  // Simpler: check profiles count. If RLS blocks anon read, assume setup NOT needed
-  // (an authenticated user would have created their profile already).
   const checkSetupNeeded = async () => {
-    // Setup is handled via database migration — admin user is pre-created.
-    // This screen should never appear.
     return false;
   };
 
-  // Initialize
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
@@ -386,14 +374,12 @@ export default function App() {
           console.log('[APP] User logged in:', session.user.id);
           setUser(session.user);
 
-          // Fetch profile in background
           fetchProfile(session.user.id).then(p => {
             if (p) setProfile(p);
           });
 
-          // Restore tab
           const saved = sessionStorage.getItem('activeTab') as ActiveTab;
-          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin'].includes(saved)) {
+          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'profil'].includes(saved)) {
             setActiveTab(saved);
           }
         } else {
@@ -413,7 +399,6 @@ export default function App() {
     initApp();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Wrap async work in IIFE to avoid deadlock inside onAuthStateChange
       (async () => {
         if (session?.user) {
           setUser(session.user);
@@ -428,11 +413,9 @@ export default function App() {
         }
       })();
     });
-
     return () => subscription?.unsubscribe();
   }, []);
 
-  // Persist tab
   useEffect(() => {
     if (user) sessionStorage.setItem('activeTab', activeTab);
   }, [activeTab, user]);
@@ -509,6 +492,7 @@ export default function App() {
       case 'rapor': return <RaporPage showToast={showToast} />;
       case 'admin': return <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />;
       case 'pengumuman': return <AdminPengumumanPage showToast={showToast} />;
+      case 'profil': return <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />; // Routing Profil
       default: return null;
     }
   };
