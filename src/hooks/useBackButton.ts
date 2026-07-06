@@ -11,10 +11,12 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
   const historyRef = useRef<ActiveTab[]>(['dashboard']);
   const stateRef = useRef({ activeTab, setActiveTab, onExitDialog });
   const isNavigatingBack = useRef(false);
+  
+  // Penambahan penghitung waktu untuk deteksi double-tap
+  const lastBackPressTime = useRef<number>(0);
 
   stateRef.current = { activeTab, setActiveTab, onExitDialog };
 
-  // Track user-initiated tab changes to build history
   useEffect(() => {
     if (isNavigatingBack.current) {
       isNavigatingBack.current = false;
@@ -22,6 +24,7 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     }
     const hist = historyRef.current;
     const last = hist[hist.length - 1];
+    
     if (activeTab !== last) {
       hist.push(activeTab);
       if (hist.length > 30) hist.shift();
@@ -32,15 +35,26 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     const { activeTab: current, setActiveTab: setTab, onExitDialog: exitDialog } = stateRef.current;
     const hist = historyRef.current;
 
-    // If on dashboard and no history to go back to, show exit dialog
-    if (current === 'dashboard' && hist.length <= 1) {
+    // Kalkulasi selisih waktu antar-ketukan tombol kembali
+    const now = Date.now();
+    const timeSinceLastPress = now - lastBackPressTime.current;
+    lastBackPressTime.current = now;
+
+    // FITUR DOUBLE-TAP: Jika diketuk 2x cepat (< 400ms), langsung panggil dialog keluar
+    if (timeSinceLastPress < 400) {
       exitDialog();
       return;
     }
 
-    // Pop current tab from history
+    // FITUR KONFIRMASI DASBOR: Jika sedang di dasbor dan ditekan 1x, panggil dialog keluar
+    if (current === 'dashboard') {
+      exitDialog();
+      return;
+    }
+
+    // FITUR HISTORY BERURUTAN: Mundur ke menu sebelumnya (bukan ke dasbor)
     if (hist.length > 1) {
-      hist.pop();
+      hist.pop(); 
       const prev = hist[hist.length - 1];
       if (prev && prev !== current) {
         isNavigatingBack.current = true;
@@ -49,7 +63,7 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
       }
     }
 
-    // No previous tab in history — go to dashboard
+    // Fallback/jaring pengaman
     if (current !== 'dashboard') {
       isNavigatingBack.current = true;
       setTab('dashboard');
@@ -58,7 +72,6 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     }
   }, []);
 
-  // Listen to popstate (browser back / Android back)
   useEffect(() => {
     window.history.pushState({ app: 'simkbm', depth: 0 }, '');
 
