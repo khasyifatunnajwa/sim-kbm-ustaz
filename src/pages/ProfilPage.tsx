@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Save, Loader2, Copy, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { User, Phone, MapPin, Save, Loader2, Copy, CheckCircle2, Hash, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Profile, ShowToast } from '../types';
 
@@ -18,7 +18,7 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Fetch kelengkapan data setiap buka halaman
+  // Fetch data setiap buka halaman
   useEffect(() => {
     const loadProfileData = async () => {
       setInitialLoading(true);
@@ -33,19 +33,22 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
     loadProfileData();
   }, [profile]);
 
-  const handleCopyId = () => {
-    if (!profile?.id) return;
-    navigator.clipboard.writeText(profile.id);
+  const handleCopyIdLogin = () => {
+    if (!profile?.id_login) return;
+    navigator.clipboard.writeText(profile.id_login);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    showToast('ID berhasil disalin ke clipboard', 'success');
+    showToast('ID Login berhasil disalin ke clipboard', 'success');
   };
 
   const calculateProgress = () => {
     let score = 0;
-    if (namaLengkap) score += 33.3;
-    if (nomorWhatsapp) score += 33.3;
-    if (alamat) score += 33.4;
+    // 5 Indikator kelengkapan (masing-masing bernilai 20%)
+    if (profile?.id_login) score += 20;
+    if (namaLengkap) score += 20;
+    if (profile?.nama_panggilan) score += 20;
+    if (nomorWhatsapp) score += 20;
+    if (alamat) score += 20;
     return Math.floor(score);
   };
 
@@ -58,7 +61,7 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.id) return;
-    
+
     // Validasi No HP (jika diisi, harus mulai dari 08 atau 62)
     if (nomorWhatsapp && !(nomorWhatsapp.startsWith('08') || nomorWhatsapp.startsWith('62'))) {
       showToast('Nomor WhatsApp harus diawali 08 atau 62', 'error');
@@ -66,6 +69,7 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
     }
 
     setSaving(true);
+    const currentTime = new Date().toISOString();
     try {
       const { error } = await supabase
         .from('profiles')
@@ -73,20 +77,21 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
           nama_lengkap: namaLengkap,
           nomor_whatsapp: nomorWhatsapp,
           alamat: alamat,
-          updated_at: new Date().toISOString()
+          updated_at: currentTime
         })
         .eq('id', profile.id);
 
       if (error) throw error;
       
-      // Update global state sehingga sidebar/header re-render otomatis
+      // Update global state sehingga komponen lain re-render otomatis
       setProfile((prev) => prev ? { 
         ...prev, 
         nama_lengkap: namaLengkap, 
         nomor_whatsapp: nomorWhatsapp,
-        alamat: alamat
+        alamat: alamat,
+        updated_at: currentTime
       } : prev);
-
+      
       showToast('Profil berhasil diperbarui', 'success');
     } catch (err: any) {
       console.error(err);
@@ -94,6 +99,18 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
     } finally {
       setSaving(false);
     }
+  };
+
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date) + ' WIB';
   };
 
   const progress = calculateProgress();
@@ -156,36 +173,37 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
         </div>
 
         <div className="p-5 md:p-6 space-y-5">
-          {/* Read Only: ID & Role */}
+          {/* Read Only: ID Login & Terakhir Update */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">ID Login Akun</label>
               <div className="flex items-center gap-2">
-                <code className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded truncate flex-1 font-mono">
-                  {profile?.id || '-'}
+                <code className="text-xs bg-slate-200 text-slate-700 px-2 py-1.5 rounded truncate flex-1 font-mono">
+                  {profile?.id_login || '-'}
                 </code>
                 <button
                   type="button"
-                  onClick={handleCopyId}
+                  onClick={handleCopyIdLogin}
                   className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors"
-                  title="Salin ID"
+                  title="Salin ID Login"
                 >
                   {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">Hak Akses</label>
-              <div className="flex items-center gap-1.5">
-                <ShieldAlert className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-semibold text-slate-700 capitalize">
-                  {profile?.role === 'admin' ? 'Administrator' : profile?.role === 'operator' ? 'Operator' : 'Ustaz'}
+              <label className="block text-[11px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">Terakhir Update / Login</label>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Clock className="w-4 h-4 text-slate-400" />
+                <span className="text-sm font-semibold text-slate-700">
+                  {formatDateTime(profile?.updated_at)}
                 </span>
               </div>
             </div>
           </div>
 
           <div className="space-y-4">
+            {/* Nama Lengkap - Editable */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nama Lengkap</label>
               <div className="relative">
@@ -203,6 +221,24 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
               </div>
             </div>
 
+            {/* Nama Panggilan - Read Only */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nama Panggilan</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Hash className="h-4 w-4 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  value={profile?.nama_panggilan || ''}
+                  disabled
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed outline-none font-medium"
+                  placeholder="Nama panggilan (tidak dapat diubah)"
+                />
+              </div>
+            </div>
+
+            {/* Nomor WhatsApp - Editable */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp</label>
               <div className="relative">
@@ -219,6 +255,7 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
               </div>
             </div>
 
+            {/* Alamat Lengkap - Editable */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Alamat Lengkap</label>
               <div className="relative">
