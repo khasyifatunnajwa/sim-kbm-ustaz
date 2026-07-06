@@ -18,7 +18,7 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Fetch kelengkapan data setiap buka halaman, barangkali butuh fetch ulang walau dari app level sudah
+  // Fetch kelengkapan data setiap buka halaman
   useEffect(() => {
     const loadProfileData = async () => {
       setInitialLoading(true);
