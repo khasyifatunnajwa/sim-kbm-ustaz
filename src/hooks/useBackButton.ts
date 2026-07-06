@@ -8,88 +8,79 @@ interface BackButtonOptions {
 }
 
 export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackButtonOptions) {
-  const historyRef = useRef<ActiveTab[]>(['dashboard']);
   const stateRef = useRef({ activeTab, setActiveTab, onExitDialog });
-  const isNavigatingBack = useRef(false);
   const lastBackPressTime = useRef<number>(0);
 
-  // Selalu sinkronkan state terbaru ke dalam ref
+  // Selalu perbarui ref agar event listener selalu membaca state terbaru
   stateRef.current = { activeTab, setActiveTab, onExitDialog };
 
-  // 1. Melacak perubahan tab secara manual untuk membangun riwayat tumpukan halaman
+  // 1. SINKRONISASI AWAL (Saat PWA di-refresh atau dibuka pertama kali)
   useEffect(() => {
-    if (isNavigatingBack.current) {
-      isNavigatingBack.current = false;
-      return;
-    }
-    const hist = historyRef.current;
-    const last = hist[hist.length - 1];
+    const hash = window.location.hash.replace('#', '');
+    const mainTab = hash.split('/')[0];
     
-    if (activeTab !== last) {
-      hist.push(activeTab);
-      if (hist.length > 30) hist.shift(); // Batasi riwayat agar tidak membebani memori
-    }
-  }, [activeTab]);
-
-  // 2. Fungsi utama penanganan tombol kembali (Fisik & UI)
-  const handleBack = useCallback(() => {
-    const { activeTab: current, setActiveTab: setTab, onExitDialog: exitDialog } = stateRef.current;
-    const hist = historyRef.current;
-
-    const now = Date.now();
-    const timeSinceLastPress = now - lastBackPressTime.current;
-    lastBackPressTime.current = now;
-
-    // A. FITUR DOUBLE-TAP: Jika diketuk 2x cepat (< 400ms), langsung panggil dialog keluar
-    if (timeSinceLastPress < 400) {
-      exitDialog();
-      return;
-    }
-
-    // B. FITUR KONFIRMASI DASBOR: Jika sedang di dasbor, panggil dialog keluar
-    if (current === 'dashboard') {
-      exitDialog();
-      return;
-    }
-
-    // C. FITUR HISTORY BERURUTAN: Mundur ke menu sebelumnya
-    if (hist.length > 1) {
-      hist.pop(); // Buang halaman saat ini
-      const prev = hist[hist.length - 1];
-      if (prev && prev !== current) {
-        isNavigatingBack.current = true;
-        setTab(prev);
-        return;
-      }
-    }
-
-    // Fallback jika tumpukan kosong namun tidak di dasbor
-    if (current !== 'dashboard') {
-      isNavigatingBack.current = true;
-      setTab('dashboard');
-    } else {
-      exitDialog();
+    if (mainTab && mainTab !== activeTab) {
+      setActiveTab(mainTab as ActiveTab);
+    } else if (!hash) {
+      window.history.replaceState(null, '', '#dashboard');
     }
   }, []);
 
-  // 3. Listener event popstate (Menangkap tombol fisik HP / Browser Back)
+  // 2. PEREKAM RIWAYAT OTOMATIS (Saat pindah menu via Sidebar/Klik)
   useEffect(() => {
-    window.history.pushState({ app: 'simkbm', depth: 0 }, '');
+    const currentHash = window.location.hash.replace('#', '').split('/')[0];
+    // Jika tab aktif tidak sama dengan URL saat ini, dorong riwayat baru ke browser
+    if (currentHash !== activeTab) {
+      window.history.pushState(null, '', `#${activeTab}`);
+    }
+  }, [activeTab]);
 
+  // 3. PENANGKAP TOMBOL KEMBALI HP (Mendeteksi native back)
+  useEffect(() => {
     const onPopState = () => {
-      handleBack();
-      window.history.pushState({ app: 'simkbm', depth: 0 }, '');
+      const { activeTab: current, setActiveTab: setTab, onExitDialog: exitDialog } = stateRef.current;
+      
+      // Kalkulasi selisih waktu antar-ketukan tombol kembali (Untuk Double-tap)
+      const now = Date.now();
+      const timeSinceLastPress = now - lastBackPressTime.current;
+      lastBackPressTime.current = now;
+
+      // Ambil riwayat URL sebelumnya yang dituju oleh browser
+      const rawHash = window.location.hash.replace('#', '');
+      const mainTab = rawHash.split('/')[0] || 'dashboard';
+
+      // FITUR DOUBLE-TAP: Jika diketuk 2x cepat (< 400ms), langsung panggil dialog keluar
+      if (timeSinceLastPress < 400) {
+        // Rem darurat: Kembalikan URL seperti semula agar PWA tidak terlempar keluar
+        window.history.pushState(null, '', `#${current}`);
+        exitDialog();
+        return;
+      }
+
+      // FITUR KONFIRMASI DASBOR: Jika sedang di dasbor dan ditekan 1x (mundur dari dasbor)
+      if (current === 'dashboard') {
+        // Tahan pengguna agar tidak keluar, kembalikan hash dasbor
+        window.history.pushState(null, '', '#dashboard');
+        exitDialog();
+        return;
+      }
+
+      // FITUR HISTORY BERURUTAN: Mundur ke menu sebelumnya sesuai riwayat URL browser
+      setTab(mainTab as ActiveTab);
     };
 
     window.addEventListener('popstate', onPopState);
-    return () => {
-      window.removeEventListener('popstate', onPopState);
-    };
-  }, [handleBack]);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
-  // 4. Fungsi tambahan untuk reset riwayat jika diperlukan
+  // FUNGSI KONTROL MANUAL (Untuk tombol '< Kembali' di UI/Header aplikasi)
+  const handleBack = useCallback(() => {
+    window.history.back(); // Memanggil trigger native browser yang akan ditangkap oleh onPopState di atas
+  }, []);
+
+  // FUNGSI RESET (Misalnya digunakan saat pengguna Logout)
   const resetHistory = useCallback(() => {
-    historyRef.current = ['dashboard'];
+    window.history.replaceState(null, '', '#dashboard');
   }, []);
 
   return { handleBack, resetHistory };
