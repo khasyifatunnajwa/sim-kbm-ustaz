@@ -8,16 +8,15 @@ interface BackButtonOptions {
 }
 
 export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackButtonOptions) {
-  // Gunakan ref untuk state agar tidak menyebabkan re-render yang tidak perlu
   const historyRef = useRef<ActiveTab[]>(['dashboard']);
   const stateRef = useRef({ activeTab, setActiveTab, onExitDialog });
   const isNavigatingBack = useRef(false);
   const lastBackPressTime = useRef<number>(0);
 
-  // Update ref setiap kali props berubah
+  // Selalu sinkronkan state terbaru ke dalam ref
   stateRef.current = { activeTab, setActiveTab, onExitDialog };
 
-  // 1. Melacak perubahan tab oleh user untuk membangun riwayat (stack)
+  // 1. Melacak perubahan tab secara manual untuk membangun riwayat tumpukan halaman
   useEffect(() => {
     if (isNavigatingBack.current) {
       isNavigatingBack.current = false;
@@ -26,15 +25,13 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     const hist = historyRef.current;
     const last = hist[hist.length - 1];
     
-    // Hanya tambahkan ke history jika tab berbeda dari sebelumnya
     if (activeTab !== last) {
       hist.push(activeTab);
-      // Batasi history agar tidak membengkak
-      if (hist.length > 30) hist.shift();
+      if (hist.length > 30) hist.shift(); // Batasi riwayat agar tidak membebani memori
     }
   }, [activeTab]);
 
-  // 2. Fungsi utama penanganan tombol kembali
+  // 2. Fungsi utama penanganan tombol kembali (Fisik & UI)
   const handleBack = useCallback(() => {
     const { activeTab: current, setActiveTab: setTab, onExitDialog: exitDialog } = stateRef.current;
     const hist = historyRef.current;
@@ -43,42 +40,44 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     const timeSinceLastPress = now - lastBackPressTime.current;
     lastBackPressTime.current = now;
 
-    // A. FITUR DOUBLE-TAP: Jika diketuk 2x dalam < 400ms, langsung keluar
+    // A. FITUR DOUBLE-TAP: Jika diketuk 2x cepat (< 400ms), langsung panggil dialog keluar
     if (timeSinceLastPress < 400) {
       exitDialog();
       return;
     }
 
-    // B. JIKA DI DASHBOARD: Langsung panggil konfirmasi keluar
+    // B. FITUR KONFIRMASI DASBOR: Jika sedang di dasbor, panggil dialog keluar
     if (current === 'dashboard') {
       exitDialog();
       return;
     }
 
-    // C. NAVIGASI MUNDUR: Pop history dan pindah ke tab sebelumnya
+    // C. FITUR HISTORY BERURUTAN: Mundur ke menu sebelumnya
     if (hist.length > 1) {
-      hist.pop(); 
+      hist.pop(); // Buang halaman saat ini
       const prev = hist[hist.length - 1];
-      if (prev) {
+      if (prev && prev !== current) {
         isNavigatingBack.current = true;
         setTab(prev);
         return;
       }
     }
 
-    // Fallback: Jika history kosong/error, paksa ke dashboard
-    isNavigatingBack.current = true;
-    setTab('dashboard');
+    // Fallback jika tumpukan kosong namun tidak di dasbor
+    if (current !== 'dashboard') {
+      isNavigatingBack.current = true;
+      setTab('dashboard');
+    } else {
+      exitDialog();
+    }
   }, []);
 
-  // 3. Listener event popstate (tombol fisik HP/Browser back)
+  // 3. Listener event popstate (Menangkap tombol fisik HP / Browser Back)
   useEffect(() => {
-    // Inisialisasi state awal
     window.history.pushState({ app: 'simkbm', depth: 0 }, '');
 
     const onPopState = () => {
       handleBack();
-      // Selalu push state baru agar history tidak habis dan aplikasi tidak tertutup
       window.history.pushState({ app: 'simkbm', depth: 0 }, '');
     };
 
@@ -88,15 +87,9 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     };
   }, [handleBack]);
 
-  return { handleBack };
-}TROL MANUAL (Untuk tombol '< Kembali' di UI/Header aplikasi)
-  const handleBack = useCallback(() => {
-    window.history.back(); // Memanggil trigger native browser yang akan ditangkap oleh onPopState di atas
-  }, []);
-
-  // FUNGSI RESET (Misalnya digunakan saat pengguna Logout)
+  // 4. Fungsi tambahan untuk reset riwayat jika diperlukan
   const resetHistory = useCallback(() => {
-    window.history.replaceState(null, '', '#dashboard');
+    historyRef.current = ['dashboard'];
   }, []);
 
   return { handleBack, resetHistory };
