@@ -21,7 +21,7 @@ import IzinPage from './pages/IzinPage';
 import RaporPage from './pages/RaporPage';
 import AdminPage from './pages/AdminPage';
 import AdminPengumumanPage from './pages/AdminPengumumanPage';
-import ProfilPage from './pages/ProfilPage'; // Impor Halaman Profil Baru
+import ProfilPage from './pages/ProfilPage'; // Impor ProfilPage
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
@@ -216,8 +216,8 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
           }
         } catch {
           showToast('Koneksi bermasalah. Gunakan email untuk login.', 'error');
-          setLoading(false);
-          return;
+            setLoading(false);
+            return;
         }
       }
 
@@ -327,6 +327,7 @@ export default function App() {
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
       if (error && error.code !== 'PGRST116') {
         console.error('Profile fetch error:', error);
         return null;
@@ -338,6 +339,7 @@ export default function App() {
           .insert([{ id: userId, role: 'ustaz', is_active: true }])
           .select()
           .maybeSingle();
+
         if (createError) {
           console.error('Profile create error:', createError);
           return null;
@@ -379,7 +381,7 @@ export default function App() {
           });
 
           const saved = sessionStorage.getItem('activeTab') as ActiveTab;
-          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'profil'].includes(saved)) {
+          if (saved && ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil'].includes(saved)) {
             setActiveTab(saved);
           }
         } else {
@@ -492,7 +494,7 @@ export default function App() {
       case 'rapor': return <RaporPage showToast={showToast} />;
       case 'admin': return <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />;
       case 'pengumuman': return <AdminPengumumanPage showToast={showToast} />;
-      case 'profil': return <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />; // Routing Profil
+      case 'profil': return <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />;
       default: return null;
     }
   };
