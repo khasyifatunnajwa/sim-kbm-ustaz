@@ -62,7 +62,6 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
   };
 
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
-  // Jika tab aktif adalah profil, label yang ditampilkan adalah "Profil Pengguna"
   const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : navItems.find(n => n.id === activeTab)?.label ?? '';
 
   const displayName = profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Ustaz';
@@ -102,7 +101,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         </div>
 
         <div className="p-3 border-t border-slate-100 space-y-2">
-          {/* Ubah area identitas menjadi clickable mengarah ke profil */}
+          {/* Tombol Profil Sidebar Desktop */}
           <button 
             onClick={() => handleNav('profil')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'profil' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
@@ -213,7 +212,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             </div>
           </div>
           <div className="md:hidden flex items-center gap-2">
-            {/* Ubah ikon user di header agar klikable untuk mobile */}
+            {/* Tombol Profil Header Mobile */}
             <button 
               onClick={() => handleNav('profil')}
               className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-transform ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600'}`}
