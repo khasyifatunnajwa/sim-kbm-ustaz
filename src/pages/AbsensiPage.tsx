@@ -29,7 +29,15 @@ const STATUS_BADGE: Record<Status, string> = {
 void STATUS_BADGE;
 
 export default function AbsensiPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  const [tab, setTab] = useState<Tab>('input');
+  // 1. Inisialisasi awal tab berdasarkan URL Hash
+  const [tab, setTab] = useState<Tab>(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[0] === 'absensi' && hashParts[1] === 'rekap') {
+      return 'rekap';
+    }
+    return 'input';
+  });
+
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
   const [mapelOptions, setMapelOptions] = useState<string[]>([]);
@@ -50,6 +58,38 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const today = new Date().toISOString().split('T')[0];
   void today;
   const todayInfo = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  // 2. SINKRONISASI HASH PADA SUB-MENU ABSENSI
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      // Jika kembali ke menu absensi utama (misal dari /#absensi/rekap ke /#absensi)
+      if (hashParts[0] === 'absensi') {
+        if (hashParts[1] === 'rekap') {
+          setTab('rekap');
+        } else {
+          setTab('input');
+        }
+      }
+    };
+    
+    // Dengarkan perubahan URL dari tombol back browser/HP
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI UNTUK MENGUBAH TAB DAN URL SEKALIGUS
+  const handleTabChange = (newTab: Tab) => {
+    setTab(newTab);
+    // Jika pindah ke rekap, tambahkan '/rekap' ke URL hash
+    if (newTab === 'rekap') {
+      window.history.pushState(null, '', '#absensi/rekap');
+    } else {
+      // Jika kembali ke input (default), hilangkan sub-hash
+      window.history.pushState(null, '', '#absensi');
+    }
+  };
+
 
   useEffect(() => {
     (async () => {
@@ -187,8 +227,9 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
       </div>
 
       <div className="tab-switcher mb-5">
-        <button onClick={() => setTab('input')} className={`tab-btn ${tab === 'input' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Input Harian</button>
-        <button onClick={() => setTab('rekap')} className={`tab-btn ${tab === 'rekap' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Rekapitulasi</button>
+        {/* PERUBAHAN: Gunakan handleTabChange, bukan setTab langsung */}
+        <button onClick={() => handleTabChange('input')} className={`tab-btn ${tab === 'input' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Input Harian</button>
+        <button onClick={() => handleTabChange('rekap')} className={`tab-btn ${tab === 'rekap' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Rekapitulasi</button>
       </div>
 
       {tab === 'input' && (
