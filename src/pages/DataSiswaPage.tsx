@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, FileText, Download, Calendar, BarChart3, Loader2,
-  GraduationCap, Heart, BookOpen,
+  GraduationCap, Heart, BookOpen, X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
@@ -19,6 +19,38 @@ export default function DataSiswaPage({ showToast }: { showToast: ShowToast }) {
   const [penilaianList, setPenilaianList] = useState<Penilaian[]>([]);
   const [detailNilaiMap, setDetailNilaiMap] = useState<Record<string, DetailNilai[]>>({});
   const [sikapList, setSikapList] = useState<Sikap[]>([]);
+
+  // 1. SINKRONISASI TOMBOL BACK HP UNTUK PENUTUPAN DETAIL SISWA
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      // Jika URL tidak lagi mengandung '/detail' di ujungnya, reset id siswa yang dipilih
+      if (hashParts[3] !== 'detail') {
+        setSelectedMuridId('');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 2. FUNGSI UNTUK MEMBUKA DETAIL & MENDORONG HASH
+  const handleSelectMurid = (id: string) => {
+    if (!selectedMuridId) {
+      // Hanya dorong hash baru JIKA sebelumnya tidak ada siswa yang dipilih (mencegah tumpukan history saat klik gonta-ganti siswa)
+      window.history.pushState(null, '', '#admin/akademik/siswa/detail');
+    }
+    setSelectedMuridId(id);
+  };
+
+  // 3. FUNGSI UNTUK MENUTUP DETAIL SECARA AMAN (Pembersihan URL)
+  const handleCloseDetail = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[3] === 'detail') {
+      window.history.back(); // Trigger popstate native
+    } else {
+      setSelectedMuridId('');
+    }
+  };
 
   useEffect(() => {
     fetchMurid();
@@ -174,7 +206,13 @@ export default function DataSiswaPage({ showToast }: { showToast: ShowToast }) {
       {kelasOptions.length > 0 && (
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {kelasOptions.map(k => (
-            <button key={k} onClick={() => { setSelectedKelas(k); setSelectedMuridId(''); }}
+            <button
+              key={k}
+              onClick={() => {
+                setSelectedKelas(k);
+                // PERUBAHAN: Saat kelas diganti, pastikan detail ditutup & hash dibersihkan
+                if (selectedMuridId) handleCloseDetail();
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
             >
               {k}
@@ -194,7 +232,7 @@ export default function DataSiswaPage({ showToast }: { showToast: ShowToast }) {
               {muridFiltered.map(m => (
                 <button
                   key={m.id}
-                  onClick={() => setSelectedMuridId(m.id)}
+                  onClick={() => handleSelectMurid(m.id)} // PERUBAHAN: Gunakan fungsi bungkus navigasi
                   className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all border ${selectedMuridId === m.id ? 'bg-emerald-600 text-white font-bold border-emerald-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-100'}`}
                 >
                   <span className="block truncate">{m.nama}</span>
@@ -211,14 +249,24 @@ export default function DataSiswaPage({ showToast }: { showToast: ShowToast }) {
                 {/* Header */}
                 <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
                   <div className="p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                        <GraduationCap className="w-6 h-6" />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                          <GraduationCap className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-lg truncate">{selectedMurid.nama}</p>
+                          <p className="text-emerald-100 text-sm">Kelas {selectedMurid.kelas || '-'}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-lg truncate">{selectedMurid.nama}</p>
-                        <p className="text-emerald-100 text-sm">Kelas {selectedMurid.kelas || '-'}</p>
-                      </div>
+                      {/* PERUBAHAN: Tombol silang untuk menutup profil (sangat berguna di mobile) */}
+                      <button 
+                        onClick={handleCloseDetail} 
+                        className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors shrink-0"
+                        title="Tutup Profil"
+                      >
+                        <X className="w-5 h-5 text-white" />
+                      </button>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="bg-white/15 rounded-xl p-3 text-center backdrop-blur-sm">
