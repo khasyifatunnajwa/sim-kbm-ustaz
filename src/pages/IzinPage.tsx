@@ -22,7 +22,12 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
   const [mapelList, setMapelList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+
+  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  const [showModal, setShowModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'izin' && hashParts[1] === 'form';
+  });
 
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({
@@ -36,6 +41,30 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     guru_pengganti: '',
     catatan: '',
   });
+
+  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'izin' && hashParts[1] === 'form') {
+        setShowModal(true);
+      } else {
+        setShowModal(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
+  const handleCloseModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'form') {
+      window.history.back(); // Memicu popstate untuk mundur secara native
+    } else {
+      setShowModal(false);
+    }
+  };
 
   const fetchList = async () => {
     setLoading(true);
@@ -60,6 +89,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     })();
   }, [profile]);
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL
   const openAdd = () => {
     setForm({
       jenis_izin: 'Sakit',
@@ -73,6 +103,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       catatan: '',
     });
     setShowModal(true);
+    window.history.pushState(null, '', '#izin/form');
   };
 
   const getJenisLabel = () => form.jenis_izin === 'Lainnya' ? (form.jenis_lainnya || 'Lainnya') : form.jenis_izin;
@@ -105,7 +136,9 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
     showToast('Izin berhasil diajukan!', 'success');
-    setShowModal(false);
+    
+    // PERUBAHAN: Gunakan penutup modal yang membersihkan URL
+    handleCloseModal();
     fetchList();
   };
 
@@ -247,7 +280,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
       {/* Modal */}
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={handleCloseModal} // PERUBAHAN
         title="Ajukan Izin Mengajar"
         size="md"
       >
@@ -364,7 +397,8 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
 
           {/* Tombol */}
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
+            {/* PERUBAHAN: Gunakan fungsi penutup modal khusus */}
+            <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">Batal</button>
             <button type="button" onClick={handleShareWA} className="flex-1 text-sm flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95">
               <Send className="w-4 h-4" /> Share WA
             </button>
