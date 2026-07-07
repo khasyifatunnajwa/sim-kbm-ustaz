@@ -314,6 +314,7 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
+  // PENYESUAIAN: State kini bersih, tidak mengambil dari sessionStorage
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [error, setError] = useState<string | null>(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -380,11 +381,14 @@ export default function App() {
             if (p) setProfile(p);
           });
 
-          // PERUBAHAN DISINI: Ambil menu aktif dari URL Hash bawaan browser, bukan sessionStorage
+          // PERUBAHAN: Menentukan tab aktif berdasarkan URL Hash saat aplikasi dimuat/direfresh
           const hash = window.location.hash.replace('#', '').split('/')[0];
           const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil'];
           if (hash && validTabs.includes(hash)) {
             setActiveTab(hash as ActiveTab);
+          } else {
+            // Memaksa hash menjadi #dashboard jika hash kosong
+            window.history.replaceState(null, '', '#dashboard');
           }
         } else {
           console.log('[APP] No session, checking setup');
@@ -420,12 +424,11 @@ export default function App() {
     return () => subscription?.unsubscribe();
   }, []);
 
-  // PERUBAHAN DISINI: Efek penyimpanan sessionStorage lama yang bermasalah TELAH DIHAPUS SEPENUHNYA
-
   const handleTabChange = (tab: ActiveTab) => {
     if (tab !== activeTab) setActiveTab(tab);
   };
 
+  // Menghubungkan hook navigasi kustom kita
   useBackButton({
     activeTab,
     setActiveTab: handleTabChange,
@@ -438,9 +441,8 @@ export default function App() {
     } catch (e) {
       // ignore
     }
-    // PERUBAHAN DISINI: Bersihkan hash URL dan hapus sessionStorage bawaan browser agar kembali bersih
+    // PERUBAHAN: Membersihkan Hash dan mereset sesi agar saat login kembali masuk dari dashboard
     window.location.hash = ''; 
-    sessionStorage.clear();
     setUser(null);
     setProfile(null);
     setActiveTab('dashboard');
