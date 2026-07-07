@@ -22,7 +22,13 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
   const [catatanList, setCatatanList] = useState<CatatanGuru[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  
+  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  const [showModal, setShowModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'catatan' && hashParts[1] === 'form';
+  });
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterKategori, setFilterKategori] = useState<KategoriCatatan | ''>('');
@@ -39,6 +45,34 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     lokasi: '',
     status: 'Belum Selesai' as StatusCatatan,
   });
+
+  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'catatan') {
+        if (hashParts[1] === 'form') {
+          setShowModal(true);
+        } else {
+          setShowModal(false);
+          setEditingId(null);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
+  const handleCloseModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'form') {
+      window.history.back(); // Memicu popstate untuk mundur secara native
+    } else {
+      setShowModal(false);
+      setEditingId(null);
+    }
+  };
 
   useEffect(() => {
     fetchCatatan();
@@ -74,6 +108,7 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     });
   }, [catatanList, search, filterKategori, filterStatus]);
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL
   const openAdd = () => {
     setEditingId(null);
     setForm({
@@ -85,8 +120,10 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
       status: 'Belum Selesai',
     });
     setShowModal(true);
+    window.history.pushState(null, '', '#catatan/form');
   };
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (c: CatatanGuru) => {
     setEditingId(c.id);
     setForm({
@@ -98,6 +135,7 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
       status: c.status,
     });
     setShowModal(true);
+    window.history.pushState(null, '', '#catatan/form');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -131,8 +169,9 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     }
 
     showToast(editingId ? 'Catatan diperbarui!' : 'Catatan disimpan!', 'success');
-    setShowModal(false);
-    setEditingId(null);
+    
+    // PERUBAHAN: Memanggil handleCloseModal agar kembali otomatis secara native
+    handleCloseModal();
     fetchCatatan();
   };
 
@@ -316,7 +355,7 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
       {/* Modal */}
       <Modal
         isOpen={showModal}
-        onClose={() => { setShowModal(false); setEditingId(null); }}
+        onClose={handleCloseModal} // PERUBAHAN
         title={editingId ? 'Edit Catatan' : 'Tambah Catatan'}
         size="md"
       >
@@ -402,7 +441,8 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
           </div>
 
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">
+            {/* PERUBAHAN: Gunakan handleCloseModal */}
+            <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">
               Batal
             </button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">
