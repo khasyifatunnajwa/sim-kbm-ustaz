@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, FileText, Calendar, BarChart3, Loader2, BookOpen, TrendingUp,
-  CheckCircle,
+  CheckCircle, X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
@@ -17,6 +17,38 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
   const [penilaianList, setPenilaianList] = useState<Penilaian[]>([]);
   const [detailCount, setDetailCount] = useState(0);
 
+  // 1. SINKRONISASI TOMBOL BACK HP UNTUK PENUTUPAN DETAIL USTAZ
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      // Jika URL tidak lagi mengandung '/detail' di ujungnya, reset id ustaz yang dipilih
+      if (hashParts[3] !== 'detail') {
+        setSelectedUstazId('');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 2. FUNGSI UNTUK MEMBUKA DETAIL & MENDORONG HASH
+  const handleSelectUstaz = (id: string) => {
+    if (!selectedUstazId) {
+      // Hanya dorong hash baru JIKA sebelumnya tidak ada ustaz yang dipilih
+      window.history.pushState(null, '', '#admin/akademik/ustaz/detail');
+    }
+    setSelectedUstazId(id);
+  };
+
+  // 3. FUNGSI UNTUK MENUTUP DETAIL SECARA AMAN (Pembersihan URL)
+  const handleCloseDetail = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[3] === 'detail') {
+      window.history.back(); // Trigger popstate native browser
+    } else {
+      setSelectedUstazId('');
+    }
+  };
+
   useEffect(() => {
     fetchUstaz();
   }, []);
@@ -29,7 +61,9 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
     } else if (data) {
       const profiles = (data as Profile[]).filter(p => p.role !== 'admin');
       setUstazList(profiles);
-      if (profiles.length) setSelectedUstazId(profiles[0].id);
+      // Opsional: Jika ingin otomatis memilih ustaz pertama, bisa menggunakan handleSelectUstaz
+      // Namun untuk UX mobile yang lebih baik, biarkan kosong di awal
+      // if (profiles.length) handleSelectUstaz(profiles[0].id);
     }
     setLoading(false);
   };
@@ -114,7 +148,7 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
               {ustazList.map(u => (
                 <button
                   key={u.id}
-                  onClick={() => setSelectedUstazId(u.id)}
+                  onClick={() => handleSelectUstaz(u.id)} // PERUBAHAN: Gunakan handleSelectUstaz
                   className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all border ${selectedUstazId === u.id ? 'bg-emerald-600 text-white font-bold border-emerald-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-100'}`}
                 >
                   <span className="block truncate">{u.nama_lengkap || u.nama_panggilan || 'Ustaz'}</span>
@@ -133,14 +167,24 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
                 {/* Header */}
                 <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
                   <div className="p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                        <Users className="w-6 h-6" />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                          <Users className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-lg truncate">{selectedUstaz.nama_lengkap || selectedUstaz.nama_panggilan || 'Ustaz'}</p>
+                          <p className="text-emerald-100 text-sm">{selectedUstaz.email || ''}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-lg truncate">{selectedUstaz.nama_lengkap || selectedUstaz.nama_panggilan || 'Ustaz'}</p>
-                        <p className="text-emerald-100 text-sm">{selectedUstaz.email || ''}</p>
-                      </div>
+                      {/* PERUBAHAN: Tombol silang untuk menutup profil (sangat berguna di mobile) */}
+                      <button 
+                        onClick={handleCloseDetail} 
+                        className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors shrink-0"
+                        title="Tutup Profil"
+                      >
+                        <X className="w-5 h-5 text-white" />
+                      </button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       <div className="bg-white/15 rounded-xl p-3 text-center backdrop-blur-sm">
