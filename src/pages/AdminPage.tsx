@@ -29,9 +29,30 @@ export default function AdminPage({
   profile: Profile | null;
   setActiveTab?: (tab: ActiveTab) => void;
 }) {
-  const [section, setSection] = useState<AdminSection>('master');
-  const [masterTab, setMasterTab] = useState<MasterTab>('users');
-  const [akademikTab, setAkademikTab] = useState<AkademikTab>('siswa');
+  // 1. Inisialisasi awal Section berdasarkan URL Hash
+  const [section, setSection] = useState<AdminSection>(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[1] === 'akademik' ? 'akademik' : 'master';
+  });
+
+  // Inisialisasi Master Tab berdasarkan URL Hash
+  const [masterTab, setMasterTab] = useState<MasterTab>(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'master' && ['users', 'tahun', 'semester', 'kelas', 'mapel', 'ruangan'].includes(hashParts[2])) {
+      return hashParts[2] as MasterTab;
+    }
+    return 'users'; // default
+  });
+
+  // Inisialisasi Akademik Tab berdasarkan URL Hash
+  const [akademikTab, setAkademikTab] = useState<AkademikTab>(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'akademik' && ['siswa', 'ustaz'].includes(hashParts[2])) {
+      return hashParts[2] as AkademikTab;
+    }
+    return 'siswa'; // default
+  });
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -52,7 +73,6 @@ export default function AdminPage({
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
 
-  // Form states
   const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz' as UserRole, is_active: true });
   const [tahunForm, setTahunForm] = useState({ nama: '', aktif: false });
   const [semesterForm, setSemesterForm] = useState({ nama: '', aktif: false });
@@ -61,6 +81,49 @@ export default function AdminPage({
   const [ruanganForm, setRuanganForm] = useState({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '' });
 
   const isAdmin = profile?.role === 'admin';
+
+  // 2. SINKRONISASI HASH (Menangkap Tombol Back HP)
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'admin') {
+        const currentSection = hashParts[1] === 'akademik' ? 'akademik' : 'master';
+        setSection(currentSection);
+        
+        if (currentSection === 'master') {
+          const mTab = ['users', 'tahun', 'semester', 'kelas', 'mapel', 'ruangan'].includes(hashParts[2]) ? hashParts[2] as MasterTab : 'users';
+          setMasterTab(mTab);
+        } else {
+          const aTab = ['siswa', 'ustaz'].includes(hashParts[2]) ? hashParts[2] as AkademikTab : 'siswa';
+          setAkademikTab(aTab);
+        }
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI UNTUK MENGUBAH TAB SEKALIGUS UPDATE URL
+  const handleSectionChange = (newSec: AdminSection) => {
+    setSection(newSec);
+    if (newSec === 'master') {
+      window.history.pushState(null, '', `#admin/master/${masterTab}`);
+    } else {
+      window.history.pushState(null, '', `#admin/akademik/${akademikTab}`);
+    }
+  };
+
+  const handleMasterTabChange = (newTab: MasterTab) => {
+    setMasterTab(newTab);
+    window.history.pushState(null, '', `#admin/master/${newTab}`);
+  };
+
+  const handleAkademikTabChange = (newTab: AkademikTab) => {
+    setAkademikTab(newTab);
+    window.history.pushState(null, '', `#admin/akademik/${newTab}`);
+  };
+
 
   useEffect(() => {
     if (isAdmin) fetchMasterData();
@@ -655,14 +718,14 @@ export default function AdminPage({
 
       <div className="grid grid-cols-2 gap-2 mb-5">
         <button
-          onClick={() => setSection('master')}
+          onClick={() => handleSectionChange('master')}
           className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all ${section === 'master' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
         >
           <Database className="w-4 h-4" />
           Master Data
         </button>
         <button
-          onClick={() => setSection('akademik')}
+          onClick={() => handleSectionChange('akademik')}
           className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all ${section === 'akademik' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
         >
           <BarChart3 className="w-4 h-4" />
@@ -694,7 +757,7 @@ export default function AdminPage({
               return (
                 <button
                   key={t.id}
-                  onClick={() => setMasterTab(t.id)}
+                  onClick={() => handleMasterTabChange(t.id)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border whitespace-nowrap transition-all ${masterTab === t.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -743,14 +806,14 @@ export default function AdminPage({
         <>
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
-              onClick={() => setAkademikTab('siswa')}
+              onClick={() => handleAkademikTabChange('siswa')}
               className={`flex items-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${akademikTab === 'siswa' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
             >
               <GraduationCap className="w-4 h-4" />
               Data Siswa
             </button>
             <button
-              onClick={() => setAkademikTab('ustaz')}
+              onClick={() => handleAkademikTabChange('ustaz')}
               className={`flex items-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${akademikTab === 'ustaz' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border border-slate-200'}`}
             >
               <Users className="w-4 h-4" />
