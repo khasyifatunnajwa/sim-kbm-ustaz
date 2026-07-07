@@ -12,8 +12,17 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  const [showModal, setShowModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'murid' && hashParts[1] === 'form';
+  });
+  const [showDeleteModal, setShowDeleteModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'murid' && hashParts[1] === 'delete';
+  });
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -29,6 +38,50 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   });
 
   const [kelasList, setKelasList] = useState<string[]>([]);
+
+  // 2. SINKRONISASI KEDUA MODAL DENGAN TOMBOL BACK HP
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'murid') {
+        if (hashParts[1] === 'form') {
+          setShowModal(true);
+          setShowDeleteModal(false);
+        } else if (hashParts[1] === 'delete') {
+          setShowModal(false);
+          setShowDeleteModal(true);
+        } else {
+          setShowModal(false);
+          setShowDeleteModal(false);
+          setEditingId(null);
+          setDeletingId(null);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
+  const handleCloseFormModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'form') {
+      window.history.back(); // Memicu popstate untuk mundur secara native
+    } else {
+      setShowModal(false);
+      resetForm();
+    }
+  };
+
+  const handleCloseDeleteModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'delete') {
+      window.history.back();
+    } else {
+      setShowDeleteModal(false);
+      setDeletingId(null);
+    }
+  };
 
   // Fetch data murid dari Supabase
   const fetchMurid = async () => {
@@ -91,7 +144,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     });
   };
 
-  // Buka modal untuk mode Edit
+  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (murid: any) => {
     setEditingId(murid.id);
     setForm({
@@ -103,6 +156,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       status_aktif: murid.status_aktif !== undefined ? murid.status_aktif : true,
     });
     setShowModal(true);
+    window.history.pushState(null, '', '#murid/form');
   };
 
   // Handler Tambah & Edit Data
@@ -141,8 +195,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         showToast('Santri baru berhasil ditambahkan', 'success');
       }
 
-      setShowModal(false);
-      resetForm();
+      // PERUBAHAN: Gunakan fungsi penutup modal khusus
+      handleCloseFormModal();
       fetchMurid();
     } catch (error: any) {
       showToast(error.message || 'Gagal menyimpan data', 'error');
@@ -162,8 +216,9 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
       if (error) throw error;
       showToast('Data santri berhasil dihapus', 'success');
-      setShowDeleteModal(false);
-      setDeletingId(null);
+      
+      // PERUBAHAN: Gunakan fungsi penutup modal khusus
+      handleCloseDeleteModal();
       fetchMurid();
     } catch (error: any) {
       showToast(error.message || 'Gagal menghapus data', 'error');
@@ -184,7 +239,11 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
           </div>
         </div>
         <button
-          onClick={() => { resetForm(); setShowModal(true); }}
+          onClick={() => { 
+            resetForm(); 
+            setShowModal(true); 
+            window.history.pushState(null, '', '#murid/form'); // PERUBAHAN
+          }}
           className="btn-primary flex items-center justify-center gap-2 text-sm font-semibold"
         >
           <Plus className="w-4 h-4" />
@@ -266,7 +325,11 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => { setDeletingId(murid.id); setShowDeleteModal(true); }}
+                    onClick={() => { 
+                      setDeletingId(murid.id); 
+                      setShowDeleteModal(true); 
+                      window.history.pushState(null, '', '#murid/delete'); // PERUBAHAN
+                    }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                     title="Hapus Data"
                   >
@@ -300,7 +363,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       {/* Modal Form Tambah / Edit */}
       <Modal
         isOpen={showModal}
-        onClose={() => { setShowModal(false); resetForm(); }}
+        onClose={handleCloseFormModal} // PERUBAHAN
         title={editingId ? 'Ubah Data Santri' : 'Tambah Santri Baru'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -378,7 +441,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
           <div className="flex gap-2 pt-3 border-t border-slate-100">
             <button
               type="button"
-              onClick={() => { setShowModal(false); resetForm(); }}
+              onClick={handleCloseFormModal} // PERUBAHAN
               className="btn-secondary flex-1 text-sm py-2.5"
             >
               Batal
@@ -397,7 +460,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       {/* Modal Konfirmasi Hapus */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setDeletingId(null); }}
+        onClose={handleCloseDeleteModal} // PERUBAHAN
         title="Hapus Data Santri"
       >
         <div className="space-y-4">
@@ -407,7 +470,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
           <div className="flex gap-2 pt-2">
             <button
               type="button"
-              onClick={() => { setShowDeleteModal(false); setDeletingId(null); }}
+              onClick={handleCloseDeleteModal} // PERUBAHAN
               className="btn-secondary flex-1 text-sm"
             >
               Batal
