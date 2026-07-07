@@ -32,6 +32,14 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
   const todayHari = namaHari[new Date().getDay()];
   const todayDate = new Date().toISOString().split('T')[0];
 
+  // FUNGSI NAVIGASI HASH BARU
+  const handleNav = (tab: ActiveTab) => {
+    if (setActiveTab) {
+      setActiveTab(tab);
+      window.history.pushState(null, '', `#${tab}`); // Mendorong riwayat hash ke browser
+    }
+  };
+
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
@@ -335,7 +343,7 @@ Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
               return (
                 <button
                   key={a.tab}
-                  onClick={() => setActiveTab(a.tab)}
+                  onClick={() => handleNav(a.tab)} // PERUBAHAN
                   className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-slate-50 transition-colors active:scale-95"
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.color}`}>
@@ -433,7 +441,7 @@ Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
                 <h3 className="font-bold text-slate-700 text-sm">Jurnal Terakhir</h3>
               </div>
               {setActiveTab && (
-                <button onClick={() => setActiveTab('jurnal')} className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all">
+                <button onClick={() => handleNav('jurnal')} className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all"> {/* PERUBAHAN */}
                   Lihat <ChevronRight className="w-3 h-3" />
                 </button>
               )}
