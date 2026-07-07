@@ -35,7 +35,13 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
   const [list, setList] = useState<Pengumuman[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  
+  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  const [showModal, setShowModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'pengumuman' && hashParts[1] === 'form';
+  });
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -53,6 +59,34 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     status: 'Draft' as typeof STATUS_LIST[number],
     lampiran: '',
   });
+
+  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'pengumuman') {
+        if (hashParts[1] === 'form') {
+          setShowModal(true);
+        } else {
+          setShowModal(false);
+          setEditingId(null);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
+  const handleCloseModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'form') {
+      window.history.back(); // Memicu popstate untuk mundur secara native
+    } else {
+      setShowModal(false);
+      setEditingId(null);
+    }
+  };
 
   const fetchList = async () => {
     setLoading(true);
@@ -85,6 +119,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL
   const openAdd = () => {
     setEditingId(null);
     setForm({
@@ -92,8 +127,10 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       tanggal_mulai: today, tanggal_selesai: '', status: 'Draft', lampiran: '',
     });
     setShowModal(true);
+    window.history.pushState(null, '', '#pengumuman/form');
   };
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (p: Pengumuman) => {
     setEditingId(String(p.id));
     setForm({
@@ -107,6 +144,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       lampiran: p.lampiran || '',
     });
     setShowModal(true);
+    window.history.pushState(null, '', '#pengumuman/form');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,8 +176,9 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
     showToast(editingId ? 'Pengumuman diperbarui!' : 'Pengumuman dibuat!', 'success');
-    setShowModal(false);
-    setEditingId(null);
+    
+    // PERUBAHAN: Memanggil handleCloseModal agar kembali otomatis secara native
+    handleCloseModal();
     fetchList();
   };
 
@@ -276,7 +315,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       {/* Modal */}
       <Modal
         isOpen={showModal}
-        onClose={() => { setShowModal(false); setEditingId(null); }}
+        onClose={handleCloseModal} // PERUBAHAN
         title={editingId ? 'Edit Pengumuman' : 'Buat Pengumuman Baru'}
         size="lg"
       >
@@ -354,7 +393,8 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
           )}
 
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => { setShowModal(false); setEditingId(null); }} className="btn-secondary flex-1 text-sm">Batal</button>
+            {/* PERUBAHAN: Gunakan handleCloseModal */}
+            <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">Batal</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
               {saving ? <FileEdit className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}
