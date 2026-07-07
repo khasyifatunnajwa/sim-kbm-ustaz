@@ -28,7 +28,13 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  
+  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  const [showModal, setShowModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'jadwal' && hashParts[1] === 'form';
+  });
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
 
@@ -39,6 +45,34 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
 
   const todayHari = getTodayHari();
   const today = new Date().toISOString().split('T')[0];
+
+  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'jadwal') {
+        if (hashParts[1] === 'form') {
+          setShowModal(true);
+        } else {
+          setShowModal(false);
+          setEditingId(null);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
+  const handleCloseModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'form') {
+      window.history.back(); // Memicu popstate untuk mundur secara native
+    } else {
+      setShowModal(false);
+      setEditingId(null);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -109,12 +143,15 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     [agendaList, today]
   );
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL TAMBAH
   const openAdd = () => {
     setEditingId(null);
-    setForm({ hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:00', kelas: '', pelajaran: '', ruangan: '', catatan: '' });
+    setForm({ hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00', kelas: '', pelajaran: '', ruangan: '', catatan: '' });
     setShowModal(true);
+    window.history.pushState(null, '', '#jadwal/form');
   };
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (j: JadwalMengajar) => {
     setEditingId(j.id);
     setForm({
@@ -122,6 +159,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
       kelas: j.kelas, pelajaran: j.pelajaran, ruangan: j.ruangan ?? '', catatan: j.catatan ?? '',
     });
     setShowModal(true);
+    window.history.pushState(null, '', '#jadwal/form');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,8 +177,9 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
     showToast(editingId ? 'Jadwal diperbarui!' : 'Jadwal ditambahkan!', 'success');
-    setShowModal(false);
-    setEditingId(null);
+    
+    // PERUBAHAN: Gunakan handleCloseModal
+    handleCloseModal();
     fetchData();
   };
 
@@ -342,7 +381,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
       )}
 
       {/* Modal Tambah/Edit Jadwal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingId ? 'Edit Jadwal' : 'Tambah Jadwal'} size="sm">
+      <Modal isOpen={showModal} onClose={handleCloseModal} title={editingId ? 'Edit Jadwal' : 'Tambah Jadwal'} size="sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -385,7 +424,8 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
             <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Catatan tambahan..." />
           </div>
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
+            {/* PERUBAHAN: Gunakan fungsi penutup modal khusus */}
+            <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">Batal</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
           </div>
         </form>
