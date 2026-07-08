@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Loader2, Shield, AlertCircle, LogOut } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
@@ -6,24 +6,22 @@ import ToastContainer from './components/ToastContainer';
 import Modal from './components/Modal';
 import { useToast } from './hooks/useToast';
 import { useBackButton } from './hooks/useBackButton';
-import { useStore } from './store/useStore'; // IMPORT ZUSTAND STORE
 import type { ActiveTab, ShowToast, Profile } from './types';
 
-// LAZY LOADING (Code Splitting) agar loading awal aplikasi jauh lebih ringan
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const JadwalPage = lazy(() => import('./pages/JadwalPage'));
-const MuridPage = lazy(() => import('./pages/MuridPage'));
-const AbsensiPage = lazy(() => import('./pages/AbsensiPage'));
-const JurnalPage = lazy(() => import('./pages/JurnalPage'));
-const NilaiPage = lazy(() => import('./pages/NilaiPage'));
-const SikapPage = lazy(() => import('./pages/SikapPage'));
-const CatatanPage = lazy(() => import('./pages/CatatanPage'));
-const SoalPage = lazy(() => import('./pages/SoalPage'));
-const IzinPage = lazy(() => import('./pages/IzinPage'));
-const RaporPage = lazy(() => import('./pages/RaporPage'));
-const AdminPage = lazy(() => import('./pages/AdminPage'));
-const AdminPengumumanPage = lazy(() => import('./pages/AdminPengumumanPage'));
-const ProfilPage = lazy(() => import('./pages/ProfilPage'));
+import DashboardPage from './pages/DashboardPage';
+import JadwalPage from './pages/JadwalPage';
+import MuridPage from './pages/MuridPage';
+import AbsensiPage from './pages/AbsensiPage';
+import JurnalPage from './pages/JurnalPage';
+import NilaiPage from './pages/NilaiPage';
+import SikapPage from './pages/SikapPage';
+import CatatanPage from './pages/CatatanPage';
+import SoalPage from './pages/SoalPage';
+import IzinPage from './pages/IzinPage';
+import RaporPage from './pages/RaporPage';
+import AdminPage from './pages/AdminPage';
+import AdminPengumumanPage from './pages/AdminPengumumanPage';
+import ProfilPage from './pages/ProfilPage';
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
@@ -312,11 +310,12 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
 }
 
 export default function App() {
-  // PENGGUNAAN ZUSTAND STORE
-  const { user, profile, activeTab, setUser, setProfile, setActiveTab, clearStore } = useStore();
-  
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
+  // PENYESUAIAN: State kini bersih, tidak mengambil dari sessionStorage
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [error, setError] = useState<string | null>(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const initRef = useRef(false);
@@ -382,11 +381,13 @@ export default function App() {
             if (p) setProfile(p);
           });
 
+          // PERUBAHAN: Menentukan tab aktif berdasarkan URL Hash saat aplikasi dimuat/direfresh
           const hash = window.location.hash.replace('#', '').split('/')[0];
           const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil'];
           if (hash && validTabs.includes(hash)) {
             setActiveTab(hash as ActiveTab);
           } else {
+            // Memaksa hash menjadi #dashboard jika hash kosong
             window.history.replaceState(null, '', '#dashboard');
           }
         } else {
@@ -397,7 +398,7 @@ export default function App() {
       } catch (err: any) {
         console.error('[APP] Init error:', err);
         setError(err.message || 'Gagal menginisialisasi');
-        clearStore();
+        setUser(null);
       } finally {
         setAuthLoading(false);
       }
@@ -414,7 +415,9 @@ export default function App() {
           setNeedsSetup(false);
           setError(null);
         } else {
-          clearStore(); // Membersihkan Zustand State saat logout
+          setUser(null);
+          setProfile(null);
+          setActiveTab('dashboard');
         }
       })();
     });
@@ -425,7 +428,7 @@ export default function App() {
     if (tab !== activeTab) setActiveTab(tab);
   };
 
-  // Hook Navigasi Kustom (Terhubung dengan Zustand)
+  // Menghubungkan hook navigasi kustom kita
   useBackButton({
     activeTab,
     setActiveTab: handleTabChange,
@@ -438,8 +441,11 @@ export default function App() {
     } catch (e) {
       // ignore
     }
+    // PERUBAHAN: Membersihkan Hash dan mereset sesi agar saat login kembali masuk dari dashboard
     window.location.hash = ''; 
-    clearStore();
+    setUser(null);
+    setProfile(null);
+    setActiveTab('dashboard');
   };
 
   const handleRetry = () => {
@@ -478,25 +484,23 @@ export default function App() {
   }
 
   const renderPage = () => {
-    return (
-      // SUSPENSE untuk menangani Lazy Loading Halaman
-      <Suspense fallback={<LoadingScreen />}>
-        {activeTab === 'dashboard' && <DashboardPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
-        {activeTab === 'jadwal' && <JadwalPage showToast={showToast} profile={profile} />}
-        {activeTab === 'murid' && <MuridPage showToast={showToast} profile={profile} />}
-        {activeTab === 'absensi' && <AbsensiPage showToast={showToast} profile={profile} />}
-        {activeTab === 'jurnal' && <JurnalPage showToast={showToast} profile={profile} />}
-        {activeTab === 'nilai' && <NilaiPage showToast={showToast} profile={profile} />}
-        {activeTab === 'sikap' && <SikapPage showToast={showToast} profile={profile} />}
-        {activeTab === 'catatan' && <CatatanPage showToast={showToast} profile={profile} />}
-        {activeTab === 'soal' && <SoalPage showToast={showToast} profile={profile} />}
-        {activeTab === 'izin' && <IzinPage showToast={showToast} profile={profile} />}
-        {activeTab === 'rapor' && <RaporPage showToast={showToast} />}
-        {activeTab === 'admin' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
-        {activeTab === 'pengumuman' && <AdminPengumumanPage showToast={showToast} />}
-        {activeTab === 'profil' && <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />}
-      </Suspense>
-    );
+    switch (activeTab) {
+      case 'dashboard': return <DashboardPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />;
+      case 'jadwal': return <JadwalPage showToast={showToast} profile={profile} />;
+      case 'murid': return <MuridPage showToast={showToast} profile={profile} />;
+      case 'absensi': return <AbsensiPage showToast={showToast} profile={profile} />;
+      case 'jurnal': return <JurnalPage showToast={showToast} profile={profile} />;
+      case 'nilai': return <NilaiPage showToast={showToast} profile={profile} />;
+      case 'sikap': return <SikapPage showToast={showToast} profile={profile} />;
+      case 'catatan': return <CatatanPage showToast={showToast} profile={profile} />;
+      case 'soal': return <SoalPage showToast={showToast} profile={profile} />;
+      case 'izin': return <IzinPage showToast={showToast} profile={profile} />;
+      case 'rapor': return <RaporPage showToast={showToast} />;
+      case 'admin': return <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />;
+      case 'pengumuman': return <AdminPengumumanPage showToast={showToast} />;
+      case 'profil': return <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />;
+      default: return null;
+    }
   };
 
   return (
