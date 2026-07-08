@@ -7,9 +7,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // KODE TAMBAHAN: Memaksa Service Worker menyala di mode preview/dev
       devOptions: {
-        enabled: true,
+        enabled: true, // Memaksa PWA jalan di mode preview
         type: 'module',
       },
       workbox: {
@@ -17,15 +16,16 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 3000000,
       },
       manifest: {
-        name: 'Sistem Informasi KBM',
+        name: 'SIM KBM Ustaz',
         short_name: 'SIM KBM',
-        description: 'Aplikasi Manajemen KBM dan Buku Saku Ustaz',
+        description: 'Sistem Informasi Manajemen Kegiatan Belajar Mengajar',
         theme_color: '#059669',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [
-          { src: 'icon-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512x512.png', sizes: '512x512', type: 'image/png' }
+          // PERBAIKAN: Jalur file disesuaikan dengan folder "icon" Anda
+          { src: '/icon/192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon/512x512.png', sizes: '512x512', type: 'image/png' }
         ]
       }
     })
