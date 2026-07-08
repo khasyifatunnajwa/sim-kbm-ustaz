@@ -16,6 +16,9 @@ import * as idbKeyval from 'idb-keyval';
 import { initOfflineSync } from './lib/offlineQueue';
 import { supabase } from './lib/supabase';
 
+// 4. Theme Provider
+import { ThemeProvider } from './contexts/ThemeContext';
+
 // Aktifkan Service Worker segera saat aplikasi dibuka
 registerSW({
   immediate: true,
@@ -118,12 +121,14 @@ if (!rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{ persister: idbPersister }}
-        >
-          <App />
-        </PersistQueryClientProvider>
+        <ThemeProvider>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{ persister: idbPersister }}
+          >
+            <App />
+          </PersistQueryClientProvider>
+        </ThemeProvider>
       </ErrorBoundary>
     </StrictMode>
   );

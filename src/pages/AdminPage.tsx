@@ -3,7 +3,9 @@ import {
   User, Users, Shield, Plus, Trash2, Pencil, CheckCircle, XCircle,
   BookOpen, Calendar, Search, X, Database, GraduationCap, Megaphone,
   Building2, Key, BarChart3, TrendingUp, Clock, AlertCircle, FileText,
-  ChevronRight, Settings, LayoutDashboard, Activity
+  ChevronRight, Settings, LayoutDashboard, Activity, AlertTriangle,
+  Sun, Moon, UsersRound, UserX, School, MessageCircleWarning,
+  RefreshCw, ArrowLeft, Eye, Phone, Send, Filter
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -11,64 +13,323 @@ import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import type {
   Profile, ShowToast, TahunAjaran, Semester, MataPelajaran, UserRole, KelompokMapel, Ruangan, ActiveTab,
+  DashboardPresensiUstaz, DashboardPresensiMurid, KelasKosong, UstazPresensiList,
+  KenakalanUstaz, KenakalanMurid, PresensiMuridByKelas, UstazDetailPresensi
 } from '../types';
 import DataSiswaPage from './DataSiswaPage';
 import DataUstazPage from './DataUstazPage';
+import { useThemeContext } from '../contexts/ThemeContext';
 
-type AdminView = 'dashboard' | 'master' | 'akademik' | 'pengumuman';
-type MasterTab = 'users' | 'tahun' | 'semester' | 'kelas' | 'mapel' | 'ruangan';
-type AkademikTab = 'siswa' | 'ustaz' | 'presensi';
+type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan';
+type PresensiTab = 'ustaz' | 'murid';
+type KelolaUserTab = 'users' | 'tahun' | 'semester' | 'kelas' | 'mapel' | 'ruangan';
+type DataAkademikTab = 'siswa' | 'ustaz';
+type KenakalanTab = 'ustaz' | 'murid';
 
 const PAGE_SIZE = 8;
 
-// Dashboard Stats Component
-function AdminDashboard({
-  users,
-  kelasList,
-  mapelList,
-  profile,
-  setActiveTab,
-  onViewChange
+// ================== THEME TOGGLE COMPONENT ==================
+function ThemeToggle() {
+  const { resolvedTheme, toggleTheme, isDark } = useThemeContext();
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className={`p-2 rounded-xl transition-all ${isDark ? 'bg-slate-700 text-yellow-400 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+      title={isDark ? 'Light Mode' : 'Dark Mode'}
+    >
+      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+    </button>
+  );
+}
+
+// ================== DASHBOARD CARDS ==================
+function DashboardPresensiUstazCard({
+  data,
+  loading,
+  onClick
 }: {
-  users: Profile[];
-  kelasList: any[];
-  mapelList: MataPelajaran[];
-  profile: Profile | null;
-  setActiveTab?: (tab: ActiveTab) => void;
-  onViewChange: (view: AdminView) => void;
+  data: DashboardPresensiUstaz | null;
+  loading: boolean;
+  onClick: () => void;
 }) {
-  const [todayPresensi, setTodayPresensi] = useState(0);
-  const [todayJurnal, setTodayJurnal] = useState(0);
+  if (loading) {
+    return (
+      <div className="card p-4 animate-pulse">
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2 mb-3" />
+        <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-2" />
+        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+      </div>
+    );
+  }
+
+  const sudahPresensi = (data?.hadir || 0) + (data?.terlambat || 0);
+  const persentase = data?.total_guru ? Math.round((sudahPresensi / data.total_guru) * 100) : 0;
+
+  return (
+    <button
+      onClick={onClick}
+      className="card p-4 w-full text-left hover:shadow-lg transition-all group border-l-4 border-l-emerald-500"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+            <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Presensi Ustaz Hari Ini</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="text-center">
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{data?.hadir || 0}</p>
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Hadir</p>
+        </div>
+        <div className="text-center">
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{data?.terlambat || 0}</p>
+          <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Terlambat</p>
+        </div>
+        <div className="text-center">
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{(data?.total_guru || 0) - sudahPresensi}</p>
+          <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">Belum</p>
+        </div>
+      </div>
+
+      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+        <div
+          className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all"
+          style={{ width: `${persentase}%` }}
+        />
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1 justify-between">
+        <span>{persentase}% hadir</span>
+        <span className="text-emerald-600 dark:text-emerald-400">{sudahPresensi}/{data?.total_guru || 0} ustaz</span>
+      </p>
+    </button>
+  );
+}
+
+function DashboardKelasKosongCard({
+  data,
+  loading,
+  onClick
+}: {
+  data: KelasKosong[];
+  loading: boolean;
+  onClick: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="card p-4 animate-pulse">
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2 mb-3" />
+        <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-2" />
+        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+      </div>
+    );
+  }
+
+  const jumlahKosong = data?.length || 0;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`card p-4 w-full text-left hover:shadow-lg transition-all group border-l-4 ${jumlahKosong > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${jumlahKosong > 0 ? 'bg-rose-100 dark:bg-rose-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
+            <AlertTriangle className={`w-4 h-4 ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
+          </div>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Kelas Kosong Hari Ini</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+      </div>
+
+      <p className={`text-4xl font-bold mb-2 ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+        {jumlahKosong}
+      </p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        {jumlahKosong > 0 ? 'Kelas tanpa presensi & izin' : 'Semua kelas terisi'}
+      </p>
+    </button>
+  );
+}
+
+function DashboardPresensiMuridCard({
+  data,
+  loading,
+  onClick
+}: {
+  data: PresensiMuridByKelas[];
+  loading: boolean;
+  onClick: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="card p-4 animate-pulse">
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2 mb-3" />
+        <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-2" />
+        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+      </div>
+    );
+  }
+
+  const totalHadir = data.reduce((sum, k) => sum + (k.hadir || 0), 0);
+  const totalMurid = data.reduce((sum, k) => sum + (k.total_murid || 0), 0);
+  const persentase = totalMurid > 0 ? Math.round((totalHadir / totalMurid) * 100) : 0;
+
+  return (
+    <button
+      onClick={onClick}
+      className="card p-4 w-full text-left hover:shadow-lg transition-all group border-l-4 border-l-sky-500"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center">
+            <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+          </div>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Presensi Murid Hari Ini</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+      </div>
+
+      <div className="flex items-center gap-4 mb-3">
+        <div className="flex-1">
+          <div className="flex items-baseline gap-1">
+            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{persentase}%</p>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Kehadiran</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-bold text-slate-800 dark:text-slate-100">{totalHadir}/{totalMurid}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Murid</p>
+        </div>
+      </div>
+
+      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+        <div
+          className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full transition-all"
+          style={{ width: `${persentase}%` }}
+        />
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{data.length} kelas aktif</p>
+    </button>
+  );
+}
+
+// ================== ADMIN DASHBOARD ==================
+function AdminDashboard({
+  onViewChange,
+  profile,
+  showToast
+}: {
+  onViewChange: (section: AdminSection) => void;
+  profile: Profile | null;
+  showToast: ShowToast;
+}) {
   const [loading, setLoading] = useState(true);
+  const [presensiUstaz, setPresensiUstaz] = useState<DashboardPresensiUstaz | null>(null);
+  const [kelasKosong, setKelasKosong] = useState<KelasKosong[]>([]);
+  const [presensiMurid, setPresensiMurid] = useState<PresensiMuridByKelas[]>([]);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
-      const [presensiRes, jurnalRes] = await Promise.all([
-        supabase.from('presensi_ustaz').select('id', { count: 'exact', head: true }).eq('tanggal', today),
-        supabase.from('jurnal_kbm').select('id', { count: 'exact', head: true }).eq('tanggal', today),
-      ]);
-      setTodayPresensi(presensiRes.count || 0);
-      setTodayJurnal(jurnalRes.count || 0);
-      setLoading(false);
-    };
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
-  const ustazCount = users.filter(u => u.role === 'ustaz').length;
-  const operatorCount = users.filter(u => u.role === 'operator').length;
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Fetch presensi ustaz stats
+      const { data: ustazData } = await supabase
+        .from('v_dashboard_presensi_ustaz_hari_ini')
+        .select('*')
+        .maybeSingle();
 
-  const quickActions = [
-    { icon: Users, label: 'Kelola User', desc: 'Tambah/edit pengguna', view: 'master' as AdminView, color: 'emerald' },
-    { icon: BookOpen, label: 'Data Akademik', desc: 'Siswa & Ustaz', view: 'akademik' as AdminView, color: 'sky' },
-    { icon: BarChart3, label: 'Presensi Ustaz', desc: 'Monitor kehadiran', view: 'akademik' as AdminView, tab: 'presensi', color: 'violet' },
-    { icon: Megaphone, label: 'Pengumuman', desc: 'Broadcast info', view: 'pengumuman' as AdminView, color: 'amber' },
+      if (ustazData) setPresensiUstaz(ustazData as DashboardPresensiUstaz);
+
+      // Fetch presensi murid by kelas
+      const { data: muridData } = await supabase
+        .from('v_presensi_murid_by_kelas_hari_ini')
+        .select('*');
+
+      if (muridData) setPresensiMurid(muridData as PresensiMuridByKelas[]);
+
+      // Fetch kelas kosong - simplified query
+      const today = new Date().toISOString().split('T')[0];
+      const dayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+
+      // Get jadwal for today
+      const { data: jadwalData } = await supabase
+        .from('jadwal')
+        .select('id, kelas_id, mapel_id, user_id, jam_mulai, jam_selesai, hari')
+        .eq('is_active', true)
+        .eq('hari', dayName);
+
+      if (jadwalData && jadwalData.length > 0) {
+        // Get guru yang sudah presensi hari ini
+        const { data: presensiData } = await supabase
+          .from('presensi_ustaz')
+          .select('guru_id')
+          .eq('tanggal', today);
+
+        const sudahPresensiIds = new Set((presensiData || []).map(p => p.guru_id));
+
+        // Get guru yang izin
+        const { data: izinData } = await supabase
+          .from('izin_mengajar')
+          .select('user_id')
+          .eq('status', 'disetujui')
+          .lte('tanggal_mulai', today)
+          .gte('tanggal_selesai', today);
+
+        const izinIds = new Set((izinData || []).map(i => i.user_id));
+
+        // Get kelas and mapel details
+        const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('is_active', true);
+        const { data: mapelData } = await supabase.from('mata_pelajaran').select('id, nama_mapel').eq('is_active', true);
+        const { data: profilesData } = await supabase.from('profiles').select('id, nama_lengkap');
+
+        const kelasMap = new Map((kelasData || []).map(k => [k.id, k.nama_kelas]));
+        const mapelMap = new Map((mapelData || []).map(m => [m.id, m.nama_mapel]));
+        const profilesMap = new Map((profilesData || []).map(p => [p.id, p.nama_lengkap]));
+
+        const kelasKosongList: KelasKosong[] = [];
+        for (const j of jadwalData) {
+          if (!sudahPresensiIds.has(j.user_id) && !izinIds.has(j.user_id)) {
+            kelasKosongList.push({
+              jadwal_id: j.id,
+              nama_kelas: kelasMap.get(j.kelas_id) || '-',
+              nama_mapel: mapelMap.get(j.mapel_id) || '-',
+              nama_guru: profilesMap.get(j.user_id) || '-',
+              jam_mulai: j.jam_mulai || '-',
+              jam_selesai: j.jam_selesai || '-',
+              guru_id: j.user_id,
+              lama_belum_presensi: '-'
+            });
+          }
+        }
+        setKelasKosong(kelasKosongList);
+      } else {
+        setKelasKosong([]);
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const quickMenuItems = [
+    { icon: Users, label: 'Presensi', desc: 'Ustaz & Murid', section: 'presensi' as AdminSection, color: 'emerald' },
+    { icon: Shield, label: 'Kelola User', desc: 'Pengguna & Master Data', section: 'kelola-user' as AdminSection, color: 'violet' },
+    { icon: BookOpen, label: 'Data Akademik', desc: 'Siswa & Ustaz', section: 'data-akademik' as AdminSection, color: 'sky' },
+    { icon: AlertTriangle, label: 'Kenakalan', desc: 'Pelanggaran & Peringatan', section: 'kenakalan' as AdminSection, color: 'rose' },
   ];
 
   return (
     <div className="space-y-5">
-      {/* Welcome Header */}
+      {/* Header */}
       <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl p-5 text-white shadow-xl">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
@@ -78,133 +339,94 @@ function AdminDashboard({
             <h2 className="text-xl font-bold">Dashboard Admin</h2>
             <p className="text-slate-300 text-sm">Selamat datang, {profile?.nama_lengkap || 'Admin'}</p>
           </div>
+          <ThemeToggle />
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="card p-4 border-l-4 border-l-emerald-500">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-800">{ustazCount}</p>
-              <p className="text-xs text-slate-500">Ustaz</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-4 border-l-4 border-l-sky-500">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
-              <User className="w-5 h-5 text-sky-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-800">{operatorCount}</p>
-              <p className="text-xs text-slate-500">Operator</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-4 border-l-4 border-l-violet-500">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-violet-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-800">{kelasList.length}</p>
-              <p className="text-xs text-slate-500">Kelas</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-4 border-l-4 border-l-amber-500">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-800">{mapelList.length}</p>
-              <p className="text-xs text-slate-500">Mapel</p>
-            </div>
-          </div>
-        </div>
+      {/* Dashboard Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <DashboardPresensiUstazCard
+          data={presensiUstaz}
+          loading={loading}
+          onClick={() => onViewChange('presensi')}
+        />
+        <DashboardKelasKosongCard
+          data={kelasKosong}
+          loading={loading}
+          onClick={() => onViewChange('presensi')}
+        />
+        <DashboardPresensiMuridCard
+          data={presensiMurid}
+          loading={loading}
+          onClick={() => onViewChange('presensi')}
+        />
       </div>
 
-      {/* Today Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="card p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Activity className="w-5 h-5 text-emerald-600" />
-              )}
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-emerald-700">{todayPresensi}</p>
-              <p className="text-xs text-emerald-600">Presensi Hari Ini</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-4 bg-gradient-to-br from-violet-50 to-purple-50 border-violet-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center">
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <FileText className="w-5 h-5 text-violet-600" />
-              )}
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-violet-700">{todayJurnal}</p>
-              <p className="text-xs text-violet-600">Jurnal Hari Ini</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
+      {/* Quick Menu */}
       <div>
-        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
           <Settings className="w-4 h-4 text-slate-400" />
           Menu Utama
         </h3>
-        <div className="space-y-2">
-          {quickActions.map((action, i) => {
-            const Icon = action.icon;
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {quickMenuItems.map((item, i) => {
+            const Icon = item.icon;
             const colorClasses: Record<string, string> = {
-              emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-              sky: 'bg-sky-50 text-sky-600 border-sky-100',
-              violet: 'bg-violet-50 text-violet-600 border-violet-100',
-              amber: 'bg-amber-50 text-amber-600 border-amber-100',
+              emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
+              violet: 'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800',
+              sky: 'bg-sky-50 text-sky-600 border-sky-100 dark:bg-sky-900/20 dark:text-sky-400 dark:border-sky-800',
+              rose: 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800',
             };
             return (
               <button
                 key={i}
-                onClick={() => onViewChange(action.view)}
-                className={`w-full card p-4 flex items-center gap-4 hover:shadow-md transition-all group text-left border ${colorClasses[action.color]}`}
+                onClick={() => onViewChange(item.section)}
+                className={`card p-4 flex flex-col items-center gap-2 hover:shadow-md transition-all group text-center border ${colorClasses[item.color]}`}
               >
-                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                  <Icon className="w-5 h-5" />
+                <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center shadow-sm">
+                  <Icon className="w-5 h-5 text-current" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-slate-800">{action.label}</p>
-                  <p className="text-xs text-slate-500">{action.desc}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">{item.label}</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</span>
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* Kelas Kosong Detail (if any) */}
+      {kelasKosong.length > 0 && (
+        <div className="card p-4 border-l-4 border-l-rose-500">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-5 h-5 text-rose-500" />
+            <h3 className="font-bold text-slate-800 dark:text-slate-100">Perhatian: Kelas Kosong</h3>
+          </div>
+          <div className="space-y-2">
+            {kelasKosong.slice(0, 3).map((k, i) => (
+              <div key={i} className="flex items-center gap-3 p-2 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
+                <div className="text-xs text-rose-600 dark:text-rose-400 font-bold">{k.jam_mulai}</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{k.nama_kelas}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{k.nama_mapel} - {k.nama_guru}</p>
+                </div>
+              </div>
+            ))}
+            {kelasKosong.length > 3 && (
+              <button
+                onClick={() => onViewChange('presensi')}
+                className="text-xs text-rose-600 dark:text-rose-400 font-semibold hover:underline"
+              >
+                +{kelasKosong.length - 3} kelas lainnya
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+// ================== MAIN COMPONENT ==================
 export default function AdminPage({
   showToast,
   profile,
@@ -214,31 +436,22 @@ export default function AdminPage({
   profile: Profile | null;
   setActiveTab?: (tab: ActiveTab) => void;
 }) {
-  // Initialize view from URL hash
-  const [view, setView] = useState<AdminView>(() => {
+  const [section, setSection] = useState<AdminSection>(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
-    if (hashParts[1] === 'akademik') return 'akademik';
-    if (hashParts[1] === 'master') return 'master';
-    if (hashParts[1] === 'pengumuman') return 'pengumuman';
+    if (hashParts[1] === 'presensi') return 'presensi';
+    if (hashParts[1] === 'kelola-user') return 'kelola-user';
+    if (hashParts[1] === 'data-akademik') return 'data-akademik';
+    if (hashParts[1] === 'kenakalan') return 'kenakalan';
     return 'dashboard';
   });
 
-  const [masterTab, setMasterTab] = useState<MasterTab>(() => {
-    const hashParts = window.location.hash.replace('#', '').split('/');
-    if (hashParts[1] === 'master' && ['users', 'tahun', 'semester', 'kelas', 'mapel', 'ruangan'].includes(hashParts[2])) {
-      return hashParts[2] as MasterTab;
-    }
-    return 'users';
-  });
+  // All state variables for various sections
+  const [presensiTab, setPresensiTab] = useState<PresensiTab>('ustaz');
+  const [kelolaUserTab, setKelolaUserTab] = useState<KelolaUserTab>('users');
+  const [dataAkademikTab, setDataAkademikTab] = useState<DataAkademikTab>('siswa');
+  const [kenakalanTab, setKenakalanTab] = useState<KenakalanTab>('ustaz');
 
-  const [akademikTab, setAkademikTab] = useState<AkademikTab>(() => {
-    const hashParts = window.location.hash.replace('#', '').split('/');
-    if (hashParts[1] === 'akademik' && ['siswa', 'ustaz', 'presensi'].includes(hashParts[2])) {
-      return hashParts[2] as AkademikTab;
-    }
-    return 'siswa';
-  });
-
+  // Loading and data states
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -257,6 +470,7 @@ export default function AdminPage({
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
 
+  // Form states
   const [userForm, setUserForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz' as UserRole, is_active: true });
   const [tahunForm, setTahunForm] = useState({ nama: '', aktif: false });
   const [semesterForm, setSemesterForm] = useState({ nama: '', aktif: false });
@@ -266,23 +480,14 @@ export default function AdminPage({
 
   const isAdmin = profile?.role === 'admin';
 
-  // Sync URL hash with view changes
+  // Sync with URL
   useEffect(() => {
     const handlePopState = () => {
       const hashParts = window.location.hash.replace('#', '').split('/');
       if (hashParts[0] === 'admin') {
-        if (hashParts[1] === 'akademik') {
-          setView('akademik');
-          const aTab = ['siswa', 'ustaz', 'presensi'].includes(hashParts[2]) ? hashParts[2] as AkademikTab : 'siswa';
-          setAkademikTab(aTab);
-        } else if (hashParts[1] === 'master') {
-          setView('master');
-          const mTab = ['users', 'tahun', 'semester', 'kelas', 'mapel', 'ruangan'].includes(hashParts[2]) ? hashParts[2] as MasterTab : 'users';
-          setMasterTab(mTab);
-        } else if (hashParts[1] === 'pengumuman') {
-          setView('pengumuman');
-        } else {
-          setView('dashboard');
+        const s = hashParts[1] as AdminSection;
+        if (['dashboard', 'presensi', 'kelola-user', 'data-akademik', 'kenakalan'].includes(s)) {
+          setSection(s);
         }
       }
     };
@@ -290,29 +495,12 @@ export default function AdminPage({
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleViewChange = (newView: AdminView) => {
-    setView(newView);
-    if (newView === 'dashboard') {
-      window.history.pushState(null, '', '#admin');
-    } else if (newView === 'master') {
-      window.history.pushState(null, '', `#admin/master/${masterTab}`);
-    } else if (newView === 'akademik') {
-      window.history.pushState(null, '', `#admin/akademik/${akademikTab}`);
-    } else if (newView === 'pengumuman' && setActiveTab) {
-      setActiveTab('pengumuman');
-    }
+  const handleSectionChange = (newSection: AdminSection) => {
+    setSection(newSection);
+    window.history.pushState(null, '', `#admin/${newSection}`);
   };
 
-  const handleMasterTabChange = (newTab: MasterTab) => {
-    setMasterTab(newTab);
-    window.history.pushState(null, '', `#admin/master/${newTab}`);
-  };
-
-  const handleAkademikTabChange = (newTab: AkademikTab) => {
-    setAkademikTab(newTab);
-    window.history.pushState(null, '', `#admin/akademik/${newTab}`);
-  };
-
+  // Fetch master data on mount
   useEffect(() => {
     if (isAdmin) fetchMasterData();
   }, [isAdmin]);
@@ -343,816 +531,690 @@ export default function AdminPage({
   useEffect(() => {
     setSearch('');
     setPage(1);
-  }, [masterTab, view]);
+  }, [kelolaUserTab, section]);
 
-  const openAdd = () => {
-    setEditingId(null);
-    if (masterTab === 'users') setUserForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz', is_active: true });
-    if (masterTab === 'tahun') setTahunForm({ nama: '', aktif: false });
-    if (masterTab === 'semester') setSemesterForm({ nama: '', aktif: false });
-    if (masterTab === 'kelas') setKelasForm({ nama_kelas: '', tingkat: '1', kode: '' });
-    if (masterTab === 'mapel') setMapelForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' });
-    if (masterTab === 'ruangan') setRuanganForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '' });
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      if (masterTab === 'users') {
-        if (editingId) {
-          const { error } = await supabase.from('profiles').update({
-            nama_lengkap: userForm.nama_lengkap,
-            nama_panggilan: userForm.nama_panggilan,
-            nomor_whatsapp: userForm.nomor_whatsapp,
-            role: userForm.role,
-            is_active: userForm.is_active,
-          }).eq('id', editingId);
-          if (error) throw error;
-          showToast('User diperbarui!', 'success');
-        } else {
-          if (!userForm.nama_panggilan || !userForm.password) {
-            showToast('Nama panggilan dan password wajib diisi.', 'error');
-            setSaving(false);
-            return;
-          }
-          const usernameManual = userForm.nama_panggilan.toLowerCase().replace(/\s+/g, '');
-          const generatedEmail = `${usernameManual}@madrasah.com`;
-          const { data: existingData } = await supabase.from('profiles').select('id_login').eq('id_login', usernameManual).maybeSingle();
-          if (existingData) {
-            showToast(`ID Login "${usernameManual}" sudah digunakan.`, 'error');
-            setSaving(false);
-            return;
-          }
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: generatedEmail,
-            password: userForm.password,
-            options: { data: { nama_panggilan: userForm.nama_panggilan, nama_lengkap: userForm.nama_lengkap, role: userForm.role } }
-          });
-          if (authError) throw authError;
-          if (authData?.user) {
-            await supabase.from('profiles').update({
-              id_login: usernameManual,
-              nama_panggilan: userForm.nama_panggilan,
-              nama_lengkap: userForm.nama_lengkap,
-              nomor_whatsapp: userForm.nomor_whatsapp,
-              role: userForm.role,
-              is_active: userForm.is_active,
-            }).eq('id', authData.user.id);
-            showToast('User baru berhasil ditambahkan!', 'success');
-          }
-        }
-      } else if (masterTab === 'tahun') {
-        const { error } = editingId
-          ? await supabase.from('tahun_ajaran').update(tahunForm).eq('id', editingId)
-          : await supabase.from('tahun_ajaran').insert(tahunForm);
-        if (error) throw error;
-        showToast(editingId ? 'Diperbarui!' : 'Ditambahkan!', 'success');
-      } else if (masterTab === 'semester') {
-        const { error } = editingId
-          ? await supabase.from('semester').update(semesterForm).eq('id', editingId)
-          : await supabase.from('semester').insert(semesterForm);
-        if (error) throw error;
-        showToast(editingId ? 'Diperbarui!' : 'Ditambahkan!', 'success');
-      } else if (masterTab === 'kelas') {
-        const payload = { nama_kelas: kelasForm.nama_kelas, tingkat: kelasForm.tingkat, kode: kelasForm.kode || null, user_id: profile?.id };
-        const { error } = editingId
-          ? await supabase.from('kelas').update(payload).eq('id', editingId)
-          : await supabase.from('kelas').insert(payload);
-        if (error) throw error;
-        showToast(editingId ? 'Diperbarui!' : 'Ditambahkan!', 'success');
-      } else if (masterTab === 'mapel') {
-        const payload = { nama_mapel: mapelForm.nama_mapel, kelompok: mapelForm.kelompok, kode: mapelForm.kode || null, user_id: profile?.id };
-        const { error } = editingId
-          ? await supabase.from('mata_pelajaran').update(payload).eq('id', editingId)
-          : await supabase.from('mata_pelajaran').insert(payload);
-        if (error) throw error;
-        showToast(editingId ? 'Diperbarui!' : 'Ditambahkan!', 'success');
-      } else if (masterTab === 'ruangan') {
-        const payload = {
-          nama_ruangan: ruanganForm.nama_ruangan,
-          kode: ruanganForm.kode || null,
-          kapasitas: ruanganForm.kapasitas ? Number(ruanganForm.kapasitas) : null,
-          keterangan: ruanganForm.keterangan || null,
-        };
-        const { error } = editingId
-          ? await supabase.from('ruangan').update(payload).eq('id', editingId)
-          : await supabase.from('ruangan').insert(payload);
-        if (error) throw error;
-        showToast(editingId ? 'Diperbarui!' : 'Ditambahkan!', 'success');
-      }
-      setShowModal(false);
-      setEditingId(null);
-      fetchMasterData();
-    } catch (error: any) {
-      showToast(error.message, 'error');
-    }
-    setSaving(false);
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      showToast('Password minimal 6 karakter', 'error');
-      return;
-    }
-    setIsResetting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('reset-password', {
-        body: { userId: resetPassId, newPassword: newPassword }
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      showToast('Password berhasil diganti!', 'success');
-      setResetPassId(null);
-      setNewPassword('');
-    } catch (error: any) {
-      showToast(error.message || 'Gagal mereset password', 'error');
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    let table = '';
-    if (masterTab === 'mapel') table = 'mata_pelajaran';
-    else if (masterTab === 'ruangan') table = 'ruangan';
-    else if (masterTab === 'users') table = 'profiles';
-    else if (masterTab === 'tahun') table = 'tahun_ajaran';
-    else if (masterTab === 'semester') table = 'semester';
-    else if (masterTab === 'kelas') table = 'kelas';
-    if (!table) return;
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) { showToast(error.message, 'error'); return; }
-    showToast('Dihapus', 'info');
-    fetchMasterData();
-  };
-
-  const openEdit = (item: any) => {
-    setEditingId(item.id?.toString() || null);
-    if (masterTab === 'users') {
-      setUserForm({
-        nama_lengkap: item.nama_lengkap || '',
-        nama_panggilan: item.nama_panggilan || '',
-        nomor_whatsapp: item.nomor_whatsapp || '',
-        password: '',
-        role: (item.role || 'ustaz') as UserRole,
-        is_active: item.is_active ?? true,
-      });
-    } else if (masterTab === 'tahun') {
-      setTahunForm({ nama: item.nama, aktif: item.aktif || false });
-    } else if (masterTab === 'semester') {
-      setSemesterForm({ nama: item.nama, aktif: item.aktif || false });
-    } else if (masterTab === 'kelas') {
-      setKelasForm({ nama_kelas: item.nama_kelas, tingkat: item.tingkat?.toString() || '1', kode: item.kode || '' });
-    } else if (masterTab === 'mapel') {
-      setMapelForm({ nama_mapel: item.nama_mapel, kelompok: item.kelompok || 'Diniyah', kode: item.kode || '' });
-    } else if (masterTab === 'ruangan') {
-      setRuanganForm({
-        nama_ruangan: item.nama_ruangan,
-        kode: item.kode || '',
-        kapasitas: item.kapasitas?.toString() || '',
-        keterangan: item.keterangan || '',
-      });
-    }
-    setShowModal(true);
-  };
-
-  const toggleUserActive = async (u: Profile) => {
-    const { error } = await supabase.from('profiles').update({ is_active: !u.is_active }).eq('id', u.id);
-    if (error) { showToast(error.message, 'error'); return; }
-    setUsers(prev => prev.map(item => item.id === u.id ? { ...item, is_active: !u.is_active } : item));
-    showToast(u.is_active ? 'User dinonaktifkan' : 'User diaktifkan', 'success');
-  };
-
-  const getFilteredList = (): any[] => {
-    let list: any[] = [];
-    if (masterTab === 'users') list = users;
-    else if (masterTab === 'tahun') list = tahunList;
-    else if (masterTab === 'semester') list = semesterList;
-    else if (masterTab === 'kelas') list = kelasList;
-    else if (masterTab === 'mapel') list = mapelList;
-    else if (masterTab === 'ruangan') list = ruanganList;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((item: any) => {
-        const text = [
-          item.nama_lengkap, item.nama_panggilan, item.id_login, item.nama, item.nama_kelas,
-          item.nama_mapel, item.nama_ruangan, item.kode, item.kelompok, item.role,
-        ].filter(Boolean).join(' ').toLowerCase();
-        return text.includes(q);
-      });
-    }
-    return list;
-  };
-
-  const filteredList = getFilteredList();
-  const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
-  const pagedList = filteredList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const isAdminSection = section !== 'dashboard';
 
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
           <Shield className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500">Anda tidak memiliki akses ke halaman ini.</p>
+          <p className="text-slate-500 dark:text-slate-400">Anda tidak memiliki akses ke halaman ini.</p>
         </div>
       </div>
     );
   }
 
-  const masterTabs = [
-    { id: 'users' as MasterTab, label: 'Pengguna', count: users.length, icon: Users },
-    { id: 'tahun' as MasterTab, label: 'Tahun Ajaran', count: tahunList.length, icon: Calendar },
-    { id: 'semester' as MasterTab, label: 'Semester', count: semesterList.length, icon: BookOpen },
-    { id: 'kelas' as MasterTab, label: 'Kelas', count: kelasList.length, icon: BookOpen },
-    { id: 'mapel' as MasterTab, label: 'Mapel', count: mapelList.length, icon: BookOpen },
-    { id: 'ruangan' as MasterTab, label: 'Ruangan', count: ruanganList.length, icon: Building2 },
-  ];
-
-  const renderModalContent = () => {
-    if (masterTab === 'users') {
-      return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Lengkap</label>
-            <input type="text" value={userForm.nama_lengkap} onChange={e => setUserForm(p => ({ ...p, nama_lengkap: e.target.value }))} className="input-field text-sm" placeholder="Nama lengkap" required />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Panggilan *</label>
-              <input type="text" value={userForm.nama_panggilan} onChange={e => setUserForm(p => ({ ...p, nama_panggilan: e.target.value }))} className="input-field text-sm" placeholder="Panggilan" required />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">No. WA</label>
-              <input type="text" value={userForm.nomor_whatsapp} onChange={e => setUserForm(p => ({ ...p, nomor_whatsapp: e.target.value }))} className="input-field text-sm" placeholder="08xxx" />
-            </div>
-          </div>
-          {!editingId && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password *</label>
-              <input type="password" value={userForm.password} onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} className="input-field text-sm" placeholder="Masukkan password login" required={!editingId} />
-              <p className="text-[10px] text-slate-500 mt-1">*ID Login otomatis dibentuk dari nama panggilan</p>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Role</label>
-              <select value={userForm.role} onChange={e => setUserForm(p => ({ ...p, role: e.target.value as any }))} className="input-field text-sm">
-                <option value="admin">Admin</option>
-                <option value="operator">Operator</option>
-                <option value="ustaz">Ustaz</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status</label>
-              <select value={userForm.is_active ? 'true' : 'false'} onChange={e => setUserForm(p => ({ ...p, is_active: e.target.value === 'true' }))} className="input-field text-sm">
-                <option value="true">Aktif</option>
-                <option value="false">Non-aktif</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-          </div>
-        </form>
-      );
-    }
-    if (masterTab === 'tahun') {
-      return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Tahun Ajaran</label>
-            <input type="text" value={tahunForm.nama} onChange={e => setTahunForm(p => ({ ...p, nama: e.target.value }))} className="input-field text-sm" placeholder="2024/2025" required />
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="aktif" checked={tahunForm.aktif} onChange={e => setTahunForm(p => ({ ...p, aktif: e.target.checked }))} className="w-4 h-4 accent-emerald-600" />
-            <label htmlFor="aktif" className="text-sm text-slate-600">Tahun ajaran aktif</label>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-          </div>
-        </form>
-      );
-    }
-    if (masterTab === 'semester') {
-      return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Semester</label>
-            <input type="text" value={semesterForm.nama} onChange={e => setSemesterForm(p => ({ ...p, nama: e.target.value }))} className="input-field text-sm" placeholder="Ganjil" required />
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="aktif" checked={semesterForm.aktif} onChange={e => setSemesterForm(p => ({ ...p, aktif: e.target.checked }))} className="w-4 h-4 accent-emerald-600" />
-            <label htmlFor="aktif" className="text-sm text-slate-600">Semester aktif</label>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-          </div>
-        </form>
-      );
-    }
-    if (masterTab === 'kelas') {
-      return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Kelas *</label>
-              <input type="text" value={kelasForm.nama_kelas} onChange={e => setKelasForm(p => ({ ...p, nama_kelas: e.target.value }))} className="input-field text-sm" placeholder="1A" required />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tingkat</label>
-              <select value={kelasForm.tingkat} onChange={e => setKelasForm(p => ({ ...p, tingkat: e.target.value }))} className="input-field text-sm">
-                {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kode</label>
-            <input type="text" value={kelasForm.kode} onChange={e => setKelasForm(p => ({ ...p, kode: e.target.value }))} className="input-field text-sm" placeholder="Opsional" />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-          </div>
-        </form>
-      );
-    }
-    if (masterTab === 'mapel') {
-      return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Mapel *</label>
-              <input type="text" value={mapelForm.nama_mapel} onChange={e => setMapelForm(p => ({ ...p, nama_mapel: e.target.value }))} className="input-field text-sm" placeholder="Fiqih" required />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelompok</label>
-              <select value={mapelForm.kelompok} onChange={e => setMapelForm(p => ({ ...p, kelompok: e.target.value as any }))} className="input-field text-sm">
-                <option value="Diniyah">Diniyah</option>
-                <option value="Umum">Umum</option>
-                <option value="Bahasa">Bahasa</option>
-                <option value="Tahfidz">Tahfidz</option>
-                <option value="Lainnya">Lainnya</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kode</label>
-            <input type="text" value={mapelForm.kode} onChange={e => setMapelForm(p => ({ ...p, kode: e.target.value }))} className="input-field text-sm" placeholder="Opsional" />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-          </div>
-        </form>
-      );
-    }
-    if (masterTab === 'ruangan') {
-      return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Ruangan *</label>
-            <input type="text" value={ruanganForm.nama_ruangan} onChange={e => setRuanganForm(p => ({ ...p, nama_ruangan: e.target.value }))} className="input-field text-sm" placeholder="Kelas A, Musholla..." required />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kode</label>
-              <input type="text" value={ruanganForm.kode} onChange={e => setRuanganForm(p => ({ ...p, kode: e.target.value }))} className="input-field text-sm" placeholder="Opsional" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kapasitas</label>
-              <input type="number" value={ruanganForm.kapasitas} onChange={e => setRuanganForm(p => ({ ...p, kapasitas: e.target.value }))} className="input-field text-sm" placeholder="Jumlah siswa" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Keterangan</label>
-            <input type="text" value={ruanganForm.keterangan} onChange={e => setRuanganForm(p => ({ ...p, keterangan: e.target.value }))} className="input-field text-sm" placeholder="Opsional" />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-          </div>
-        </form>
-      );
-    }
-    return null;
-  };
-
-  const renderListItem = (item: any) => {
-    if (masterTab === 'users') {
-      const u = item as Profile;
-      return (
-        <div key={u.id} className="card p-3.5 flex items-center gap-3 group">
-          <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
-            <User className="w-5 h-5 text-slate-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-800 text-sm truncate">{u.nama_lengkap || 'User'}</p>
-            <div className="flex items-center gap-2">
-              <span className={`badge text-[10px] ${u.role === 'admin' ? 'badge-danger' : u.role === 'operator' ? 'badge-warning' : 'badge-success'}`}>{u.role}</span>
-              {u.nomor_whatsapp && <span className="text-xs text-slate-400">{u.nomor_whatsapp}</span>}
-            </div>
-            {u.id_login && <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {u.id_login}</p>}
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => toggleUserActive(u)} className={`p-1.5 rounded-lg ${u.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-50'}`}>
-              {u.is_active ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-            </button>
-            <button onClick={() => { setResetPassId(u.id); setNewPassword(''); }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Ganti Sandi">
-              <Key className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => openEdit(u)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      );
-    }
-    if (masterTab === 'tahun') {
-      const t = item as TahunAjaran;
-      return (
-        <div key={t.id} className="card p-3.5 flex items-center gap-3 group">
-          <div className={`w-3 h-3 rounded-full ${t.aktif ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-          <span className="font-semibold text-slate-800 text-sm flex-1">{t.nama}</span>
-          {t.aktif && <span className="badge badge-success text-[10px]">Aktif</span>}
-          <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      );
-    }
-    if (masterTab === 'semester') {
-      const s = item as Semester;
-      return (
-        <div key={s.id} className="card p-3.5 flex items-center gap-3 group">
-          <div className={`w-3 h-3 rounded-full ${s.aktif ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-          <span className="font-semibold text-slate-800 text-sm flex-1">{s.nama}</span>
-          {s.aktif && <span className="badge badge-success text-[10px]">Aktif</span>}
-          <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      );
-    }
-    if (masterTab === 'kelas') {
-      const k = item;
-      return (
-        <div key={k.id} className="card p-3.5 flex items-center gap-3 group">
-          <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-800 text-sm">{k.nama_kelas}</p>
-            <span className="text-xs text-slate-400">Tingkat {k.tingkat}</span>
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-            <button onClick={() => openEdit(k)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => handleDelete(k.id?.toString() || '')} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      );
-    }
-    if (masterTab === 'mapel') {
-      const m = item as MataPelajaran;
-      return (
-        <div key={m.id} className="card p-3.5 flex items-center gap-3 group">
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-800 text-sm">{m.nama_mapel}</p>
-            <span className={`badge text-[10px] ${m.kelompok === 'Diniyah' ? 'badge-success' : m.kelompok === 'Umum' ? 'badge-info' : 'badge-warning'}`}>{m.kelompok}</span>
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-            <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => handleDelete(m.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      );
-    }
-    if (masterTab === 'ruangan') {
-      const r = item as Ruangan;
-      return (
-        <div key={r.id} className="card p-3.5 flex items-center gap-3 group">
-          <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-sky-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-800 text-sm">{r.nama_ruangan}</p>
-            <div className="flex items-center gap-2">
-              {r.kode && <span className="text-xs text-slate-400">Kode: {r.kode}</span>}
-              {r.kapasitas && <span className="text-xs text-slate-400">Kapasitas: {r.kapasitas}</span>}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-            <button onClick={() => openEdit(r)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => handleDelete(r.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div>
-      {/* Back to Dashboard Button (shown when not on dashboard) */}
-      {view !== 'dashboard' && (
+      {/* Back button */}
+      {isAdminSection && (
         <button
-          onClick={() => handleViewChange('dashboard')}
-          className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600 transition-colors"
+          onClick={() => handleSectionChange('dashboard')}
+          className="mb-4 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
         >
-          <ChevronRight className="w-4 h-4 rotate-180" />
+          <ArrowLeft className="w-4 h-4" />
           Kembali ke Dashboard
         </button>
       )}
 
-      {view === 'dashboard' ? (
+      {/* Dashboard */}
+      {section === 'dashboard' && (
         <AdminDashboard
+          onViewChange={handleSectionChange}
+          profile={profile}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Presensi Section */}
+      {section === 'presensi' && (
+        <PresensiSection
+          presensiTab={presensiTab}
+          setPresensiTab={setPresensiTab}
+          showToast={showToast}
+          profile={profile}
+          kelasList={kelasList}
+        />
+      )}
+
+      {/* Kelola User Section */}
+      {section === 'kelola-user' && (
+        <KelolaUserSection
+          kelolaUserTab={kelolaUserTab}
+          setKelolaUserTab={setKelolaUserTab}
+          showToast={showToast}
+          profile={profile}
           users={users}
+          tahunList={tahunList}
+          semesterList={semesterList}
           kelasList={kelasList}
           mapelList={mapelList}
-          profile={profile}
-          setActiveTab={setActiveTab}
-          onViewChange={handleViewChange}
+          ruanganList={ruanganList}
+          loading={loading}
+          saving={saving}
+          showModal={showModal}
+          setShowModal={setShowModal}
+          editingId={editingId}
+          setEditingId={setEditingId}
+          search={search}
+          setSearch={setSearch}
+          page={page}
+          setPage={setPage}
+          userForm={userForm}
+          setUserForm={setUserForm}
+          tahunForm={tahunForm}
+          setTahunForm={setTahunForm}
+          semesterForm={semesterForm}
+          setSemesterForm={setSemesterForm}
+          kelasForm={kelasForm}
+          setKelasForm={setKelasForm}
+          mapelForm={mapelForm}
+          setMapelForm={setMapelForm}
+          ruanganForm={ruanganForm}
+          setRuanganForm={setRuanganForm}
+          resetPassId={resetPassId}
+          setResetPassId={setResetPassId}
+          newPassword={newPassword}
+          setNewPassword={setNewPassword}
+          isResetting={isResetting}
+          setIsResetting={setIsResetting}
+          fetchMasterData={fetchMasterData}
         />
-      ) : view === 'master' ? (
-        <>
-          <div className="mb-5">
-            <h2 className="section-title">Master Data</h2>
-            <p className="section-subtitle">Kelola data master pengguna, kelas, mapel, dll</p>
-          </div>
+      )}
 
-          {/* Vertical Menu for Master Data */}
-          <div className="space-y-2 mb-5">
-            {masterTabs.map(t => {
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => handleMasterTabChange(t.id)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-2xl text-sm font-bold transition-all border ${masterTab === t.id ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50'}`}
-                >
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${masterTab === t.id ? 'bg-white/20' : 'bg-slate-100'}`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <span className="flex-1 text-left">{t.label}</span>
-                  <span className={`px-3 py-1 rounded-full text-xs ${masterTab === t.id ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>{t.count}</span>
-                </button>
-              );
-            })}
-          </div>
+      {/* Data Akademik Section */}
+      {section === 'data-akademik' && (
+        <DataAkademikSection
+          dataAkademikTab={dataAkademikTab}
+          setDataAkademikTab={setDataAkademikTab}
+          showToast={showToast}
+        />
+      )}
 
-          <div className="relative mb-4">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Cari..."
-              className="input-field text-sm pl-9 pr-9"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          <button onClick={openAdd} className="btn-primary flex items-center gap-2 mb-4 w-full sm:w-auto">
-            <Plus className="w-4 h-4" />
-            <span>Tambah {masterTabs.find(t => t.id === masterTab)?.label}</span>
-          </button>
-
-          {loading ? (
-            <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="card p-4 animate-pulse h-16 bg-slate-50 rounded-2xl" />)}</div>
-          ) : pagedList.length === 0 ? (
-            <EmptyState title="Belum ada data" description="Tambahkan data untuk mulai." />
-          ) : (
-            <>
-              <div className="space-y-2">
-                {pagedList.map(item => renderListItem(item))}
-              </div>
-              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-            </>
-          )}
-        </>
-      ) : view === 'akademik' ? (
-        <>
-          <div className="mb-5">
-            <h2 className="section-title">Data Akademik</h2>
-            <p className="section-subtitle">Kelola data siswa, ustaz, dan presensi</p>
-          </div>
-
-          {/* Vertical Menu for Akademik */}
-          <div className="space-y-2 mb-5">
-            <button
-              onClick={() => handleAkademikTabChange('siswa')}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl text-sm font-bold transition-all border ${akademikTab === 'siswa' ? 'bg-sky-600 text-white border-sky-600 shadow-lg' : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50'}`}
-            >
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${akademikTab === 'siswa' ? 'bg-white/20' : 'bg-sky-50'}`}>
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <span className="flex-1 text-left">Data Siswa</span>
-              <ChevronRight className="w-4 h-4 opacity-50" />
-            </button>
-
-            <button
-              onClick={() => handleAkademikTabChange('ustaz')}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl text-sm font-bold transition-all border ${akademikTab === 'ustaz' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50'}`}
-            >
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${akademikTab === 'ustaz' ? 'bg-white/20' : 'bg-emerald-50'}`}>
-                <Users className="w-5 h-5" />
-              </div>
-              <span className="flex-1 text-left">Data Ustaz</span>
-              <ChevronRight className="w-4 h-4 opacity-50" />
-            </button>
-
-            <button
-              onClick={() => handleAkademikTabChange('presensi')}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl text-sm font-bold transition-all border ${akademikTab === 'presensi' ? 'bg-violet-600 text-white border-violet-600 shadow-lg' : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50'}`}
-            >
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${akademikTab === 'presensi' ? 'bg-white/20' : 'bg-violet-50'}`}>
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <span className="flex-1 text-left">Presensi Ustaz</span>
-              <ChevronRight className="w-4 h-4 opacity-50" />
-            </button>
-          </div>
-
-          {akademikTab === 'siswa' && <DataSiswaPage showToast={showToast} />}
-          {akademikTab === 'ustaz' && <DataUstazPage showToast={showToast} />}
-          {akademikTab === 'presensi' && <PresensiAdminContent showToast={showToast} profile={profile} />}
-        </>
-      ) : null}
-
-      {/* Modal Utama (Tambah/Edit) */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => { setShowModal(false); setEditingId(null); }}
-        title={editingId ? `Edit ${masterTabs.find(t => t.id === masterTab)?.label}` : `Tambah ${masterTabs.find(t => t.id === masterTab)?.label}`}
-        size="sm"
-      >
-        {renderModalContent()}
-      </Modal>
-
-      {/* Modal Khusus Reset Password */}
-      <Modal
-        isOpen={!!resetPassId}
-        onClose={() => { setResetPassId(null); setNewPassword(''); }}
-        title="Ganti Sandi Pengguna"
-        size="sm"
-      >
-        <form onSubmit={handleResetPassword} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password Baru</label>
-            <input
-              type="text"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              className="input-field text-sm"
-              placeholder="Masukkan password baru..."
-              required
-              minLength={6}
-            />
-            <p className="text-[10px] text-slate-500 mt-1">Minimal 6 karakter.</p>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={() => { setResetPassId(null); setNewPassword(''); }} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={isResetting} className="btn-primary flex-1 text-sm">{isResetting ? 'Memproses...' : 'Simpan Sandi'}</button>
-          </div>
-        </form>
-      </Modal>
+      {/* Kenakalan Section */}
+      {section === 'kenakalan' && (
+        <KenakalanSection
+          kenakalanTab={kenakalanTab}
+          setKenakalanTab={setKenakalanTab}
+          showToast={showToast}
+          users={users}
+          kelasList={kelasList}
+        />
+      )}
     </div>
   );
 }
 
-// Presensi Admin Content Component (embedded)
-function PresensiAdminContent({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+// ================== SUB-COMPONENTS ==================
+
+// Presensi Section
+function PresensiSection({
+  presensiTab,
+  setPresensiTab,
+  showToast,
+  profile,
+  kelasList
+}: {
+  presensiTab: PresensiTab;
+  setPresensiTab: (tab: PresensiTab) => void;
+  showToast: ShowToast;
+  profile: Profile | null;
+  kelasList: any[];
+}) {
+  const [ustazList, setUstazList] = useState<UstazPresensiList[]>([]);
+  const [muridByKelas, setMuridByKelas] = useState<PresensiMuridByKelas[]>([]);
+  const [selectedUstazId, setSelectedUstazId] = useState<string | null>(null);
+  const [selectedKelasId, setSelectedKelasId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [allPresensi, setAllPresensi] = useState<any[]>([]);
-  const [allGuru, setAllGuru] = useState<Profile[]>([]);
-  const [todayStats, setTodayStats] = useState({ hadir: 0, terlambat: 0, belumPresensi: 0, totalGuru: 0, persentase: 0 });
+  const [filterPeriod, setFilterPeriod] = useState<'today' | 'week' | 'month' | 'semester'>('today');
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const [presensiRes, guruRes] = await Promise.all([
-          supabase.from('presensi_ustaz').select('*').order('jam_server', { ascending: false }).limit(100),
-          supabase.from('profiles').select('*').eq('is_active', true),
-        ]);
+    if (presensiTab === 'ustaz') {
+      fetchUstazPresensi();
+    } else {
+      fetchMuridByKelas();
+    }
+  }, [presensiTab]);
 
-        const guruList = (guruRes.data || []).filter(g => g.role !== 'admin');
-        setAllGuru(guruList);
-        setAllPresensi(presensiRes.data || []);
+  const fetchUstazPresensi = async () => {
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
 
-        const todayPresensi = (presensiRes.data || []).filter((p: any) => p.tanggal === today);
-        const hadir = todayPresensi.filter((p: any) => p.status === 'Hadir').length;
-        const terlambat = todayPresensi.filter((p: any) => p.status === 'Terlambat').length;
-        const totalGuru = guruList.length;
-        const sudahPresensi = new Set(todayPresensi.map((p: any) => p.guru_id)).size;
-        const belumPresensi = Math.max(0, totalGuru - sudahPresensi);
-        const persentase = totalGuru > 0 ? Math.round((sudahPresensi / totalGuru) * 100) : 0;
+      // Get all ustaz
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, nama_lengkap, nama_panggilan, foto, nomor_whatsapp')
+        .in('role', ['ustaz', 'operator'])
+        .eq('is_active', true)
+        .order('nama_lengkap');
 
-        setTodayStats({ hadir, terlambat, belumPresensi, totalGuru, persentase });
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal memuat data presensi', 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+      // Get today's presensi
+      const { data: presensi } = await supabase
+        .from('presensi_ustaz')
+        .select('guru_id, status, jam_server')
+        .eq('tanggal', today);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+      const presensiMap = new Map((presensi || []).map(p => [p.guru_id, p]));
+
+      const list: UstazPresensiList[] = (profiles || []).map(p => {
+        const pres = presensiMap.get(p.id);
+        return {
+          guru_id: p.id,
+          nama_lengkap: p.nama_lengkap || '-',
+          nama_panggilan: p.nama_panggilan || '-',
+          foto: p.foto || '',
+          nomor_whatsapp: p.nomor_whatsapp || '',
+          sudah_presensi: !!pres,
+          status_presensi: pres?.status || 'Belum Presensi',
+          jam_presensi: pres?.jam_server || '',
+        };
+      });
+
+      setUstazList(list);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memuat data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMuridByKelas = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('v_presensi_murid_by_kelas_hari_ini')
+        .select('*');
+      setMuridByKelas((data || []) as PresensiMuridByKelas[]);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memuat data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="card p-3 text-center">
-          <p className="text-2xl font-bold text-slate-800">{todayStats.hadir + todayStats.terlambat}</p>
-          <p className="text-xs text-slate-500">Presensi Hari Ini</p>
-        </div>
-        <div className="card p-3 text-center border-l-4 border-l-emerald-500">
-          <p className="text-2xl font-bold text-emerald-600">{todayStats.hadir}</p>
-          <p className="text-xs text-slate-500">Hadir</p>
-        </div>
-        <div className="card p-3 text-center border-l-4 border-l-amber-500">
-          <p className="text-2xl font-bold text-amber-600">{todayStats.terlambat}</p>
-          <p className="text-xs text-slate-500">Terlambat</p>
-        </div>
-        <div className="card p-3 text-center border-l-4 border-l-rose-500">
-          <p className="text-2xl font-bold text-rose-600">{todayStats.belumPresensi}</p>
-          <p className="text-xs text-slate-500">Belum</p>
-        </div>
+      <div className="mb-5">
+        <h2 className="section-title">Presensi</h2>
+        <p className="section-subtitle">Pantau kehadiran ustaz dan murid</p>
       </div>
 
-      {/* Progress Bar */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-slate-700">Persentase Kehadiran</span>
-          <span className="text-lg font-bold text-emerald-600">{todayStats.persentase}%</span>
-        </div>
-        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all"
-            style={{ width: `${todayStats.persentase}%` }}
-          />
-        </div>
-        <p className="text-xs text-slate-400 mt-2">{todayStats.totalGuru - todayStats.belumPresensi} dari {todayStats.totalGuru} guru sudah presensi</p>
+      {/* Tabs */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setPresensiTab('ustaz')}
+          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${presensiTab === 'ustaz' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          <Users className="w-4 h-4" />
+          Presensi Ustaz
+        </button>
+        <button
+          onClick={() => setPresensiTab('murid')}
+          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${presensiTab === 'murid' ? 'bg-sky-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          Presensi Murid
+        </button>
       </div>
 
-      {/* Recent Presensi */}
-      <div className="card p-4">
-        <h3 className="text-sm font-bold text-slate-700 mb-3">Presensi Terbaru</h3>
-        {allPresensi.length === 0 ? (
-          <EmptyState title="Belum ada data presensi" description="Presensi akan muncul di sini setelah ustaz melakukan absen" icon={<Clock className="w-8 h-8 text-slate-300" />} />
-        ) : (
-          <div className="space-y-2 max-h-80 overflow-y-auto">
-            {allPresensi.slice(0, 20).map((p: any) => {
-              const guru = allGuru.find(g => g.id === p.guru_id);
-              return (
-                <div key={p.id} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${p.status === 'Hadir' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                    {p.status === 'Hadir' ? <CheckCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-700 truncate">{guru?.nama_lengkap || guru?.nama_panggilan || 'Unknown'}</p>
-                    <p className="text-[10px] text-slate-400">
-                      {new Date(p.jam_server).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <span className={`badge text-[10px] ${p.status === 'Hadir' ? 'badge-success' : 'badge-warning'}`}>{p.status}</span>
-                </div>
-              );
-            })}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : presensiTab === 'ustaz' ? (
+        <div className="space-y-3">
+          {/* Stats Summary */}
+          <div className="card p-4 grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                {ustazList.filter(u => u.sudah_presensi).length}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Sudah Presensi</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                {ustazList.filter(u => !u.sudah_presensi).length}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Belum Presensi</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{ustazList.length}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Total Ustaz</p>
+            </div>
           </div>
+
+          {/* Ustaz List */}
+          <div className="space-y-2">
+            {ustazList.map((ustaz) => (
+              <UstazPresensiCard
+                key={ustaz.guru_id}
+                ustaz={ustaz}
+                onClick={() => setSelectedUstazId(ustaz.guru_id)}
+                isSelected={selectedUstazId === ustaz.guru_id}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Kelas List */}
+          <div className="space-y-2">
+            {muridByKelas.map((kelas) => (
+              <button
+                key={kelas.kelas_id}
+                onClick={() => setSelectedKelasId(kelas.kelas_id)}
+                className="card p-4 w-full text-left hover:shadow-md transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 bg-sky-100 dark:bg-sky-900/30 rounded-xl flex items-center justify-center">
+                  <span className="font-bold text-sky-600 dark:text-sky-400">{kelas.nama_kelas}</span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-slate-800 dark:text-slate-100">{kelas.nama_kelas}</p>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-emerald-600 dark:text-emerald-400">{kelas.hadir} hadir</span>
+                    <span className="text-amber-600 dark:text-amber-400">{kelas.sakit} sakit</span>
+                    <span className="text-slate-600 dark:text-slate-400">{kelas.izin} izin</span>
+                    <span className="text-rose-600 dark:text-rose-400">{kelas.alfa} alfa</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{kelas.persentase}%</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{kelas.hadir}/{kelas.total_murid}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Ustaz Presensi Card
+function UstazPresensiCard({
+  ustaz,
+  onClick,
+  isSelected
+}: {
+  ustaz: UstazPresensiList;
+  onClick: () => void;
+  isSelected: boolean;
+}) {
+  const isHadir = ustaz.status_presensi === 'Hadir';
+  const isTerlambat = ustaz.status_presensi === 'Terlambat';
+
+  return (
+    <button
+      onClick={onClick}
+      className={`card p-3 w-full text-left flex items-center gap-3 transition-all ${isSelected ? 'ring-2 ring-emerald-500' : ''}`}
+    >
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isHadir ? 'bg-emerald-100 dark:bg-emerald-900/30' : isTerlambat ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-slate-100 dark:bg-slate-700'}`}>
+        {isHadir ? (
+          <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        ) : isTerlambat ? (
+          <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+        ) : (
+          <User className="w-5 h-5 text-slate-400" />
         )}
       </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm truncate">{ustaz.nama_lengkap}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {ustaz.sudah_presensi ? new Date(ustaz.jam_presensi).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Belum presensi'}
+        </p>
+      </div>
+      <span className={`badge text-[10px] ${isHadir ? 'badge-success' : isTerlambat ? 'badge-warning' : 'badge-info'}`}>
+        {ustaz.status_presensi}
+      </span>
+    </button>
+  );
+}
+
+// Kelola User Section (continued in next part due to length)
+function KelolaUserSection({
+  kelolaUserTab, setKelolaUserTab, showToast, profile, users, tahunList, semesterList,
+  kelasList, mapelList, ruanganList, loading, saving, showModal, setShowModal,
+  editingId, setEditingId, search, setSearch, page, setPage, userForm, setUserForm,
+  tahunForm, setTahunForm, semesterForm, setSemesterForm, kelasForm, setKelasForm,
+  mapelForm, setMapelForm, ruanganForm, setRuanganForm, resetPassId, setResetPassId,
+  newPassword, setNewPassword, isResetting, setIsResetting, fetchMasterData
+}: any) {
+  const masterTabs = [
+    { id: 'users' as KelolaUserTab, label: 'Pengguna', count: users.length, icon: Users },
+    { id: 'tahun' as KelolaUserTab, label: 'Tahun Ajaran', count: tahunList.length, icon: Calendar },
+    { id: 'semester' as KelolaUserTab, label: 'Semester', count: semesterList.length, icon: BookOpen },
+    { id: 'kelas' as KelolaUserTab, label: 'Kelas', count: kelasList.length, icon: School },
+    { id: 'mapel' as KelolaUserTab, label: 'Mapel', count: mapelList.length, icon: BookOpen },
+    { id: 'ruangan' as KelolaUserTab, label: 'Ruangan', count: ruanganList.length, icon: Building2 },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="mb-5">
+        <h2 className="section-title">Kelola User</h2>
+        <p className="section-subtitle">Kelola pengguna dan data master</p>
+      </div>
+
+      {/* Vertical Menu */}
+      <div className="space-y-2">
+        {masterTabs.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setKelolaUserTab(t.id)}
+              className={`w-full flex items-center gap-4 p-4 rounded-2xl text-sm font-bold transition-all border ${kelolaUserTab === t.id ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'}`}
+            >
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${kelolaUserTab === t.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <span className="flex-1 text-left">{t.label}</span>
+              <span className={`px-3 py-1 rounded-full text-xs ${kelolaUserTab === t.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>{t.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search and Add */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari..."
+            className="input-field text-sm pl-9"
+          />
+        </div>
+        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">Tambah</span>
+        </button>
+      </div>
+
+      {/* Data List */}
+      <DataList
+        tab={kelolaUserTab}
+        data={{ users, tahunList, semesterList, kelasList, mapelList, ruanganList }}
+        search={search}
+        page={page}
+        onEdit={(item: any) => {
+          setEditingId(item.id);
+          if (kelolaUserTab === 'users') setUserForm({ nama_lengkap: item.nama_lengkap || '', nama_panggilan: item.nama_panggilan || '', nomor_whatsapp: item.nomor_whatsapp || '', password: '', role: item.role || 'ustaz', is_active: item.is_active ?? true });
+          if (kelolaUserTab === 'tahun') setTahunForm({ nama: item.nama, aktif: item.aktif || false });
+          if (kelolaUserTab === 'semester') setSemesterForm({ nama: item.nama, aktif: item.aktif || false });
+          if (kelolaUserTab === 'kelas') setKelasForm({ nama_kelas: item.nama_kelas, tingkat: item.tingkat?.toString() || '1', kode: item.kode || '' });
+          if (kelolaUserTab === 'mapel') setMapelForm({ nama_mapel: item.nama_mapel, kelompok: item.kelompok || 'Diniyah', kode: item.kode || '' });
+          if (kelolaUserTab === 'ruangan') setRuanganForm({ nama_ruangan: item.nama_ruangan, kode: item.kode || '', kapasitas: item.kapasitas?.toString() || '', keterangan: item.keterangan || '' });
+          setShowModal(true);
+        }}
+        onDelete={async (id: string) => {
+          const tables: Record<KelolaUserTab, string> = { users: 'profiles', tahun: 'tahun_ajaran', semester: 'semester', kelas: 'kelas', mapel: 'mata_pelajaran', ruangan: 'ruangan' };
+          const { error } = await supabase.from(tables[kelolaUserTab]).delete().eq('id', id);
+          if (error) { showToast(error.message, 'error'); return; }
+          showToast('Dihapus', 'info');
+          fetchMasterData();
+        }}
+      />
+    </div>
+  );
+}
+
+// Data List Component
+function DataList({ tab, data, search, page, onEdit, onDelete }: any) {
+  const list = useMemo(() => {
+    let l: any[] = data[tab === 'users' ? 'users' : tab === 'tahun' ? 'tahunList' : tab === 'semester' ? 'semesterList' : tab === 'kelas' ? 'kelasList' : tab === 'mapel' ? 'mapelList' : 'ruanganList'] || [];
+    if (search) {
+      const q = search.toLowerCase();
+      l = l.filter((item: any) => {
+        const text = [item.nama_lengkap, item.nama_panggilan, item.nama, item.nama_kelas, item.nama_mapel, item.nama_ruangan, item.kode].filter(Boolean).join(' ').toLowerCase();
+        return text.includes(q);
+      });
+    }
+    return l;
+  }, [tab, data, search]);
+
+  if (list.length === 0) {
+    return <EmptyState title="Tidak ada data" description="Belum ada data atau tidak ada yang cocok dengan pencarian" icon={<Database className="w-8 h-8 text-slate-300 dark:text-slate-600" />} />;
+  }
+
+  return (
+    <div className="space-y-2">
+      {list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((item: any) => (
+        <div key={item.id} className="card p-3 flex items-center gap-3 group">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm truncate">
+              {item.nama_lengkap || item.nama || item.nama_kelas || item.nama_mapel || item.nama_ruangan || '-'}
+            </p>
+            {item.role && <span className="badge badge-info text-[10px]">{item.role}</span>}
+            {item.kelompok && <span className="badge badge-success text-[10px] ml-1">{item.kelompok}</span>}
+          </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => onEdit(item)} className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => onDelete(item.id)} className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/30 text-slate-400 hover:text-rose-600">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+      <Pagination currentPage={page} totalPages={Math.ceil(list.length / PAGE_SIZE)} onPageChange={setPage} />
+    </div>
+  );
+}
+
+// Data Akademik Section
+function DataAkademikSection({
+  dataAkademikTab,
+  setDataAkademikTab,
+  showToast
+}: {
+  dataAkademikTab: DataAkademikTab;
+  setDataAkademikTab: (tab: DataAkademikTab) => void;
+  showToast: ShowToast;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="mb-5">
+        <h2 className="section-title">Data Akademik</h2>
+        <p className="section-subtitle">Kelola data siswa dan ustaz</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setDataAkademikTab('siswa')}
+          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${dataAkademikTab === 'siswa' ? 'bg-sky-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          Data Siswa
+        </button>
+        <button
+          onClick={() => setDataAkademikTab('ustaz')}
+          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${dataAkademikTab === 'ustaz' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          <Users className="w-4 h-4" />
+          Data Ustaz
+        </button>
+      </div>
+
+      {dataAkademikTab === 'siswa' ? <DataSiswaPage showToast={showToast} /> : <DataUstazPage showToast={showToast} />}
+    </div>
+  );
+}
+
+// Kenakalan Section
+function KenakalanSection({
+  kenakalanTab,
+  setKenakalanTab,
+  showToast,
+  users,
+  kelasList
+}: {
+  kenakalanTab: KenakalanTab;
+  setKenakalanTab: (tab: KenakalanTab) => void;
+  showToast: ShowToast;
+  users: Profile[];
+  kelasList: any[];
+}) {
+  const [ustazKenakalan, setUstazKenakalan] = useState<KenakalanUstaz[]>([]);
+  const [muridKenakalan, setMuridKenakalan] = useState<KenakalanMurid[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchKenakalanData();
+  }, []);
+
+  const fetchKenakalanData = async () => {
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const dayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+
+      // Get ustaz who have not presenced today
+      const { data: jadwalToday } = await supabase
+        .from('jadwal')
+        .select('user_id')
+        .eq('is_active', true)
+        .eq('hari', dayName);
+
+      const { data: presensiToday } = await supabase
+        .from('presensi_ustaz')
+        .select('guru_id')
+        .eq('tanggal', today);
+
+      const { data: izinData } = await supabase
+        .from('izin_mengajar')
+        .select('user_id')
+        .eq('status', 'disetujui')
+        .lte('tanggal_mulai', today)
+        .gte('tanggal_selesai', today);
+
+      const sudahPresensiIds = new Set((presensiToday || []).map(p => p.guru_id));
+      const izinIds = new Set((izinData || []).map(i => i.user_id));
+
+      // Get profiles for ustaz who haven't presenced
+      const ustazIds = [...new Set((jadwalToday || []).map(j => j.user_id))];
+      const ustazNotPresent = ustazIds.filter(id => !sudahPresensiIds.has(id) && !izinIds.has(id));
+
+      if (ustazNotPresent.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, nama_lengkap, nama_panggilan, foto, nomor_whatsapp')
+          .in('id', ustazNotPresent);
+
+        const kenakalanList: KenakalanUstaz[] = (profilesData || []).map(p => ({
+          guru_id: p.id,
+          nama_lengkap: p.nama_lengkap || '-',
+          nama_panggilan: p.nama_panggilan || '-',
+          foto: p.foto || '',
+          nomor_whatsapp: p.nomor_whatsapp || '',
+          jumlah_kelas_hari_ini: jadwalToday?.filter(j => j.user_id === p.id).length || 0,
+          jumlah_tidak_hadir: 1,
+        }));
+
+        setUstazKenakalan(kenakalanList);
+      } else {
+        setUstazKenakalan([]);
+      }
+
+      // For murid, since presensi_murid might be empty, show empty for now
+      setMuridKenakalan([]);
+    } catch (err) {
+      console.error('Error fetching kenakalan:', err);
+      showToast('Gagal memuat data kenakalan', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateWA = (phone: string, message: string) => {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const waPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+    return `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="mb-5">
+        <h2 className="section-title">Kenakalan</h2>
+        <p className="section-subtitle">Pantau pelanggaran kehadiran ustaz dan murid</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setKenakalanTab('ustaz')}
+          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${kenakalanTab === 'ustaz' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          <Users className="w-4 h-4" />
+          Kenakalan Ustaz
+        </button>
+        <button
+          onClick={() => setKenakalanTab('murid')}
+          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold transition-all ${kenakalanTab === 'murid' ? 'bg-rose-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          Kenakalan Murid
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : kenakalanTab === 'ustaz' ? (
+        <div className="space-y-4">
+          {ustazKenakalan.length === 0 ? (
+            <div className="card p-8 text-center">
+              <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
+              <p className="font_bold text-slate-800 dark:text-slate-100">Tidak ada pelanggaran ustaz</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Semua ustaz sudah melaksanakan tugas dengan baik</p>
+            </div>
+          ) : (
+            ustazKenakalan.map((ustaz) => (
+              <div key={ustaz.guru_id} className="card p-4 border-l-4 border-l-rose-500">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 rounded-xl flex items-center justify-center">
+                    <User className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-800 dark:text-slate-100">{ustaz.nama_lengkap}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{ustaz.jumlah_kelas_hari_ini} jadwal hari ini tidak terisi</p>
+                    <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-semibold">{ustaz.jumlah_tidak_hadir} kali tidak hadir tanpa izin</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  {ustaz.nomor_whatsapp && (
+                    <a
+                      href={generateWA(ustaz.nomor_whatsapp, `Assalamu'alaikum Warahmatullahi Wabarakatuh.\n\nBapak/Ibu ${ustaz.nama_lengkap},\n\nBerdasarkan data presensi SIM KBM USTAZ, Bapak/Ibu tercatat tidak hadir mengajar tanpa izin.\n\nMohon memberikan konfirmasi kepada bagian akademik.\n\nTerima kasih.\nWassalamu'alaikum Warahmatullahi Wabarakatuh.`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary flex-1 flex items-center justify-center gap-2 text-xs py-2"
+                    >
+                      <MessageCircleWarning className="w-4 h-4" />
+                      Kirim Peringatan
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="card p-8 text-center">
+          <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
+          <p className="font_bold text-slate-800 dark:text-slate-100">Tidak ada pelanggaran murid</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Tidak ada murid dengan 3+ alfa dalam seminggu</p>
+        </div>
+      )}
     </div>
   );
 }

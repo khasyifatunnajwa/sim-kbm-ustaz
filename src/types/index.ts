@@ -444,7 +444,13 @@ export type ActiveTab =
   | 'admin'
   | 'profil'
   | 'presensi'
-  | 'presensi-admin';
+  | 'presensi-admin'
+  | 'admin-presensi'
+  | 'admin-kelola-user'
+  | 'admin-data-akademik'
+  | 'admin-kenakalan'
+  | 'admin-presensi-ustaz'
+  | 'admin-presensi-murid';
 
 export type ShowToast = (message: string, type?: 'success' | 'error' | 'info') => void;
 
@@ -577,4 +583,177 @@ export interface KbmHarian {
   user_id: string;
   created_at: string;
   updated_at?: string;
+}
+
+// ============ NEW TABLES FOR V2.0 UPDATE ============
+
+export interface PengaturanTampilan {
+  id: string;
+  user_id: string;
+  tema: 'light' | 'dark' | 'system';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PresensiMurid {
+  id: string;
+  murid_id: string;
+  jadwal_id?: string;
+  kelas_id?: string;
+  user_id: string;
+  tanggal: string;
+  status: 'Hadir' | 'Sakit' | 'Izin' | 'Alfa';
+  keterangan?: string;
+  jam_input: string;
+  created_at: string;
+  updated_at: string;
+  murid?: Murid;
+  kelas?: Kelas;
+}
+
+export interface GuruPengganti {
+  id: string;
+  jadwal_asli_id?: string;
+  guru_asli_id: string;
+  guru_pengganti_id: string;
+  tanggal: string;
+  kelas?: string;
+  mapel?: string;
+  jam_mulai?: string;
+  jam_selesai?: string;
+  alasan?: string;
+  status: 'berlangsung' | 'selesai' | 'dibatalkan';
+  created_at: string;
+  updated_at: string;
+  guru_asli?: Profile;
+  guru_pengganti?: Profile;
+}
+
+export interface PeringatanUstaz {
+  id: string;
+  guru_id: string;
+  jumlah_tidak_hadir: number;
+  tanggal_mulai?: string;
+  tanggal_selesai?: string;
+  kelas_list?: string[];
+  status_wa: 'pending' | 'sent' | 'failed';
+  tanggal_kirim?: string;
+  created_at: string;
+  updated_at: string;
+  guru?: Profile;
+}
+
+export interface PeringatanMurid {
+  id: string;
+  murid_id: string;
+  jumlah_alfa: number;
+  minggu_ke?: number;
+  tahun?: number;
+  wali_kelas_id?: string;
+  status_wa: 'pending' | 'sent' | 'failed';
+  tanggal_kirim?: string;
+  created_at: string;
+  updated_at: string;
+  murid?: Murid;
+  wali_kelas?: Profile;
+}
+
+export interface RiwayatPelanggaran {
+  id: string;
+  tipe: 'ustaz' | 'murid';
+  referensi_id: string;
+  tanggal: string;
+  keterangan?: string;
+  created_at: string;
+}
+
+// Admin View Types
+export interface DashboardPresensiUstaz {
+  hadir: number;
+  terlambat: number;
+  sakit: number;
+  izin: number;
+  alfa: number;
+  guru_pengganti: number;
+  total_guru: number;
+}
+
+export interface DashboardPresensiMurid {
+  hadir: number;
+  sakit: number;
+  izin: number;
+  alfa: number;
+  total_murid: number;
+  persentase_kehadiran: number;
+}
+
+export interface PresensiMuridByKelas {
+  kelas_id: string;
+  nama_kelas: string;
+  total_murid: number;
+  hadir: number;
+  sakit: number;
+  izin: number;
+  alfa: number;
+  persentase: number;
+}
+
+export interface UstazPresensiList {
+  guru_id: string;
+  nama_lengkap: string;
+  nama_panggilan: string;
+  foto: string;
+  nomor_whatsapp: string;
+  sudah_presensi: boolean;
+  status_presensi: string;
+  jam_presensi: string;
+}
+
+export interface UstazDetailPresensi {
+  guru_id: string;
+  nama_lengkap: string;
+  nama_panggilan: string;
+  foto: string;
+  nomor_whatsapp: string;
+  total_hari_kerja: number;
+  hadir: number;
+  terlambat: number;
+  sakit: number;
+  izin: number;
+  alfa: number;
+  sebagai_pengganti: number;
+  persentase_hadir: number;
+}
+
+export interface KelasKosong {
+  jadwal_id: string;
+  nama_kelas: string;
+  nama_mapel: string;
+  nama_guru: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  guru_id: string;
+  lama_belum_presensi: string;
+}
+
+export interface KenakalanUstaz {
+  guru_id: string;
+  nama_lengkap: string;
+  nama_panggilan: string;
+  foto: string;
+  nomor_whatsapp: string;
+  jumlah_kelas_hari_ini: number;
+  jumlah_tidak_hadir: number;
+}
+
+export interface KenakalanMurid {
+  murid_id: string;
+  nama_murid: string;
+  kelas_id: string;
+  nama_kelas: string;
+  no_hp_wali: string;
+  nama_wali: string;
+  jumlah_alfa: number;
+  wali_kelas_id: string;
+  nama_wali_kelas: string;
 }
