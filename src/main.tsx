@@ -3,6 +3,36 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+// TanStack Query & IndexedDB untuk Offline Mode
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import * as idbKeyval from 'idb-keyval';
+
+// 1. Konfigurasi Client: Cache 24 Jam & Offline Support
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 1000 * 60 * 60 * 24, // Simpan di memori HP selama 24 jam
+      staleTime: 5 * 60 * 1000, // Data dianggap baru selama 5 menit
+      networkMode: 'offlineFirst', // Bisa baca data walau tidak ada internet
+    },
+    mutations: {
+      networkMode: 'offlineFirst', // Tunda pengiriman form jika offline
+    }
+  },
+});
+
+// 2. Konfigurasi Jembatan ke Hardisk HP (IndexedDB)
+const idbPersister = createAsyncStoragePersister({
+  storage: {
+    getItem: async (key) => await idbKeyval.get(key),
+    setItem: async (key, value) => await idbKeyval.set(key, value),
+    removeItem: async (key) => await idbKeyval.del(key),
+  },
+});
+
+// 3. Global Error Boundary untuk mencegah aplikasi crash total
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; message: string }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -33,7 +63,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
             {this.state.message || 'Terjadi kesalahan yang tidak terduga.'}
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              window.localStorage.clear(); // Bersihkan cache jika error
+              window.location.reload();
+            }}
             style={{
               background: '#059669',
               color: 'white',
@@ -60,7 +93,13 @@ if (!rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
-        <App />
+        {/* Bungkus App dengan Provider Offline-First */}
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: idbPersister }}
+        >
+          <App />
+        </PersistQueryClientProvider>
       </ErrorBoundary>
     </StrictMode>
   );
