@@ -24,8 +24,8 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           // PERBAIKAN: Jalur file disesuaikan dengan folder "icon" Anda
-          { src: '/icon/192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon/512x512.png', sizes: '512x512', type: 'image/png' }
+          { public: '/icon/192x192.png', sizes: '192x192', type: 'image/png' },
+          { public: '/icon/512x512.png', sizes: '512x512', type: 'image/png' }
         ]
       }
     })
