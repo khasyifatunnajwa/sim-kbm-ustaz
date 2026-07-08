@@ -13,7 +13,15 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import * as idbKeyval from 'idb-keyval';
 
 // Aktifkan Service Worker segera saat aplikasi dibuka
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    console.log('[PWA] Update tersedia, akan diterapkan otomatis');
+  },
+  onOfflineReady() {
+    console.log('[PWA] Aplikasi siap digunakan offline');
+  },
+});
 
 // Konfigurasi Client: Cache 24 Jam & Offline Support
 const queryClient = new QueryClient({

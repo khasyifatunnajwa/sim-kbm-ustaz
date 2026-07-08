@@ -80,7 +80,7 @@ const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'absensi', 'presensi
 export default function Layout({ activeTab, setActiveTab, profile, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [now, setNow] = useState(new Date());
-  const { isInstallable, isInstalled, promptInstall } = usePWAInstall();
+  const { isInstallable, isInstalled, promptInstall, dismissInstall } = usePWAInstall();
 
   const isAdmin = profile?.role === 'admin';
 

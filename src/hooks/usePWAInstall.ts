@@ -5,13 +5,15 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const DISMISS_KEY = 'pwa-install-dismissed';
+const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 export function usePWAInstall() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if already installed (standalone mode)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as any).standalone === true;
 
@@ -20,18 +22,24 @@ export function usePWAInstall() {
       return;
     }
 
-    // Listen for the beforeinstallprompt event
+    const isDismissed = () => {
+      const dismissedAt = localStorage.getItem(DISMISS_KEY);
+      if (!dismissedAt) return false;
+      return Date.now() - parseInt(dismissedAt, 10) < DISMISS_DURATION;
+    };
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
+      if (isDismissed()) return;
       setInstallPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
     };
 
-    // Listen for app installed event
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setIsInstallable(false);
       setInstallPrompt(null);
+      localStorage.removeItem(DISMISS_KEY);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -54,18 +62,28 @@ export function usePWAInstall() {
         setIsInstalled(true);
         setIsInstallable(false);
         setInstallPrompt(null);
+        localStorage.removeItem(DISMISS_KEY);
         return true;
+      } else {
+        dismissInstall();
+        return false;
       }
-      return false;
     } catch (error) {
       console.error('Install prompt error:', error);
       return false;
     }
   };
 
+  const dismissInstall = () => {
+    localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    setIsInstallable(false);
+    setInstallPrompt(null);
+  };
+
   return {
     isInstallable,
     isInstalled,
     promptInstall,
+    dismissInstall,
   };
 }

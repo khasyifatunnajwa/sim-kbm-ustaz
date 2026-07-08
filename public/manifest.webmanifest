@@ -1,10 +1,17 @@
 {
+  "id": "/?source=pwa",
   "name": "SIM KBM Ustaz",
   "short_name": "SIM KBM",
-  "start_url": "/",
+  "description": "Sistem Informasi Manajemen Kegiatan Belajar Mengajar Madrasah",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#059669",
+  "lang": "id",
+  "categories": ["education", "productivity"],
   "icons": [
     { "src": "/icon/16x16.png", "sizes": "16x16", "type": "image/png" },
     { "src": "/icon/48x48.png", "sizes": "48x48", "type": "image/png" },

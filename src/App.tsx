@@ -8,6 +8,7 @@ import { useToast } from './hooks/useToast';
 import { useBackButton } from './hooks/useBackButton';
 import { useRealtimePengumuman } from './hooks/useRealtime';
 import { useStore } from './store/useStore';
+import InstallBanner from './components/InstallBanner';
 import type { ActiveTab, ShowToast, Profile } from './types';
 
 // LAZY LOADING (Code Splitting) agar loading awal aplikasi jauh lebih ringan
@@ -513,6 +514,7 @@ export default function App() {
 
   return (
     <>
+      <InstallBanner />
       <Layout
         activeTab={activeTab}
         setActiveTab={handleTabChange}
