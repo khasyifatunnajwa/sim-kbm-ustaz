@@ -16,6 +16,7 @@ import {
   Shield,
   Download,
   GraduationCap,
+  Camera,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { ActiveTab, Profile } from '../types';
@@ -34,6 +35,7 @@ const navItems: { id: ActiveTab; icon: React.ElementType; label: string; adminOn
   { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
   { id: 'murid', icon: Users, label: 'Santri' },
   { id: 'absensi', icon: ClipboardCheck, label: 'Absensi' },
+  { id: 'presensi', icon: Camera, label: 'Presensi' },
   { id: 'jurnal', icon: FileText, label: 'Jurnal' },
   { id: 'nilai', icon: BarChart3, label: 'Nilai' },
   { id: 'sikap', icon: Heart, label: 'Sikap' },
@@ -41,6 +43,7 @@ const navItems: { id: ActiveTab; icon: React.ElementType; label: string; adminOn
   { id: 'soal', icon: FileQuestion, label: 'Soal' },
   { id: 'izin', icon: FileText, label: 'Izin' },
   { id: 'rapor', icon: GraduationCap, label: 'Rapor' },
+  { id: 'presensi-admin', icon: BarChart3, label: 'Presensi Admin', adminOnly: true },
   { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true },
 ];
 
@@ -62,7 +65,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
   };
 
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
-  const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : navItems.find(n => n.id === activeTab)?.label ?? '';
+  const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : navItems.find(n => n.id === activeTab)?.label ?? 'Presensi';
 
   // Menampilkan nama panggilan atau kata pertama dari nama lengkap
   const displayName = profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Ustaz';

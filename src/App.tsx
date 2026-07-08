@@ -24,6 +24,8 @@ const RaporPage = lazy(() => import('./pages/RaporPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const AdminPengumumanPage = lazy(() => import('./pages/AdminPengumumanPage'));
 const ProfilPage = lazy(() => import('./pages/ProfilPage'));
+const PresensiPage = lazy(() => import('./pages/PresensiPage'));
+const PresensiAdminPage = lazy(() => import('./pages/PresensiAdminPage'));
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
@@ -383,7 +385,7 @@ export default function App() {
           });
 
           const hash = window.location.hash.replace('#', '').split('/')[0];
-          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil'];
+          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'presensi', 'presensi-admin'];
           if (hash && validTabs.includes(hash)) {
             setActiveTab(hash as ActiveTab);
           } else {
@@ -495,6 +497,8 @@ export default function App() {
         {activeTab === 'admin' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
         {activeTab === 'pengumuman' && <AdminPengumumanPage showToast={showToast} />}
         {activeTab === 'profil' && <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />}
+        {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} />}
+        {activeTab === 'presensi-admin' && <PresensiAdminPage showToast={showToast} profile={profile} />}
       </Suspense>
     );
   };
