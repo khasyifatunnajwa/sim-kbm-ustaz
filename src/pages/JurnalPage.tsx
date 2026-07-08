@@ -78,19 +78,25 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
   }, [profile]);
 
   const fetchJurnal = async (scope?: { isAdmin: boolean; kelasList: string[] }) => {
+  if (!profile?.id && profile?.role !== 'admin') {
+  console.log('Profil belum siap, membatalkan fetch...');
+  return;
+  }
     setLoading(true);
     let query = supabase.from('jurnal_kbm').select('*').eq('is_active', true).order('tanggal', { ascending: false }).limit(100);
     if (profile?.role !== 'admin') {
-      query = query.eq('user_id', profile?.id ?? '');
+    query = query.eq('user_id', profile.id);
     }
+    
     const { data, error } = await query;
+    
     if (error) {
-      showToast(error.message, 'error');
+    showToast(error.message, 'error');
     } else {
-      setJurnalList((data || []) as JurnalKBM[]);
+    setJurnalList((data || []) as JurnalKBM[]);
     }
     setLoading(false);
-  };
+    };
 
   const filteredJurnal = useMemo(() => {
     let filtered = jurnalList;
