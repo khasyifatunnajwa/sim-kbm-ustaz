@@ -3,13 +3,19 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// TanStack Query & IndexedDB untuk Offline Mode
+// 1. IMPORT PWA REGISTER (Untuk mengaktifkan Service Worker / Offline Mode)
+import { registerSW } from 'virtual:pwa-register';
+
+// 2. TanStack Query & IndexedDB untuk Cache & Offline Database
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import * as idbKeyval from 'idb-keyval';
 
-// 1. Konfigurasi Client: Cache 24 Jam & Offline Support
+// Aktifkan Service Worker segera saat aplikasi dibuka
+registerSW({ immediate: true });
+
+// Konfigurasi Client: Cache 24 Jam & Offline Support
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -23,7 +29,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// 2. Konfigurasi Jembatan ke Hardisk HP (IndexedDB)
+// Konfigurasi Jembatan ke Hardisk HP (IndexedDB)
 const idbPersister = createAsyncStoragePersister({
   storage: {
     getItem: async (key) => await idbKeyval.get(key),
@@ -32,7 +38,7 @@ const idbPersister = createAsyncStoragePersister({
   },
 });
 
-// 3. Global Error Boundary untuk mencegah aplikasi crash total
+// Global Error Boundary untuk mencegah layar putih (Blank Screen) saat error
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; message: string }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -64,7 +70,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           </p>
           <button
             onClick={() => {
-              window.localStorage.clear(); // Bersihkan cache jika error
+              window.localStorage.clear(); // Bersihkan cache jika terjadi error fatal
               window.location.reload();
             }}
             style={{
@@ -93,7 +99,6 @@ if (!rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
-        {/* Bungkus App dengan Provider Offline-First */}
         <PersistQueryClientProvider
           client={queryClient}
           persistOptions={{ persister: idbPersister }}
