@@ -13,7 +13,13 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
   const [soalList, setSoalList] = useState<BankSoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  
+  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  const [showModal, setShowModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'soal' && hashParts[1] === 'form';
+  });
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -21,6 +27,32 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
   const [form, setForm] = useState({ pelajaran: '', kelas: '', batasan: '', isi_soal: '' });
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
+
+  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'soal' && hashParts[1] === 'form') {
+        setShowModal(true);
+      } else {
+        setShowModal(false);
+        setEditingId(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
+  const handleCloseModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'form') {
+      window.history.back(); // Memicu popstate untuk mundur secara native
+    } else {
+      setShowModal(false);
+      setEditingId(null);
+    }
+  };
 
   const fetchSoal = async () => {
     setLoading(true);
@@ -51,16 +83,20 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
     return [...filtered].sort((a, b) => a.kelas.localeCompare(b.kelas, 'id', { numeric: true }));
   }, [soalList, search]);
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL TAMBAH
   const openAdd = () => {
     setEditingId(null);
     setForm({ pelajaran: '', kelas: '', batasan: '', isi_soal: '' });
     setShowModal(true);
+    window.history.pushState(null, '', '#soal/form');
   };
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (s: BankSoal) => {
     setEditingId(s.id);
     setForm({ pelajaran: s.pelajaran, kelas: s.kelas, batasan: s.batasan ?? '', isi_soal: s.isi_soal });
     setShowModal(true);
+    window.history.pushState(null, '', '#soal/form');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,7 +113,10 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
     showToast(editingId ? 'Soal diperbarui!' : 'Soal ditambahkan!', 'success');
-    setShowModal(false); setEditingId(null); fetchSoal();
+    
+    // PERUBAHAN: Memanggil handleCloseModal
+    handleCloseModal();
+    fetchSoal();
   };
 
   const handleDelete = async (id: string) => {
@@ -194,7 +233,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
       )}
 
       {/* Modal Buat/Edit Soal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingId ? 'Edit Soal' : 'Buat Soal Baru'} size="lg">
+      <Modal isOpen={showModal} onClose={handleCloseModal} title={editingId ? 'Edit Soal' : 'Buat Soal Baru'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -220,9 +259,10 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Isi Soal *</label>
             <textarea rows={6} className="input-field text-sm resize-none" placeholder="Tulis soal di sini..." value={form.isi_soal} onChange={e => setForm(p => ({ ...p, isi_soal: e.target.value }))} required />
           </div>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
+          <div className="flex gap-2 pt-1 border-t border-slate-100 mt-2">
+            {/* PERUBAHAN: Gunakan fungsi handleCloseModal */}
+            <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm py-2.5">Batal</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm py-2.5">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
           </div>
         </form>
       </Modal>
