@@ -35,8 +35,8 @@ function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-xl shadow-emerald-100 ring-4 ring-white">
-          <img src="/icon/logo.png" alt="SIM KBM" className="w-full h-full object-cover" />
+        <div className="w-20 h-20 rounded-3xl bg-white shadow-xl shadow-emerald-100 ring-4 ring-white flex items-center justify-center p-2">
+          <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
         </div>
         <div>
           <p className="text-lg font-bold text-slate-800 text-center">SIM KBM Ustaz</p>
@@ -120,8 +120,8 @@ function SetupScreen({ showToast, onComplete }: { showToast: ShowToast; onComple
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-3xl overflow-hidden mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white">
-            <img src="/icon/logo.png" alt="SIM KBM" className="w-full h-full object-cover" />
+          <div className="w-20 h-20 rounded-3xl bg-white mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white flex items-center justify-center p-2">
+            <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Setup Awal</h1>
           <p className="text-slate-500 text-sm mt-1">Buat akun admin pertama</p>
@@ -251,8 +251,8 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-100 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-3xl overflow-hidden mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white">
-            <img src="/icon/logo.png" alt="SIM KBM" className="w-full h-full object-cover" />
+          <div className="w-20 h-20 rounded-3xl bg-white mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white flex items-center justify-center p-2">
+            <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">SIM KBM Ustaz</h1>
           <p className="text-slate-500 text-sm mt-1">Manajemen Kelas & Santri</p>

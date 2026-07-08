@@ -14,8 +14,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
         maximumFileSizeToCacheInBytes: 4000000,
-        navigateFallback: '/offline.html',
-        navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//, /^\/offline\.html/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,

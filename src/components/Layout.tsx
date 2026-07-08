@@ -67,7 +67,6 @@ const navGroups: NavGroup[] = [
   {
     label: 'Administrasi',
     items: [
-      { id: 'presensi-admin', icon: BarChart3, label: 'Presensi Admin', adminOnly: true },
       { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true },
     ],
   },
@@ -142,8 +141,8 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
       <nav className="hidden md:flex flex-col w-64 bg-white shadow-sm border-r border-slate-100 fixed top-0 bottom-0 left-0 z-40">
         <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
-              <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-cover" />
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 p-0.5 shadow-lg">
+              <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="font-bold text-base leading-tight">SIM KBM Ustaz</p>
@@ -210,8 +209,8 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             >
               <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden">
-                    <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                  <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center p-1 shadow-lg">
+                    <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
                   </div>
                   <span className="font-bold">SIM KBM</span>
                 </div>
@@ -256,8 +255,8 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="md:hidden w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              <div className="md:hidden w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 p-0.5 shadow">
+                <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-base font-bold text-slate-800 leading-tight">
