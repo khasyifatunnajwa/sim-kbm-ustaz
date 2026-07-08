@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
   CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
-  Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X
+  Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { SkeletonCard } from '../components/Skeleton';
 import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab } from '../types';
 
 interface DashboardPageProps {
@@ -14,29 +16,20 @@ interface DashboardPageProps {
 }
 
 export default function DashboardPage({ profile, setActiveTab }: DashboardPageProps) {
-  const [loading, setLoading] = useState(true);
-  const [jadwalHariIni, setJadwalHariIni] = useState<JadwalMengajar[]>([]);
-  const [agendaList, setAgendaList] = useState<AgendaPenting[]>([]);
-  const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
-  const [jurnalList, setJurnalList] = useState<JurnalKBM[]>([]);
-  const [absensiStats, setAbsensiStats] = useState({ hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 });
-  const [muridCount, setMuridCount] = useState(0);
-  const [jadwalCount, setJadwalCount] = useState(0);
-  const [jurnalCount, setJurnalCount] = useState(0);
   const [now, setNow] = useState(new Date());
-  const [broadcastList, setBroadcastList] = useState<Pengumuman[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
   const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const todayHari = namaHari[new Date().getDay()];
   const todayDate = new Date().toISOString().split('T')[0];
+  const isUstaz = profile?.role !== 'admin';
+  const userId = profile?.id ?? '';
 
-  // FUNGSI NAVIGASI HASH BARU
   const handleNav = (tab: ActiveTab) => {
     if (setActiveTab) {
       setActiveTab(tab);
-      window.history.pushState(null, '', `#${tab}`); // Mendorong riwayat hash ke browser
+      window.history.pushState(null, '', `#${tab}`);
     }
   };
 
@@ -44,6 +37,119 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // TanStack Query: cached data fetching — no loading spinner on revisits
+  const { data: broadcastList = [] } = useQuery<Pengumuman[]>({
+    queryKey: ['dashboard-broadcast'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('pengumuman')
+        .select('*')
+        .eq('status', 'Publish')
+        .lte('tanggal_mulai', todayStr)
+        .or(`tanggal_selesai.is.null,tanggal_selesai.gte.${todayStr}`)
+        .order('prioritas', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(10);
+      return (data ?? []) as Pengumuman[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const { data: jadwalHariIni = [] } = useQuery<JadwalMengajar[]>({
+    queryKey: ['dashboard-jadwal', todayHari, userId, isUstaz],
+    queryFn: async () => {
+      let q = supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).order('jam_mulai');
+      if (isUstaz) q = q.eq('user_id', userId);
+      const { data } = await q;
+      return (data ?? []) as JadwalMengajar[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const { data: agendaList = [] } = useQuery<AgendaPenting[]>({
+    queryKey: ['dashboard-agenda', userId, isUstaz],
+    queryFn: async () => {
+      let q = supabase.from('agenda_penting').select('*').gte('tanggal', todayDate).order('tanggal', { ascending: true }).limit(5);
+      if (isUstaz) q = q.eq('user_id', userId);
+      const { data } = await q;
+      return (data ?? []) as AgendaPenting[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const { data: pengumumanList = [] } = useQuery<Pengumuman[]>({
+    queryKey: ['dashboard-pengumuman', userId, isUstaz],
+    queryFn: async () => {
+      let q = supabase.from('pengumuman').select('*').order('created_at', { ascending: false }).limit(3);
+      if (isUstaz) q = q.eq('user_id', userId);
+      const { data } = await q;
+      return (data ?? []) as Pengumuman[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const { data: jurnalList = [] } = useQuery<JurnalKBM[]>({
+    queryKey: ['dashboard-jurnal', userId, isUstaz],
+    queryFn: async () => {
+      let q = supabase.from('jurnal_kbm').select('*').eq('is_active', true).order('tanggal', { ascending: false }).limit(3);
+      if (isUstaz) q = q.eq('user_id', userId);
+      const { data } = await q;
+      return (data ?? []) as JurnalKBM[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const { data: muridCount = 0 } = useQuery<number>({
+    queryKey: ['dashboard-murid-count'],
+    queryFn: async () => {
+      const { count } = await supabase.from('murid').select('*', { count: 'exact', head: true }).eq('status_aktif', true);
+      return count ?? 0;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: jadwalCount = 0 } = useQuery<number>({
+    queryKey: ['dashboard-jadwal-count', userId, isUstaz],
+    queryFn: async () => {
+      let q = supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true });
+      if (isUstaz) q = q.eq('user_id', userId);
+      const { count } = await q;
+      return count ?? 0;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: jurnalCount = 0 } = useQuery<number>({
+    queryKey: ['dashboard-jurnal-count', userId, isUstaz],
+    queryFn: async () => {
+      let q = supabase.from('jurnal_kbm').select('*', { count: 'exact', head: true }).eq('is_active', true);
+      if (isUstaz) q = q.eq('user_id', userId);
+      const { count } = await q;
+      return count ?? 0;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: absensiStats = { hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 } } = useQuery({
+    queryKey: ['dashboard-absensi-stats', todayDate, userId, isUstaz],
+    queryFn: async () => {
+      let q = supabase.from('absensi').select('status').eq('tanggal', todayDate);
+      if (isUstaz) q = q.eq('user_id', userId);
+      const { data } = await q;
+      const stats = { hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 };
+      (data ?? []).forEach((a: any) => {
+        if (a.status === 'Hadir') stats.hadir++;
+        else if (a.status === 'Izin') stats.izin++;
+        else if (a.status === 'Sakit') stats.sakit++;
+        else if (a.status === 'Alpha') stats.alpha++;
+        stats.total++;
+      });
+      return stats;
+    },
+    staleTime: 60 * 1000,
+  });
 
   // Auto-advance carousel
   useEffect(() => {
@@ -54,78 +160,6 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     }, 5000);
     return () => clearInterval(t);
   }, [broadcastList, dismissedIds]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Fetch broadcast pengumuman (Publish, within date range)
-      const todayStr = new Date().toISOString().split('T')[0];
-      const { data: broadcastData } = await supabase
-        .from('pengumuman')
-        .select('*')
-        .eq('status', 'Publish')
-        .lte('tanggal_mulai', todayStr)
-        .or(`tanggal_selesai.is.null,tanggal_selesai.gte.${todayStr}`)
-        .order('prioritas', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (broadcastData) setBroadcastList(broadcastData as Pengumuman[]);
-      const isUstaz = profile?.role !== 'admin';
-      const userId = profile?.id ?? '';
-      
-      const [jadwalData, agendaData, pengumumanData, absensiData, muridRes, jadwalRes, jurnalRes, jurnalRecent] = await Promise.all([
-        isUstaz
-          ? supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).eq('user_id', userId).order('jam_mulai')
-          : supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).order('jam_mulai'),
-        isUstaz
-          ? supabase.from('agenda_penting').select('*').eq('user_id', userId).gte('tanggal', todayDate).order('tanggal', { ascending: true }).limit(5)
-          : supabase.from('agenda_penting').select('*').gte('tanggal', todayDate).order('tanggal', { ascending: true }).limit(5),
-        isUstaz
-          ? supabase.from('pengumuman').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(3)
-          : supabase.from('pengumuman').select('*').order('created_at', { ascending: false }).limit(3),
-        isUstaz
-          ? supabase.from('absensi').select('status').eq('tanggal', todayDate).eq('user_id', userId)
-          : supabase.from('absensi').select('status').eq('tanggal', todayDate),
-        supabase.from('murid').select('*', { count: 'exact', head: true }).eq('status_aktif', true),
-        isUstaz
-          ? supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true }).eq('user_id', userId)
-          : supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true }),
-        isUstaz
-          ? supabase.from('jurnal_kbm').select('*', { count: 'exact', head: true }).eq('is_active', true).eq('user_id', userId)
-          : supabase.from('jurnal_kbm').select('*', { count: 'exact', head: true }).eq('is_active', true),
-        isUstaz
-          ? supabase.from('jurnal_kbm').select('*').eq('is_active', true).eq('user_id', userId).order('tanggal', { ascending: false }).limit(3)
-          : supabase.from('jurnal_kbm').select('*').eq('is_active', true).order('tanggal', { ascending: false }).limit(3),
-      ]);
-
-      setJadwalHariIni((jadwalData.data || []) as JadwalMengajar[]);
-      setAgendaList((agendaData.data || []) as AgendaPenting[]);
-      setPengumumanList((pengumumanData.data || []) as Pengumuman[]);
-      setJurnalList((jurnalRecent.data || []) as JurnalKBM[]);
-      
-      setMuridCount(muridRes.count || 0);
-      setJadwalCount(jadwalRes.count || 0);
-      setJurnalCount(jurnalRes.count || 0);
-
-      const absenStats = { hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 };
-      (absensiData.data || []).forEach((a: any) => {
-        if (a.status === 'Hadir') absenStats.hadir++;
-        else if (a.status === 'Izin') absenStats.izin++;
-        else if (a.status === 'Sakit') absenStats.sakit++;
-        else if (a.status === 'Alpha') absenStats.alpha++;
-        absenStats.total++;
-      });
-      setAbsensiStats(absenStats);
-    } catch (error) {
-      console.error('Error fetching dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const ongoingClass = useMemo(() => {
     const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -169,12 +203,21 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
   const marqueeText = `Ahlan Ustaz ${profile?.nama_panggilan || profile?.nama_lengkap || ''} — ${greeting()}! Semoga harimu penuh berkah dan ilmu yang bermanfaat. ${jadwalHariIni.length > 0 ? `Anda memiliki ${jadwalHariIni.length} jadwal mengajar hari ini.` : 'Tidak ada jadwal mengajar hari ini.'} ${agendaList.length > 0 ? `Ada ${agendaList.length} agenda mendatang yang perlu diperhatikan.` : ''} Tetap semangat dalam mengajar!`;
 
-  if (loading) {
+  // Show skeleton only on very first load (no cached data yet)
+  const isLoading = jadwalHariIni.length === 0 && !broadcastList.length && !agendaList.length && !pengumumanList.length;
+  // But if we have ANY data, show it immediately (TanStack Query returns cached data instantly)
+  const showSkeleton = isLoading && jadwalCount === 0 && muridCount === 0;
+
+  if (showSkeleton) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="card p-4 animate-pulse h-24 bg-slate-50 rounded-2xl" />
-        ))}
+        <SkeletonCard count={1} className="h-32" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="card p-4 animate-pulse h-20" />
+          ))}
+        </div>
+        <SkeletonCard count={2} />
       </div>
     );
   }
@@ -189,12 +232,13 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
         dismissedIds={dismissedIds}
         setDismissedIds={setDismissedIds}
       />
+
       {/* Greeting Header with Marquee */}
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <BookOpen className="w-6 h-6" />
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden">
+              <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
@@ -294,7 +338,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-800">{absensiStats.total > 0 ?
-Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
+                Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
               <p className="text-xs text-slate-500">Kehadiran Hari Ini</p>
             </div>
           </div>
@@ -343,7 +387,7 @@ Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
               return (
                 <button
                   key={a.tab}
-                  onClick={() => handleNav(a.tab)} // PERUBAHAN
+                  onClick={() => handleNav(a.tab)}
                   className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-slate-50 transition-colors active:scale-95"
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.color}`}>
@@ -441,7 +485,7 @@ Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
                 <h3 className="font-bold text-slate-700 text-sm">Jurnal Terakhir</h3>
               </div>
               {setActiveTab && (
-                <button onClick={() => handleNav('jurnal')} className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all"> {/* PERUBAHAN */}
+                <button onClick={() => handleNav('jurnal')} className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all">
                   Lihat <ChevronRight className="w-3 h-3" />
                 </button>
               )}

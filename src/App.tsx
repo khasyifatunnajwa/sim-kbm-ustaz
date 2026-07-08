@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { BookOpen, Loader2, Shield, AlertCircle, LogOut } from 'lucide-react';
+import { Loader2, AlertCircle, LogOut } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import ToastContainer from './components/ToastContainer';
 import Modal from './components/Modal';
 import { useToast } from './hooks/useToast';
 import { useBackButton } from './hooks/useBackButton';
-import { useStore } from './store/useStore'; // IMPORT ZUSTAND STORE
+import { useRealtimePengumuman } from './hooks/useRealtime';
+import { useStore } from './store/useStore';
 import type { ActiveTab, ShowToast, Profile } from './types';
 
 // LAZY LOADING (Code Splitting) agar loading awal aplikasi jauh lebih ringan
@@ -31,13 +32,17 @@ const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
-          <BookOpen className="w-8 h-8 text-white" />
+        <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-xl shadow-emerald-100 ring-4 ring-white">
+          <img src="/icon/logo.png" alt="SIM KBM" className="w-full h-full object-cover" />
+        </div>
+        <div>
+          <p className="text-lg font-bold text-slate-800 text-center">SIM KBM Ustaz</p>
+          <p className="text-xs text-slate-400 text-center mt-0.5">V2.0 Multi-Tenant</p>
         </div>
         <div className="flex items-center gap-2 text-slate-500">
-          <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
           <span className="text-sm font-medium">Memuat aplikasi...</span>
         </div>
       </div>
@@ -114,8 +119,8 @@ function SetupScreen({ showToast, onComplete }: { showToast: ShowToast; onComple
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-200">
-            <Shield className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 rounded-3xl overflow-hidden mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white">
+            <img src="/icon/logo.png" alt="SIM KBM" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Setup Awal</h1>
           <p className="text-slate-500 text-sm mt-1">Buat akun admin pertama</p>
@@ -245,8 +250,8 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-100 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-200">
-            <BookOpen className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 rounded-3xl overflow-hidden mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white">
+            <img src="/icon/logo.png" alt="SIM KBM" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">SIM KBM Ustaz</h1>
           <p className="text-slate-500 text-sm mt-1">Manajemen Kelas & Santri</p>
@@ -316,13 +321,16 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
 export default function App() {
   // PENGGUNAAN ZUSTAND STORE
   const { user, profile, activeTab, setUser, setProfile, setActiveTab, clearStore } = useStore();
-  
+
   const [authLoading, setAuthLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const initRef = useRef(false);
   const { toasts, showToast, removeToast } = useToast();
+
+  // Realtime: auto-update pengumuman & agenda di Dashboard
+  useRealtimePengumuman();
 
   const fetchProfile = async (userId: string) => {
     try {
