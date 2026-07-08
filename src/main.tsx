@@ -6,16 +6,16 @@ import './index.css';
 // 1. IMPORT PWA REGISTER (Untuk mengaktifkan Service Worker / Offline Mode)
 import { registerSW } from 'virtual:pwa-register';
 
-// TanStack Query & IndexedDB untuk Cache & Offline Database
+// 2. TanStack Query & IndexedDB untuk Cache & Offline Database
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import * as idbKeyval from 'idb-keyval';
 
-// 2. JALANKAN MESIN OFFLINE
+// Aktifkan Service Worker segera saat aplikasi dibuka
 registerSW({ immediate: true });
 
-// 3. Konfigurasi Client: Cache 24 Jam & Offline Support
+// Konfigurasi Client: Cache 24 Jam & Offline Support
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -29,7 +29,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// 4. Konfigurasi Jembatan ke Hardisk HP (IndexedDB)
+// Konfigurasi Jembatan ke Hardisk HP (IndexedDB)
 const idbPersister = createAsyncStoragePersister({
   storage: {
     getItem: async (key) => await idbKeyval.get(key),
@@ -38,7 +38,7 @@ const idbPersister = createAsyncStoragePersister({
   },
 });
 
-// 5. Global Error Boundary
+// Global Error Boundary untuk mencegah layar putih (Blank Screen) saat error
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; message: string }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -70,7 +70,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           </p>
           <button
             onClick={() => {
-              window.localStorage.clear();
+              window.localStorage.clear(); // Bersihkan cache jika terjadi error fatal
               window.location.reload();
             }}
             style={{
