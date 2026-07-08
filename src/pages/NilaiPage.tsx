@@ -29,7 +29,12 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
   const [selectedKelas, setSelectedKelas] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  
+  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  const [showModal, setShowModal] = useState(() => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    return hashParts[0] === 'nilai' && hashParts[1] === 'form';
+  });
 
   const [penilaianList, setPenilaianList] = useState<Penilaian[]>([]);
   const [detailNilaiMap, setDetailNilaiMap] = useState<Record<string, DetailNilai[]>>({});
@@ -43,6 +48,32 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
   const [batchNilai, setBatchNilai] = useState<Record<string, string>>({});
 
   const today = new Date().toISOString().split('T')[0];
+
+  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashParts = window.location.hash.replace('#', '').split('/');
+      if (hashParts[0] === 'nilai') {
+        if (hashParts[1] === 'form') {
+          setShowModal(true);
+        } else {
+          setShowModal(false);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
+  const handleCloseModal = () => {
+    const hashParts = window.location.hash.replace('#', '').split('/');
+    if (hashParts[1] === 'form') {
+      window.history.back(); // Memicu popstate untuk mundur secara native
+    } else {
+      setShowModal(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -101,6 +132,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     }
   };
 
+  // 4. MENDORONG HASH SAAT BUKA MODAL
   const openInputModal = () => {
     setInputMapel(mapelOptions[0] || '');
     setInputJenis('Ulangan');
@@ -111,6 +143,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     muridFiltered.forEach(m => { init[m.id] = ''; });
     setBatchNilai(init);
     setShowModal(true);
+    window.history.pushState(null, '', '#nilai/form');
   };
 
   const handleSaveBatch = async (e: React.FormEvent) => {
@@ -153,7 +186,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
       if (detailError) throw detailError;
 
       showToast('Nilai disimpan!', 'success');
-      setShowModal(false);
+      handleCloseModal(); // PERUBAHAN: Gunakan penutup modal khusus
       loadPenilaianKelas(selectedKelas);
     } catch (err: any) {
       showToast(err.message || 'Terjadi kesalahan', 'error');
@@ -357,7 +390,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
         </div>
       )}
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Input Nilai Santri" size="lg">
+      <Modal isOpen={showModal} onClose={handleCloseModal} title="Input Nilai Santri" size="lg">
         <form onSubmit={handleSaveBatch} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -396,17 +429,17 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
 
           <div>
             <p className="text-xs font-semibold text-slate-600 mb-2">Nilai Santri (0-100, kosongkan jika tidak ada)</p>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {muridFiltered.map(m => (
-                <div key={m.id} className="flex items-center gap-3">
-                  <span className="text-sm text-slate-700 flex-1 min-w-0 truncate">{m.nama}</span>
+                <div key={m.id} className="flex items-center gap-3 bg-white border border-slate-100 p-2 rounded-xl">
+                  <span className="text-sm font-medium text-slate-700 flex-1 min-w-0 truncate">{m.nama}</span>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={batchNilai[m.id] ?? ''}
                     onChange={e => setBatchNilai(prev => ({ ...prev, [m.id]: e.target.value }))}
-                    className="input-field text-sm w-20 text-center"
+                    className="input-field text-sm w-20 text-center font-bold"
                     placeholder="-"
                   />
                 </div>
@@ -414,10 +447,10 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
             </div>
           </div>
 
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-              <Save className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan'}
+          <div className="flex gap-2 pt-1 border-t border-slate-100 mt-2">
+            <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm py-2.5">Batal</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2 py-2.5">
+              <Save className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Nilai'}
             </button>
           </div>
         </form>
