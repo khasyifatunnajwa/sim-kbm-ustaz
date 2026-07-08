@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, Pencil, CalendarDays, MapPin, Clock, BookOpen,
-  Bell, Megaphone, Timer,
+  Bell, Megaphone, Timer, Upload, FileSpreadsheet
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import ConfirmDialog from '../components/ConfirmDialog';
+import ExcelImportModal from '../components/ExcelImportModal';
 import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, Profile, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
@@ -28,13 +30,14 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
-  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+
   const [showModal, setShowModal] = useState(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     return hashParts[0] === 'jadwal' && hashParts[1] === 'form';
   });
-  
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
 
@@ -45,8 +48,8 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
 
   const todayHari = getTodayHari();
   const today = new Date().toISOString().split('T')[0];
+  const isAdmin = profile?.role === 'admin';
 
-  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
   useEffect(() => {
     const handlePopState = () => {
       const hashParts = window.location.hash.replace('#', '').split('/');
@@ -63,11 +66,10 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
   const handleCloseModal = () => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     if (hashParts[1] === 'form') {
-      window.history.back(); // Memicu popstate untuk mundur secara native
+      window.history.back();
     } else {
       setShowModal(false);
       setEditingId(null);
@@ -96,7 +98,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
 
   useEffect(() => { fetchData(); }, []);
 
-  // tick every second for countdown
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
@@ -107,13 +108,11 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     [jadwal, todayHari]
   );
 
-  // Find the next upcoming class today
   const nextClass = useMemo(() => {
     const nowMin = now.getHours() * 60 + now.getMinutes();
     return todaySchedules.find(j => parseTimeToMinutes(j.jam_mulai) > nowMin);
   }, [todaySchedules, now]);
 
-  // Currently ongoing class
   const ongoingClass = useMemo(() => {
     const nowMin = now.getHours() * 60 + now.getMinutes();
     return todaySchedules.find(j => {
@@ -123,7 +122,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     });
   }, [todaySchedules, now]);
 
-  // Countdown to next class
   const countdown = useMemo(() => {
     if (!nextClass) return null;
     const [h, m] = nextClass.jam_mulai.split(':').map(Number);
@@ -137,13 +135,11 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     return { hours, minutes, seconds };
   }, [nextClass, now]);
 
-  // Upcoming agenda (today and future)
   const upcomingAgenda = useMemo(
     () => agendaList.filter(a => new Date(a.tanggal) >= new Date(today)).slice(0, 3),
     [agendaList, today]
   );
 
-  // 4. MENDORONG HASH SAAT BUKA MODAL TAMBAH
   const openAdd = () => {
     setEditingId(null);
     setForm({ hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00', kelas: '', pelajaran: '', ruangan: '', catatan: '' });
@@ -151,7 +147,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     window.history.pushState(null, '', '#jadwal/form');
   };
 
-  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (j: JadwalMengajar) => {
     setEditingId(j.id);
     setForm({
@@ -177,17 +172,56 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
     showToast(editingId ? 'Jadwal diperbarui!' : 'Jadwal ditambahkan!', 'success');
-    
-    // PERUBAHAN: Gunakan handleCloseModal
     handleCloseModal();
     fetchData();
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('jadwal_mengajar').delete().eq('id', id);
+  const confirmDelete = (id: string) => {
+    setDeleteTarget(id);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from('jadwal_mengajar').delete().eq('id', deleteTarget);
     if (error) { showToast(error.message, 'error'); return; }
     showToast('Jadwal dihapus', 'info');
-    setJadwal(prev => prev.filter(j => j.id !== id));
+    setJadwal(prev => prev.filter(j => j.id !== deleteTarget));
+    setDeleteTarget(null);
+  };
+
+  // Excel Import
+  const jadwalColumns = [
+    { key: 'hari', label: 'Hari', required: true, example: 'Senin' },
+    { key: 'jam_mulai', label: 'Jam Mulai', required: true, example: '14:00' },
+    { key: 'jam_selesai', label: 'Jam Selesai', required: true, example: '15:00' },
+    { key: 'kelas', label: 'Kelas', required: true, example: '7A' },
+    { key: 'pelajaran', label: 'Mata Pelajaran', required: true, example: 'Al-Quran' },
+    { key: 'ruangan', label: 'Ruangan', required: false, example: 'Musholla' },
+    { key: 'catatan', label: 'Catatan', required: false },
+  ];
+
+  const handleImportJadwal = async (data: Record<string, any>[]) => {
+    // Get kelas and mapel mappings
+    const kelasMap = new Map(kelasList.map(k => [k.nama_kelas, k.id]));
+    const mapelMap = new Map(mapelList.map(m => [m.nama_mapel, m.id]));
+
+    const records = data.map(row => ({
+      hari: row.hari || row.Hari,
+      jam_mulai: row.jam_mulai || row['Jam Mulai'],
+      jam_selesai: row.jam_selesai || row['Jam Selesai'],
+      kelas: row.kelas || row.Kelas,
+      pelajaran: row.pelajaran || row['Mata Pelajaran'] || row.Pelajaran,
+      ruangan: row.ruangan || row.Ruangan || null,
+      catatan: row.catatan || row.Catatan || null,
+    })).filter(r => r.hari && r.jam_mulai && r.jam_selesai && r.kelas && r.pelajaran);
+
+    if (records.length === 0) throw new Error('Tidak ada data valid untuk diimpor');
+
+    const { error } = await supabase.from('jadwal_mengajar').insert(records);
+    if (error) throw error;
+    showToast(`${records.length} jadwal berhasil diimpor!`, 'success');
+    fetchData();
   };
 
   const grouped = HARI.reduce((acc, h) => { acc[h] = jadwal.filter(j => j.hari === h); return acc; }, {} as Record<string, JadwalMengajar[]>);
@@ -196,7 +230,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     <div>
       {/* ===== PAPAN PENGUMUMAN ===== */}
       <div className="mb-5 space-y-3">
-        {/* Greeting + Today's Schedule */}
         <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
           <div className="p-5">
             <div className="flex items-center gap-2 mb-3">
@@ -266,7 +299,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
           </div>
         </div>
 
-        {/* Upcoming Agenda + Pengumuman */}
         {(upcomingAgenda.length > 0 || pengumumanList.length > 0) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {upcomingAgenda.length > 0 && (
@@ -325,10 +357,18 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
           <h2 className="section-title">Jadwal Mengajar</h2>
           <p className="section-subtitle">{jadwal.length} jadwal terdaftar</p>
         </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          <span>Tambah</span>
-        </button>
+        <div className="flex gap-2">
+          {isAdmin && (
+            <button onClick={() => setShowImportModal(true)} className="btn-secondary flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Impor Excel</span>
+            </button>
+          )}
+          <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            <span>Tambah</span>
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -367,7 +407,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
                         <button onClick={() => openEdit(j)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(j.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
+                        <button onClick={() => confirmDelete(j.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -424,12 +464,31 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
             <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Catatan tambahan..." />
           </div>
           <div className="flex gap-2 pt-1">
-            {/* PERUBAHAN: Gunakan fungsi penutup modal khusus */}
             <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">Batal</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
           </div>
         </form>
       </Modal>
+
+      {/* Excel Import Modal */}
+      <ExcelImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        title="Impor Jadwal dari Excel"
+        columns={jadwalColumns}
+        onImport={handleImportJadwal}
+      />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => { setShowDeleteDialog(false); setDeleteTarget(null); }}
+        onConfirm={handleDelete}
+        title="Hapus Jadwal"
+        message="Yakin ingin menghapus jadwal ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmText="Hapus"
+        variant="danger"
+      />
     </div>
   );
 }

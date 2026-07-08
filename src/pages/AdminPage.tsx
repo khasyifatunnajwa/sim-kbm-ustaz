@@ -45,7 +45,7 @@ function ThemeToggle() {
 // ================== DASHBOARD CARDS ==================
 function DashboardPresensiUstazCard({ data, loading, onClick }: { data: DashboardPresensiUstaz | null; loading: boolean; onClick: () => void }) {
   if (loading) {
-    return <div className="card p-3 animate-pulse"><div className="h-12 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
+    return <div className="card p-3 animate-pulse"><div className="h-16 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
   }
 
   const sudahPresensi = (data?.hadir || 0) + (data?.terlambat || 0);
@@ -53,35 +53,20 @@ function DashboardPresensiUstazCard({ data, loading, onClick }: { data: Dashboar
 
   return (
     <button onClick={onClick} className="card p-3 w-full text-left hover:shadow-md transition-all group">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
-            <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+            <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Presensi Ustaz</span>
         </div>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
       </div>
-      <div className="flex items-end gap-3 mb-2">
-        <div className="flex-1 grid grid-cols-3 gap-1">
-          <div className="text-center py-1">
-            <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{data?.hadir || 0}</p>
-            <p className="text-[9px] text-emerald-600 dark:text-emerald-400">Hadir</p>
-          </div>
-          <div className="text-center py-1">
-            <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{data?.terlambat || 0}</p>
-            <p className="text-[9px] text-amber-600 dark:text-amber-400">Lambat</p>
-          </div>
-          <div className="text-center py-1">
-            <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{(data?.total_guru || 0) - sudahPresensi}</p>
-            <p className="text-[9px] text-rose-600 dark:text-rose-400">Belum</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{persentase}%</p>
-        </div>
+      <div className="flex items-center gap-3">
+        <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{persentase}%</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">Klik untuk detail</p>
       </div>
-      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden mt-2">
         <div className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all" style={{ width: `${persentase}%` }} />
       </div>
     </button>
@@ -90,25 +75,25 @@ function DashboardPresensiUstazCard({ data, loading, onClick }: { data: Dashboar
 
 function DashboardKelasKosongCard({ data, loading, onClick }: { data: KelasKosong[]; loading: boolean; onClick: () => void }) {
   if (loading) {
-    return <div className="card p-3 animate-pulse"><div className="h-12 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
+    return <div className="card p-3 animate-pulse"><div className="h-16 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
   }
 
   const jumlahKosong = data?.length || 0;
 
   return (
     <button onClick={onClick} className={`card p-3 w-full text-left hover:shadow-md transition-all group ${jumlahKosong > 0 ? 'border-l-2 border-l-rose-500' : ''}`}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${jumlahKosong > 0 ? 'bg-rose-100 dark:bg-rose-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
-            <AlertTriangle className={`w-3.5 h-3.5 ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${jumlahKosong > 0 ? 'bg-rose-100 dark:bg-rose-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
+            <AlertTriangle className={`w-4 h-4 ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
           </div>
           <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Kelas Kosong</span>
         </div>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
       </div>
       <div className="flex items-center gap-3">
-        <p className={`text-2xl font-bold ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{jumlahKosong}</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{jumlahKosong > 0 ? 'kelas tidak ada ustaz' : 'semua terisi'}</p>
+        <p className={`text-3xl font-bold ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{jumlahKosong}</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">{jumlahKosong > 0 ? 'kelas' : 'aman'}</p>
       </div>
     </button>
   );
@@ -116,7 +101,7 @@ function DashboardKelasKosongCard({ data, loading, onClick }: { data: KelasKoson
 
 function DashboardPresensiMuridCard({ data, loading, onClick }: { data: PresensiMuridByKelas[]; loading: boolean; onClick: () => void }) {
   if (loading) {
-    return <div className="card p-3 animate-pulse"><div className="h-12 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
+    return <div className="card p-3 animate-pulse"><div className="h-16 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
   }
 
   const totalHadir = data.reduce((sum, k) => sum + (k.hadir || 0), 0);
@@ -125,27 +110,21 @@ function DashboardPresensiMuridCard({ data, loading, onClick }: { data: Presensi
 
   return (
     <button onClick={onClick} className="card p-3 w-full text-left hover:shadow-md transition-all group">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center">
-            <GraduationCap className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+          <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center">
+            <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
           </div>
           <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Presensi Murid</span>
         </div>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
       </div>
-      <div className="flex items-center gap-4">
-        <div className="flex-1">
-          <p className="text-2xl font-bold text-sky-600 dark:text-sky-400">{persentase}%</p>
-          <div className="flex gap-2 text-[9px] text-slate-500 dark:text-slate-400">
-            <span className="text-emerald-600">{totalHadir} hadir</span>
-            <span>•</span>
-            <span>{totalMurid} total</span>
-          </div>
-        </div>
-        <div className="w-16 bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
-          <div className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full" style={{ width: `${persentase}%` }} />
-        </div>
+      <div className="flex items-center gap-3">
+        <p className="text-3xl font-bold text-sky-600 dark:text-sky-400">{persentase}%</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">Klik untuk detail</p>
+      </div>
+      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 mt-2">
+        <div className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full" style={{ width: `${persentase}%` }} />
       </div>
     </button>
   );
@@ -219,9 +198,11 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
     { icon: AlertTriangle, label: 'Kenakalan', section: 'kenakalan' as AdminSection, color: 'rose' },
   ];
 
+  const todayDate = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Header with Date */}
       <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-4 text-white shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -230,6 +211,7 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-bold truncate">Dashboard Admin</h2>
             <p className="text-slate-300 text-xs truncate">Halo, {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Admin'}</p>
+            <p className="text-emerald-300 text-[10px] mt-0.5">{todayDate}</p>
           </div>
           <ThemeToggle />
         </div>

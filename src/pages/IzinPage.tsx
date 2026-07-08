@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  Plus, Trash2, Send, FileText, Calendar, Clock, User, BookOpen, Users,
+  Plus, Trash2, Send, FileText, Calendar, Clock, User, BookOpen, Users
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { shareWA } from '../lib/pdf';
 import type { IzinMengajar, Profile, ShowToast } from '../types';
 
@@ -23,11 +24,13 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
   const [showModal, setShowModal] = useState(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     return hashParts[0] === 'izin' && hashParts[1] === 'form';
   });
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({
@@ -42,7 +45,6 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     catatan: '',
   });
 
-  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
   useEffect(() => {
     const handlePopState = () => {
       const hashParts = window.location.hash.replace('#', '').split('/');
@@ -56,11 +58,10 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
   const handleCloseModal = () => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     if (hashParts[1] === 'form') {
-      window.history.back(); // Memicu popstate untuk mundur secara native
+      window.history.back();
     } else {
       setShowModal(false);
     }
@@ -89,7 +90,6 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     })();
   }, [profile]);
 
-  // 4. MENDORONG HASH SAAT BUKA MODAL
   const openAdd = () => {
     setForm({
       jenis_izin: 'Sakit',
@@ -108,19 +108,12 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
 
   const getJenisLabel = () => form.jenis_izin === 'Lainnya' ? (form.jenis_lainnya || 'Lainnya') : form.jenis_izin;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.mata_pelajaran || !form.kelas) {
-      showToast('Mata pelajaran dan kelas wajib diisi', 'error');
-      return;
-    }
-    if (form.jenis_izin === 'Lainnya' && !form.jenis_lainnya.trim()) {
-      showToast('Jelaskan jenis izin pada kolom Lainnya', 'error');
-      return;
-    }
-    const namaUstaz = profile?.nama_panggilan || profile?.nama_lengkap || 'Ustaz';
-    setSaving(true);
+  // Use nama_lengkap instead of nama_panggilan
+  const namaUstaz = profile?.nama_lengkap || profile?.nama_panggilan || 'Ustaz';
+
+  const saveToDatabase = async () => {
     const payload = {
+      user_id: profile?.id,
       nama_ustaz: namaUstaz,
       jenis_izin: getJenisLabel(),
       lama_izin: form.lama_izin,
@@ -133,20 +126,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       status: 'diajukan',
     };
     const { error } = await supabase.from('izin_mengajar').insert(payload);
-    setSaving(false);
-    if (error) { showToast(error.message, 'error'); return; }
-    showToast('Izin berhasil diajukan!', 'success');
-    
-    // PERUBAHAN: Gunakan penutup modal yang membersihkan URL
-    handleCloseModal();
-    fetchList();
-  };
-
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('izin_mengajar').delete().eq('id', id);
-    if (error) { showToast(error.message, 'error'); return; }
-    setList(prev => prev.filter(i => i.id !== id));
-    showToast('Izin dihapus', 'info');
+    if (error) throw error;
   };
 
   const formatDateLong = (d: string) => {
@@ -154,25 +134,20 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const buildWAMessage = (data: {
-    jenis_izin: string; jenis_lainnya: string;
-    lama_izin: 'hari_ini' | 'beberapa_hari'; tanggal_mulai: string; tanggal_selesai: string;
-    mata_pelajaran: string; kelas: string; guru_pengganti: string; catatan: string;
-  }) => {
-    const nama = profile?.nama_panggilan || profile?.nama_lengkap || 'Ustaz';
-    const jenisLabel = data.jenis_izin === 'Lainnya' ? (data.jenis_lainnya || 'Lainnya') : data.jenis_izin;
-    const tanggalText = data.lama_izin === 'hari_ini'
-      ? formatDateLong(data.tanggal_mulai)
-      : `${formatDateLong(data.tanggal_mulai)} s/d ${formatDateLong(data.tanggal_selesai)}`;
-    const alasan = data.catatan || jenisLabel;
-    const pengganti = data.guru_pengganti || '-';
+  const buildWAMessage = () => {
+    const jenisLabel = getJenisLabel();
+    const tanggalText = form.lama_izin === 'hari_ini'
+      ? formatDateLong(form.tanggal_mulai)
+      : `${formatDateLong(form.tanggal_mulai)} s/d ${formatDateLong(form.tanggal_selesai)}`;
+    const alasan = form.catatan || jenisLabel;
+    const pengganti = form.guru_pengganti || '-';
 
     return `Assalamu'alaikum warahmatullahi wabarakatuh.
 
 Dengan hormat, saya yang bertanda tangan di bawah ini:
-*Nama* : *${nama}*
-*Mata Pelajaran* : *${data.mata_pelajaran}*
-*Kelas* : *${data.kelas}*
+*Nama* : *${namaUstaz}*
+*Mata Pelajaran* : *${form.mata_pelajaran}*
+*Kelas* : *${form.kelas}*
 *Tanggal Izin* : _${tanggalText}_
 
 Dengan ini mengajukan permohonan izin untuk tidak dapat melaksanakan tugas mengajar pada jadwal tersebut karena _${alasan}_.
@@ -186,7 +161,8 @@ Atas perhatian, kebijaksanaan, dan pengertiannya saya ucapkan _Jazākumullāhu K
 Wassalamu'alaikum warahmatullahi wabarakatuh.`;
   };
 
-  const handleShareWA = () => {
+  // Auto-save when sharing via WA
+  const handleShareWA = async () => {
     if (!form.mata_pelajaran || !form.kelas) {
       showToast('Lengkapi mata pelajaran dan kelas sebelum share', 'error');
       return;
@@ -195,41 +171,75 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
       showToast('Jelaskan jenis izin pada kolom Lainnya', 'error');
       return;
     }
-    shareWA(buildWAMessage(form));
+
+    setSaving(true);
+    try {
+      await saveToDatabase();
+      shareWA(buildWAMessage());
+      showToast('Izin berhasil disimpan dan dibagikan!', 'success');
+      handleCloseModal();
+      fetchList();
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menyimpan izin', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!deletingId) return;
+    supabase.from('izin_mengajar').delete().eq('id', deletingId).then(({ error }) => {
+      if (error) {
+        showToast(error.message, 'error');
+      } else {
+        showToast('Izin dihapus', 'info');
+        setList(prev => prev.filter(i => i.id !== deletingId));
+      }
+      setShowDeleteDialog(false);
+      setDeletingId(null);
+    });
   };
 
   const handleShareExisting = (izin: IzinMengajar) => {
-    const data = {
-      jenis_izin: izin.jenis_izin,
-      jenis_lainnya: '',
-      lama_izin: izin.lama_izin as 'hari_ini' | 'beberapa_hari',
-      tanggal_mulai: izin.tanggal_mulai,
-      tanggal_selesai: izin.tanggal_selesai || '',
-      mata_pelajaran: izin.mata_pelajaran || '',
-      kelas: izin.kelas || '',
-      guru_pengganti: izin.guru_pengganti || '',
-      catatan: izin.catatan || '',
-    };
-    shareWA(buildWAMessage(data));
+    const tanggalText = izin.lama_izin === 'hari_ini'
+      ? formatDateLong(izin.tanggal_mulai)
+      : `${formatDateLong(izin.tanggal_mulai)} s/d ${formatDateLong(izin.tanggal_selesai || izin.tanggal_mulai)}`;
+
+    const text = `Assalamu'alaikum warahmatullahi wabarakatuh.
+
+Dengan hormat, saya yang bertanda tangan di bawah ini:
+*Nama* : *${izin.nama_ustaz}*
+*Mata Pelajaran* : *${izin.mata_pelajaran || '-'}*
+*Kelas* : *${izin.kelas || '-'}*
+*Tanggal Izin* : _${tanggalText}_
+*Jenis Izin* : ${izin.jenis_izin}
+
+${izin.catatan ? `Alasan: ${izin.catatan}\n` : ''}${izin.guru_pengganti ? `Guru Pengganti: ${izin.guru_pengganti}\n` : ''}
+
+Demikian permohonan izin ini kami sampaikan.
+
+Wassalamu'alaikum warahmatullahi wabarakatuh.`;
+
+    shareWA(text);
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="section-title">Izin Mengajar</h2>
-          <p className="section-subtitle">Ajukan izin dan bagikan via WhatsApp</p>
+          <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Izin Mengajar</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Ajukan izin via WhatsApp</p>
         </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
+        <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 text-xs">
+          <Plus className="w-3.5 h-3.5" />
           <span>Ajukan Izin</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="card p-4 animate-pulse h-24 bg-slate-50 rounded-2xl" />)}</div>
+        <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="card p-3 animate-pulse h-20 bg-slate-50 rounded-xl" />)}</div>
       ) : list.length === 0 ? (
         <EmptyState
           title="Belum ada pengajuan izin"
@@ -237,37 +247,36 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
           icon={<FileText className="w-8 h-8 text-slate-300" />}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {list.map(i => (
-            <div key={i.id} className="card p-4 group">
-              <div className="flex items-start justify-between gap-2 mb-2">
+            <div key={i.id} className="card p-3 group">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="font-bold text-slate-800 text-sm">{i.jenis_izin}</span>
-                    <span className={`badge text-[10px] ${STATUS_STYLE[i.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                    <span className="font-bold text-slate-800 text-xs">{i.jenis_izin}</span>
+                    <span className={`badge text-[9px] ${STATUS_STYLE[i.status] ?? 'bg-slate-100 text-slate-600'}`}>
                       {i.status === 'diajukan' ? 'Diajukan' : i.status === 'disetujui' ? 'Disetujui' : 'Ditolak'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                    <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" />{i.mata_pelajaran || '-'}</span>
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{i.kelas || '-'}</span>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+                    <span className="flex items-center gap-0.5"><BookOpen className="w-3 h-3" />{i.mata_pelajaran || '-'}</span>
+                    <span className="flex items-center gap-0.5"><Users className="w-3 h-3" />{i.kelas || '-'}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 flex-wrap">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{formatDate(i.tanggal_mulai)}</span>
+                  <div className="flex items-center gap-2 text-[9px] text-slate-400 mt-1 flex-wrap">
+                    <span className="flex items-center gap-0.5"><Calendar className="w-2.5 h-2.5" />{formatDate(i.tanggal_mulai)}</span>
                     {i.lama_izin === 'beberapa_hari' && i.tanggal_selesai && (
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />s/d {formatDate(i.tanggal_selesai)}</span>
+                      <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />s/d {formatDate(i.tanggal_selesai)}</span>
                     )}
                   </div>
                   {i.guru_pengganti && (
-                    <p className="text-[11px] text-slate-500 mt-1">Pengganti: <strong>{i.guru_pengganti}</strong></p>
+                    <p className="text-[10px] text-slate-500 mt-1">Pengganti: <strong>{i.guru_pengganti}</strong></p>
                   )}
-                  {i.catatan && <p className="text-[11px] text-slate-400 italic mt-1">{i.catatan}</p>}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <button onClick={() => handleShareExisting(i)} title="Share WhatsApp" className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
+                  <button onClick={() => handleShareExisting(i)} title="Share WA" className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
                     <Send className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(i.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
+                  <button onClick={() => { setDeletingId(i.id); setShowDeleteDialog(true); }} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -280,132 +289,147 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
       {/* Modal */}
       <Modal
         isOpen={showModal}
-        onClose={handleCloseModal} // PERUBAHAN
+        onClose={handleCloseModal}
         title="Ajukan Izin Mengajar"
         size="md"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Nama otomatis */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Ustaz</label>
-            <div className="input-field text-sm bg-slate-100 flex items-center gap-2">
-              <User className="w-4 h-4 text-slate-400" />
-              <span className="text-slate-700 font-medium">
-                {profile?.nama_panggilan || profile?.nama_lengkap || 'Ustaz'}
-              </span>
-            </div>
-          </div>
-
-          {/* Lama Izin */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">Lama Izin</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setForm(p => ({ ...p, lama_izin: 'hari_ini', tanggal_mulai: today, tanggal_selesai: '' }));
-                }}
-                className={`py-2.5 rounded-xl text-xs font-bold transition-all border ${form.lama_izin === 'hari_ini' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-2 ring-emerald-200' : 'bg-white text-slate-500 border-slate-200'}`}
-              >
-                Hari Ini Saja
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm(p => ({ ...p, lama_izin: 'beberapa_hari' }))}
-                className={`py-2.5 rounded-xl text-xs font-bold transition-all border ${form.lama_izin === 'beberapa_hari' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-2 ring-emerald-200' : 'bg-white text-slate-500 border-slate-200'}`}
-              >
-                Beberapa Hari
-              </button>
-            </div>
-          </div>
-
-          {/* Tanggal */}
-          {form.lama_izin === 'hari_ini' ? (
+        <div className="max-h-[70vh] overflow-y-auto pr-1 -mr-1">
+          <div className="space-y-3">
+            {/* Nama otomatis - NAMA LENGKAP */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tanggal</label>
-              <input type="date" value={form.tanggal_mulai} onChange={e => setForm(p => ({ ...p, tanggal_mulai: e.target.value }))} className="input-field text-sm" required />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mulai Tanggal</label>
-                <input type="date" value={form.tanggal_mulai} onChange={e => setForm(p => ({ ...p, tanggal_mulai: e.target.value }))} className="input-field text-sm" required />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Sampai Tanggal</label>
-                <input type="date" value={form.tanggal_selesai} onChange={e => setForm(p => ({ ...p, tanggal_selesai: e.target.value }))} className="input-field text-sm" required />
+              <label className="block text-[10px] font-semibold text-slate-600 mb-1">Nama Ustaz</label>
+              <div className="input-field text-xs bg-slate-100 flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-slate-700 font-medium">{namaUstaz}</span>
               </div>
             </div>
-          )}
 
-          {/* Jenis Izin */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Jenis Izin</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {JENIS_IZIN.map(j => (
+            {/* Lama Izin */}
+            <div>
+              <label className="block text-[10px] font-semibold text-slate-600 mb-1.5">Lama Izin</label>
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
-                  key={j}
                   type="button"
-                  onClick={() => setForm(p => ({ ...p, jenis_izin: j }))}
-                  className={`py-2.5 rounded-lg text-xs font-bold transition-all border ${form.jenis_izin === j ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200'}`}
+                  onClick={() => {
+                    setForm(p => ({ ...p, lama_izin: 'hari_ini', tanggal_mulai: today, tanggal_selesai: '' }));
+                  }}
+                  className={`py-2 rounded-xl text-[10px] font-bold transition-all border ${form.lama_izin === 'hari_ini' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-slate-500 border-slate-200'}`}
                 >
-                  {j}
+                  Hari Ini Saja
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, lama_izin: 'beberapa_hari' }))}
+                  className={`py-2 rounded-xl text-[10px] font-bold transition-all border ${form.lama_izin === 'beberapa_hari' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-slate-500 border-slate-200'}`}
+                >
+                  Beberapa Hari
+                </button>
+              </div>
             </div>
-            {form.jenis_izin === 'Lainnya' && (
-              <input
-                type="text"
-                value={form.jenis_lainnya}
-                onChange={e => setForm(p => ({ ...p, jenis_lainnya: e.target.value }))}
-                className="input-field text-sm mt-2"
-                placeholder="Tulis jenis izin secara manual..."
-                required
-              />
+
+            {/* Tanggal */}
+            {form.lama_izin === 'hari_ini' ? (
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Tanggal</label>
+                <input type="date" value={form.tanggal_mulai} onChange={e => setForm(p => ({ ...p, tanggal_mulai: e.target.value }))} className="input-field text-xs" required />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">Mulai</label>
+                  <input type="date" value={form.tanggal_mulai} onChange={e => setForm(p => ({ ...p, tanggal_mulai: e.target.value }))} className="input-field text-xs" required />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">Sampai</label>
+                  <input type="date" value={form.tanggal_selesai} onChange={e => setForm(p => ({ ...p, tanggal_selesai: e.target.value }))} className="input-field text-xs" required />
+                </div>
+              </div>
             )}
-          </div>
 
-          {/* Mapel & Kelas */}
-          <div className="grid grid-cols-2 gap-3">
+            {/* Jenis Izin */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran *</label>
-              <select value={form.mata_pelajaran} onChange={e => setForm(p => ({ ...p, mata_pelajaran: e.target.value }))} className="input-field text-sm" required>
-                <option value="">Pilih</option>
-                {mapelList.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <label className="block text-[10px] font-semibold text-slate-600 mb-1.5">Jenis Izin</label>
+              <div className="grid grid-cols-2 gap-1">
+                {JENIS_IZIN.map(j => (
+                  <button
+                    key={j}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, jenis_izin: j }))}
+                    className={`py-2 rounded-lg text-[10px] font-bold transition-all border ${form.jenis_izin === j ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200'}`}
+                  >
+                    {j}
+                  </button>
+                ))}
+              </div>
+              {form.jenis_izin === 'Lainnya' && (
+                <input
+                  type="text"
+                  value={form.jenis_lainnya}
+                  onChange={e => setForm(p => ({ ...p, jenis_lainnya: e.target.value }))}
+                  className="input-field text-xs mt-2"
+                  placeholder="Tulis jenis izin..."
+                  required
+                />
+              )}
             </div>
+
+            {/* Mapel & Kelas */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Mata Pelajaran *</label>
+                <select value={form.mata_pelajaran} onChange={e => setForm(p => ({ ...p, mata_pelajaran: e.target.value }))} className="input-field text-xs" required>
+                  <option value="">Pilih</option>
+                  {mapelList.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Kelas *</label>
+                <select value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-xs" required>
+                  <option value="">Pilih</option>
+                  {kelasList.map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Guru Pengganti */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <select value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" required>
-                <option value="">Pilih</option>
-                {kelasList.map(k => <option key={k} value={k}>{k}</option>)}
-              </select>
+              <label className="block text-[10px] font-semibold text-slate-600 mb-1">Guru Pengganti</label>
+              <input type="text" value={form.guru_pengganti} onChange={e => setForm(p => ({ ...p, guru_pengganti: e.target.value }))} className="input-field text-xs" placeholder="Nama guru pengganti..." />
+            </div>
+
+            {/* Catatan */}
+            <div>
+              <label className="block text-[10px] font-semibold text-slate-600 mb-1">Alasan / Catatan</label>
+              <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-xs resize-none" rows={2} placeholder="Tulis alasan izin..." />
+            </div>
+
+            {/* Tombol - HANYA SHARE WA (auto-save) */}
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-xs">Batal</button>
+              <button
+                type="button"
+                onClick={handleShareWA}
+                disabled={saving}
+                className="btn-primary flex-1 text-xs flex items-center justify-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {saving ? 'Menyimpan...' : 'Share WA (Auto-save)'}
+              </button>
             </div>
           </div>
-
-          {/* Guru Pengganti */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Guru Pengganti (opsional)</label>
-            <input type="text" value={form.guru_pengganti} onChange={e => setForm(p => ({ ...p, guru_pengganti: e.target.value }))} className="input-field text-sm" placeholder="Nama guru pengganti..." />
-          </div>
-
-          {/* Catatan / Alasan */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Alasan / Catatan (opsional)</label>
-            <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Tulis alasan izin..." />
-          </div>
-
-          {/* Tombol */}
-          <div className="flex gap-2 pt-2">
-            {/* PERUBAHAN: Gunakan fungsi penutup modal khusus */}
-            <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button type="button" onClick={handleShareWA} className="flex-1 text-sm flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95">
-              <Send className="w-4 h-4" /> Share WA
-            </button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-          </div>
-        </form>
+        </div>
       </Modal>
+
+      {/* Confirm Delete */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => { setShowDeleteDialog(false); setDeletingId(null); }}
+        onConfirm={confirmDelete}
+        title="Hapus Izin"
+        message="Yakin ingin menghapus data izin ini?"
+        confirmText="Hapus"
+        variant="danger"
+      />
     </div>
   );
 }

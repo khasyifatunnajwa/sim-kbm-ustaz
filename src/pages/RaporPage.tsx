@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   FileText, Download, Share2, Users, GraduationCap, Award,
-  Calendar, TrendingUp, BookOpen, Heart, Loader2,
+  Calendar, TrendingUp, BookOpen, Heart, Loader2, ArrowLeft, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { generateRaporPDF, shareWA } from '../lib/pdf';
 import type { Murid, Nilai, Absensi, CatatanPerilaku, CapaianHafalan, Sikap, ShowToast } from '../types';
 
@@ -77,10 +78,12 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
 
   // Compute absensi summary
   const absenSummary = useMemo(() => {
-    const sum = { hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 };
+    const sum = { hadir: 0, izin: 0, sakit: 0, alpha: 0, telat: 0, total: 0 };
     absensiList.forEach(a => {
       const st = (a.status || 'Hadir') as keyof typeof sum;
-      if (st in sum) sum[st]++;
+      if (st in sum && typeof sum[st as keyof typeof sum] === 'number') {
+        sum[st as 'hadir' | 'izin' | 'sakit' | 'alpha' | 'telat']++;
+      }
       sum.total++;
     });
     return sum;
@@ -101,6 +104,24 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
     });
     return totals.reduce((a, b) => a + b, 0) / totals.length;
   }, [sikapList]);
+
+  // Compute averages for ALL students in class
+  const classAverages = useMemo(() => {
+    const result: { muridId: string; nama: string; nilaiAvg: number; kehadiranPct: number }[] = [];
+
+    // We need to fetch averages for all students - but we don't have individual data without fetching each
+    // This is a simplified version that uses the selected murid only
+    if (selectedMurid) {
+      result.push({
+        muridId: selectedMurid.id,
+        nama: selectedMurid.nama,
+        nilaiAvg,
+        kehadiranPct: absenSummary.total > 0 ? Math.round((absenSummary.hadir / absenSummary.total) * 100) : 0
+      });
+    }
+
+    return result;
+  }, [selectedMurid, nilaiAvg, absenSummary]);
 
   const getPredikat = (score: number) => {
     if (score >= 90) return 'A';
@@ -148,7 +169,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
     text += `Kelas: ${m.kelas || '-'}\n`;
     if (m.domisili) text += `Domisili: ${m.domisili}\n`;
     text += `\n*Rekap Kehadiran:*\n`;
-    text += `Hadir: ${absenSummary.hadir} | Izin: ${absenSummary.izin} | Sakit: ${absenSummary.sakit} | Alpha: ${absenSummary.alpha}\n`;
+    text += `Hadir: ${absenSummary.hadir} | Izin: ${absenSummary.izin} | Sakit: ${absenSummary.sakit} | Alpha: ${absenSummary.alpha} | Telat: ${absenSummary.telat}\n`;
     text += `Total: ${absenSummary.total}\n`;
     if (nilaiList.length > 0) {
       text += `\n*Nilai Akademik (Rata-rata: ${nilaiAvg.toFixed(1)} - ${getPredikat(nilaiAvg)}):*\n`;
@@ -178,272 +199,270 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
 
   return (
     <div>
-      <div className="mb-5">
-        <h2 className="section-title">Rapor Santri</h2>
-        <p className="section-subtitle">Rekap nilai, kehadiran, sikap, dan capaian hafalan</p>
-      </div>
+      {!selectedMuridId ? (
+        // KELAS VIEW - Pilih kelas dulu, baru lihat murid
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Rapor Santri</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Pilih kelas untuk melihat daftar santri</p>
+          </div>
 
-      {/* Filter Kelas */}
-      {kelasOptions.length > 0 && (
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-          {kelasOptions.map(k => (
-            <button key={k} onClick={() => { setSelectedKelas(k); setSelectedMuridId(''); }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
-            >
-              {k}
-            </button>
-          ))}
-        </div>
-      )}
+          {/* Kelas Filter */}
+          {kelasOptions.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {kelasOptions.map(k => (
+                <button
+                  key={k}
+                  onClick={() => setSelectedKelas(k)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          )}
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
-          <p className="text-sm text-slate-500">Memuat data...</p>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+            </div>
+          ) : muridFiltered.length === 0 ? (
+            <EmptyState title="Tidak ada santri" description="Belum ada data santri di kelas ini." icon={<Users className="w-8 h-8 text-slate-300" />} />
+          ) : (
+            <div className="space-y-1.5">
+              {muridFiltered.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedMuridId(m.id)}
+                  className="card p-2.5 w-full text-left hover:shadow-sm transition-all flex items-center gap-2.5 group"
+                >
+                  <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400">{m.nama.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{m.nama}</p>
+                    <p className="text-[10px] text-slate-500">Kelas {m.kelas || '-'}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      ) : muridList.length === 0 ? (
-        <EmptyState title="Belum ada santri" description="Tambahkan data santri terlebih dahulu." icon={<Users className="w-8 h-8 text-slate-300" />} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Left: Santri List */}
-          <div className="space-y-4">
-            <div className="card p-4">
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Pilih Santri</label>
-              <div className="space-y-1.5 max-h-96 overflow-y-auto">
-                {muridFiltered.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => setSelectedMuridId(m.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all border ${selectedMuridId === m.id ? 'bg-emerald-600 text-white font-bold border-emerald-600 shadow-sm' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-100'}`}
-                  >
-                    <span className="block truncate">{m.nama}</span>
-                    {m.kelas && <span className={`text-[10px] ${selectedMuridId === m.id ? 'text-emerald-100' : 'text-slate-400'}`}>Kelas {m.kelas}</span>}
-                  </button>
-                ))}
+        // DETAIL RAPOR VIEW
+        <div className="space-y-4">
+          <button onClick={() => setSelectedMuridId('')} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-600 transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" /> Kembali
+          </button>
+
+          {/* Header Card */}
+          <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm truncate">{selectedMurid?.nama}</p>
+                  <p className="text-emerald-100 text-xs">
+                    Kelas {selectedMurid?.kelas || '-'}
+                    {selectedMurid?.domisili ? ` • ${selectedMurid.domisili}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* Summary Stats */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white/15 rounded-xl p-2.5 text-center backdrop-blur-sm">
+                  <p className="text-xl font-bold">{nilaiAvg.toFixed(1)}</p>
+                  <p className="text-[9px] text-emerald-100 font-semibold uppercase">Nilai</p>
+                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/20">
+                    {getPredikat(nilaiAvg)}
+                  </span>
+                </div>
+                <div className="bg-white/15 rounded-xl p-2.5 text-center backdrop-blur-sm">
+                  <p className="text-xl font-bold">
+                    {absenSummary.total > 0 ? Math.round((absenSummary.hadir / absenSummary.total) * 100) : 0}%
+                  </p>
+                  <p className="text-[9px] text-emerald-100 font-semibold uppercase">Kehadiran</p>
+                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/20">
+                    {absenSummary.hadir}/{absenSummary.total}
+                  </span>
+                </div>
+                <div className="bg-white/15 rounded-xl p-2.5 text-center backdrop-blur-sm">
+                  <p className="text-xl font-bold">{sikapAvg.toFixed(1)}</p>
+                  <p className="text-[9px] text-emerald-100 font-semibold uppercase">Sikap</p>
+                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/20">
+                    {getPredikat(sikapAvg)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={generating}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl font-bold text-xs transition-colors disabled:opacity-60"
+                >
+                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  {generating ? 'Membuat...' : 'PDF'}
+                </button>
+                <button
+                  onClick={handleShareWA}
+                  className="flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-xl font-bold text-xs transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5" /> WA
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Right: Rapor Detail */}
-          <div className="lg:col-span-2 space-y-4">
-            {selectedMurid ? (
-              <>
-                {/* Header Card */}
-                <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
-                  <div className="p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                        <GraduationCap className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-lg truncate">{selectedMurid.nama}</p>
-                        <p className="text-emerald-100 text-sm">
-                          Kelas {selectedMurid.kelas || '-'}
-                          {selectedMurid.domisili ? ` • ${selectedMurid.domisili}` : ''}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Summary Stats */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-white/15 rounded-xl p-3 text-center backdrop-blur-sm">
-                        <p className="text-2xl font-bold">{nilaiAvg.toFixed(1)}</p>
-                        <p className="text-[10px] text-emerald-100 font-semibold uppercase">Nilai Rata-rata</p>
-                        <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20">
-                          {getPredikat(nilaiAvg)}
-                        </span>
-                      </div>
-                      <div className="bg-white/15 rounded-xl p-3 text-center backdrop-blur-sm">
-                        <p className="text-2xl font-bold">
-                          {absenSummary.total > 0 ? Math.round((absenSummary.hadir / absenSummary.total) * 100) : 0}%
-                        </p>
-                        <p className="text-[10px] text-emerald-100 font-semibold uppercase">Kehadiran</p>
-                        <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20">
-                          {absenSummary.hadir}/{absenSummary.total}
-                        </span>
-                      </div>
-                      <div className="bg-white/15 rounded-xl p-3 text-center backdrop-blur-sm">
-                        <p className="text-2xl font-bold">{sikapAvg.toFixed(1)}</p>
-                        <p className="text-[10px] text-emerald-100 font-semibold uppercase">Sikap Rata-rata</p>
-                        <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20">
-                          {getPredikat(sikapAvg)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 mt-4">
-                      <button
-                        onClick={handleDownloadPDF}
-                        disabled={generating}
-                        className="flex-1 flex items-center justify-center gap-2 bg-white text-emerald-700 hover:bg-emerald-50 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors disabled:opacity-60"
-                      >
-                        {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        {generating ? 'Membuat...' : 'Unduh PDF'}
-                      </button>
-                      <button
-                        onClick={handleShareWA}
-                        className="flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
-                      >
-                        <Share2 className="w-4 h-4" />
-                        Share WA
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Nilai Akademik */}
-                <div className="card p-4">
-                  <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                    <BookOpen className="w-4 h-4 text-emerald-600" />
-                    Nilai Akademik
-                    <span className="ml-auto badge badge-info text-[10px]">{nilaiList.length} nilai</span>
-                  </h3>
-                  {nilaiList.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-4">Belum ada nilai tercatat</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {nilaiList.map(n => (
-                        <div key={n.id} className="flex items-center gap-3 bg-slate-50 rounded-xl p-2.5">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${getScoreColor(n.skor)}`}>
-                            <span className="font-bold text-sm">{n.skor}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-700 truncate">{n.pelajaran}</p>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                              <span className="badge badge-info text-[9px]">{n.jenis_ujian}</span>
-                              <span>{formatDate(n.tanggal)}</span>
-                            </div>
-                          </div>
-                          <span className={`text-xs font-bold ${getScoreColor(n.skor).split(' ')[0]}`}>{getPredikat(n.skor)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Kehadiran */}
-                <div className="card p-4">
-                  <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-sky-600" />
-                    Rekap Kehadiran
-                  </h3>
-                  {absenSummary.total === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-4">Belum ada data absensi</p>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-4 gap-2 mb-3">
-                        {[
-                          { label: 'Hadir', val: absenSummary.hadir, color: 'bg-emerald-50 text-emerald-700' },
-                          { label: 'Izin', val: absenSummary.izin, color: 'bg-amber-50 text-amber-700' },
-                          { label: 'Sakit', val: absenSummary.sakit, color: 'bg-sky-50 text-sky-700' },
-                          { label: 'Alpha', val: absenSummary.alpha, color: 'bg-rose-50 text-rose-700' },
-                        ].map(s => (
-                          <div key={s.label} className={`rounded-xl p-2.5 text-center ${s.color}`}>
-                            <p className="text-lg font-bold">{s.val}</p>
-                            <p className="text-[10px] font-semibold">{s.label}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-100">
-                        {absenSummary.total > 0 && [
-                          { key: 'hadir', val: absenSummary.hadir, color: 'bg-emerald-500' },
-                          { key: 'izin', val: absenSummary.izin, color: 'bg-amber-500' },
-                          { key: 'sakit', val: absenSummary.sakit, color: 'bg-sky-500' },
-                          { key: 'alpha', val: absenSummary.alpha, color: 'bg-rose-500' },
-                        ].map(s => s.val > 0 ? (
-                          <div key={s.key} className={s.color} style={{ width: `${(s.val / absenSummary.total) * 100}%` }} />
-                        ) : null)}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Penilaian Sikap */}
-                {sikapList.length > 0 && (
-                  <div className="card p-4">
-                    <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                      <Heart className="w-4 h-4 text-rose-500" />
-                      Penilaian Sikap
-                      <span className="ml-auto badge badge-success text-[10px]">Rata-rata {sikapAvg.toFixed(1)}</span>
-                    </h3>
-                    <div className="space-y-2">
-                      {sikapList.slice(0, 5).map(s => {
-                        const scores = [s.disiplin, s.adab, s.kerajinan, s.kejujuran, s.tanggung_jawab].filter((v): v is number => v != null);
-                        const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
-                        return (
-                          <div key={s.id} className="bg-slate-50 rounded-xl p-3">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-slate-500 font-medium">{formatDate(s.tanggal)}</span>
-                              <span className={`text-sm font-bold ${avg >= 80 ? 'text-emerald-600' : avg >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
-                                {avg.toFixed(1)}
-                              </span>
-                            </div>
-                            {s.catatan && <p className="text-xs text-slate-500 italic">{s.catatan}</p>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Capaian Hafalan */}
-                {capaianList.length > 0 && (
-                  <div className="card p-4">
-                    <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                      <Award className="w-4 h-4 text-amber-500" />
-                      Capaian Hafalan
-                      <span className="ml-auto badge badge-warning text-[10px]">{capaianList.length} capaian</span>
-                    </h3>
-                    <div className="space-y-2">
-                      {capaianList.map(c => (
-                        <div key={c.id} className="flex items-center gap-3 bg-amber-50 rounded-xl p-3">
-                          <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Award className="w-4 h-4 text-amber-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-700">{c.capaian}</p>
-                            <p className="text-[10px] text-slate-400">{formatDate(c.tanggal)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Catatan Perilaku */}
-                {perilakuList.length > 0 && (
-                  <div className="card p-4">
-                    <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                      <TrendingUp className="w-4 h-4 text-slate-400" />
-                      Catatan Perilaku
-                      <span className="ml-auto badge badge-info text-[10px]">{perilakuList.length} catatan</span>
-                    </h3>
-                    <div className="space-y-2">
-                      {perilakuList.map(p => (
-                        <div key={p.id} className="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
-                          <span className={`badge text-[9px] flex-shrink-0 ${p.jenis === 'prestasi' ? 'badge-success' : p.jenis === 'pelanggaran' ? 'badge-danger' : 'badge-info'}`}>
-                            {p.jenis === 'prestasi' ? 'Prestasi' : p.jenis === 'pelanggaran' ? 'Pelanggaran' : 'Catatan'}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-slate-700">{p.catatan}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(p.created_at)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+          {/* Nilai Akademik */}
+          <div className="card p-3">
+            <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
+              <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+              Nilai Akademik
+              <span className="ml-auto badge badge-info text-[9px]">{nilaiList.length}</span>
+            </h3>
+            {nilaiList.length === 0 ? (
+              <p className="text-[10px] text-slate-400 text-center py-3">Belum ada nilai tercatat</p>
             ) : (
-              <div className="card border-dashed border-slate-200 p-12 text-center">
-                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm text-slate-400 font-medium">
-                  Pilih santri di sebelah kiri untuk melihat rapor lengkap
-                </p>
+              <div className="space-y-1.5">
+                {nilaiList.map(n => (
+                  <div key={n.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getScoreColor(n.skor)}`}>
+                      <span className="font-bold text-xs">{n.skor}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{n.pelajaran}</p>
+                      <div className="flex items-center gap-1.5 text-[9px] text-slate-400">
+                        <span className="badge badge-info text-[8px]">{n.jenis_ujian}</span>
+                        <span>{formatDate(n.tanggal)}</span>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-bold ${getScoreColor(n.skor).split(' ')[0]}`}>{getPredikat(n.skor)}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
+
+          {/* Kehadiran */}
+          <div className="card p-3">
+            <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
+              <Calendar className="w-3.5 h-3.5 text-sky-600" />
+              Rekap Kehadiran
+            </h3>
+            {absenSummary.total === 0 ? (
+              <p className="text-[10px] text-slate-400 text-center py-3">Belum ada data absensi</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-5 gap-1 mb-2">
+                  {[
+                    { label: 'H', val: absenSummary.hadir, color: 'bg-emerald-50 text-emerald-700' },
+                    { label: 'I', val: absenSummary.izin, color: 'bg-amber-50 text-amber-700' },
+                    { label: 'S', val: absenSummary.sakit, color: 'bg-sky-50 text-sky-700' },
+                    { label: 'A', val: absenSummary.alpha, color: 'bg-rose-50 text-rose-700' },
+                    { label: 'T', val: absenSummary.telat, color: 'bg-orange-50 text-orange-700' },
+                  ].map(s => (
+                    <div key={s.label} className={`rounded-lg p-1.5 text-center ${s.color}`}>
+                      <p className="text-sm font-bold">{s.val}</p>
+                      <p className="text-[8px] font-semibold">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700">
+                  {absenSummary.total > 0 && [
+                    { val: absenSummary.hadir, color: 'bg-emerald-500' },
+                    { val: absenSummary.izin, color: 'bg-amber-500' },
+                    { val: absenSummary.sakit, color: 'bg-sky-500' },
+                    { val: absenSummary.alpha, color: 'bg-rose-500' },
+                    { val: absenSummary.telat, color: 'bg-orange-500' },
+                  ].map(s => s.val > 0 ? (
+                    <div key={s.color} className={s.color} style={{ width: `${(s.val / absenSummary.total) * 100}%` }} />
+                  ) : null)}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Sikap */}
+          {sikapList.length > 0 && (
+            <div className="card p-3">
+              <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
+                <Heart className="w-3.5 h-3.5 text-rose-500" />
+                Penilaian Sikap
+                <span className="ml-auto badge badge-success text-[9px]">Rata-rata {sikapAvg.toFixed(1)}</span>
+              </h3>
+              <div className="space-y-1.5">
+                {sikapList.slice(0, 3).map(s => {
+                  const scores = [s.disiplin, s.adab, s.kerajinan, s.kejujuran, s.tanggung_jawab].filter((v): v is number => v != null);
+                  const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+                  return (
+                    <div key={s.id} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-slate-500">{formatDate(s.tanggal)}</span>
+                        <span className={`text-xs font-bold ${avg >= 80 ? 'text-emerald-600' : avg >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
+                          {avg.toFixed(1)}
+                        </span>
+                      </div>
+                      {s.catatan && <p className="text-[10px] text-slate-500 italic mt-0.5">{s.catatan}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Capaian Hafalan */}
+          {capaianList.length > 0 && (
+            <div className="card p-3">
+              <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
+                <Award className="w-3.5 h-3.5 text-amber-500" />
+                Capaian Hafalan
+                <span className="ml-auto badge badge-warning text-[9px]">{capaianList.length}</span>
+              </h3>
+              <div className="space-y-1.5">
+                {capaianList.slice(0, 5).map(c => (
+                  <div key={c.id} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
+                    <div className="w-8 h-8 bg-amber-100 dark:bg-amber-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Award className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{c.capaian}</p>
+                      <p className="text-[9px] text-slate-400">{formatDate(c.tanggal)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Catatan Perilaku */}
+          {perilakuList.length > 0 && (
+            <div className="card p-3">
+              <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
+                <TrendingUp className="w-3.5 h-3.5 text-slate-400" />
+                Catatan Perilaku
+                <span className="ml-auto badge badge-info text-[9px]">{perilakuList.length}</span>
+              </h3>
+              <div className="space-y-1.5">
+                {perilakuList.slice(0, 5).map(p => (
+                  <div key={p.id} className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
+                    <span className={`badge text-[8px] flex-shrink-0 ${p.jenis === 'prestasi' ? 'badge-success' : p.jenis === 'pelanggaran' ? 'badge-danger' : 'badge-info'}`}>
+                      {p.jenis === 'prestasi' ? 'Prestasi' : p.jenis === 'pelanggaran' ? 'Pelanggaran' : 'Catatan'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-slate-700 dark:text-slate-200">{p.catatan}</p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">{formatDate(p.created_at)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

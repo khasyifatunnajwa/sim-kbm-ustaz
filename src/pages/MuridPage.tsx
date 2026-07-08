@@ -1,32 +1,30 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle
+  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, Upload, ChevronRight, ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import ConfirmDialog from '../components/ConfirmDialog';
+import ExcelImportModal from '../components/ExcelImportModal';
 import type { Murid, Profile, ShowToast } from '../types';
 
 export default function MuridPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
-  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
-  const [showModal, setShowModal] = useState(() => {
-    const hashParts = window.location.hash.replace('#', '').split('/');
-    return hashParts[0] === 'murid' && hashParts[1] === 'form';
-  });
-  const [showDeleteModal, setShowDeleteModal] = useState(() => {
-    const hashParts = window.location.hash.replace('#', '').split('/');
-    return hashParts[0] === 'murid' && hashParts[1] === 'delete';
-  });
 
+  const [showModal, setShowModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState<string>('all');
+
+  // Detail view state
+  const [selectedMurid, setSelectedMurid] = useState<Murid | null>(null);
 
   const [form, setForm] = useState({
     nama: '',
@@ -38,50 +36,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   });
 
   const [kelasList, setKelasList] = useState<string[]>([]);
-
-  // 2. SINKRONISASI KEDUA MODAL DENGAN TOMBOL BACK HP
-  useEffect(() => {
-    const handlePopState = () => {
-      const hashParts = window.location.hash.replace('#', '').split('/');
-      if (hashParts[0] === 'murid') {
-        if (hashParts[1] === 'form') {
-          setShowModal(true);
-          setShowDeleteModal(false);
-        } else if (hashParts[1] === 'delete') {
-          setShowModal(false);
-          setShowDeleteModal(true);
-        } else {
-          setShowModal(false);
-          setShowDeleteModal(false);
-          setEditingId(null);
-          setDeletingId(null);
-        }
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
-  const handleCloseFormModal = () => {
-    const hashParts = window.location.hash.replace('#', '').split('/');
-    if (hashParts[1] === 'form') {
-      window.history.back(); // Memicu popstate untuk mundur secara native
-    } else {
-      setShowModal(false);
-      resetForm();
-    }
-  };
-
-  const handleCloseDeleteModal = () => {
-    const hashParts = window.location.hash.replace('#', '').split('/');
-    if (hashParts[1] === 'delete') {
-      window.history.back();
-    } else {
-      setShowDeleteModal(false);
-      setDeletingId(null);
-    }
-  };
+  const isAdmin = profile?.role === 'admin';
 
   // Fetch data murid dari Supabase
   const fetchMurid = async () => {
@@ -114,7 +69,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     fetchMurid();
   }, []);
 
-  // Ambil daftar kelas dari tabel kelas
   const kelasOptions = useMemo(
     () => kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
     [kelasList, muridList]
@@ -123,15 +77,14 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   // Filter & Pencarian Data Murid
   const filteredMuridList = useMemo(() => {
     return muridList.filter(m => {
-      const matchesSearch = 
+      const matchesSearch =
         m.nama.toLowerCase().includes(search.toLowerCase()) ||
-        (m.domisili && m.domisili.toLowerCase().includes(search.toLowerCase()));
+        (m.kelas && m.kelas.toLowerCase().includes(search.toLowerCase()));
       const matchesKelas = filterKelas === 'all' || m.kelas === filterKelas;
       return matchesSearch && matchesKelas;
     });
   }, [muridList, search, filterKelas]);
 
-  // Reset Form state
   const resetForm = () => {
     setEditingId(null);
     setForm({
@@ -144,8 +97,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     });
   };
 
-  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
-  const openEdit = (murid: any) => {
+  const openEdit = (murid: Murid) => {
     setEditingId(murid.id);
     setForm({
       nama: murid.nama || '',
@@ -156,10 +108,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       status_aktif: murid.status_aktif !== undefined ? murid.status_aktif : true,
     });
     setShowModal(true);
-    window.history.pushState(null, '', '#murid/form');
   };
 
-  // Handler Tambah & Edit Data
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nama || !form.kelas) {
@@ -170,7 +120,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     setSaving(true);
     try {
       if (editingId) {
-        // Mode Update
         const { error } = await supabase
           .from('murid')
           .update({
@@ -186,7 +135,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         if (error) throw error;
         showToast('Data santri berhasil diperbarui', 'success');
       } else {
-        // Mode Insert New
         const { error } = await supabase
           .from('murid')
           .insert([form]);
@@ -195,8 +143,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         showToast('Santri baru berhasil ditambahkan', 'success');
       }
 
-      // PERUBAHAN: Gunakan fungsi penutup modal khusus
-      handleCloseFormModal();
+      setShowModal(false);
+      resetForm();
       fetchMurid();
     } catch (error: any) {
       showToast(error.message || 'Gagal menyimpan data', 'error');
@@ -205,286 +153,267 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     }
   };
 
-  // Handler Hapus Data
-  const handleDelete = async () => {
+  const confirmDelete = () => {
     if (!deletingId) return;
-    try {
-      const { error } = await supabase
-        .from('murid')
-        .delete()
-        .eq('id', deletingId);
-
-      if (error) throw error;
-      showToast('Data santri berhasil dihapus', 'success');
-      
-      // PERUBAHAN: Gunakan fungsi penutup modal khusus
-      handleCloseDeleteModal();
-      fetchMurid();
-    } catch (error: any) {
-      showToast(error.message || 'Gagal menghapus data', 'error');
-    }
+    supabase.from('murid').delete().eq('id', deletingId).then(({ error }) => {
+      if (error) {
+        showToast(error.message, 'error');
+      } else {
+        showToast('Data santri berhasil dihapus', 'success');
+        setMuridList(prev => prev.filter(m => m.id !== deletingId));
+        setSelectedMurid(null);
+      }
+      setShowDeleteDialog(false);
+      setDeletingId(null);
+    });
   };
 
-  return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">Manajemen Santri</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Total: {filteredMuridList.length} Santri</p>
+  // Excel Import
+  const santriColumns = [
+    { key: 'nama', label: 'Nama Lengkap', required: true, example: 'Ahmad Fauzi' },
+    { key: 'kelas', label: 'Kelas', required: true, example: '7A' },
+    { key: 'domisili', label: 'Domisili', required: false, example: 'Jakarta' },
+    { key: 'alamat', label: 'Alamat Lengkap', required: false },
+    { key: 'nomor_whatsapp', label: 'No. WhatsApp', required: false, example: '081234567890' },
+    { key: 'status_aktif', label: 'Status Aktif (true/false)', required: false, example: 'true' },
+  ];
+
+  const handleImportSantri = async (data: Record<string, any>[]) => {
+    const records = data.map(row => ({
+      nama: row.nama || row.Nama || row['Nama Lengkap'],
+      kelas: row.kelas || row.Kelas,
+      domisili: row.domisili || row.Domisili || null,
+      alamat: row.alamat || row.Alamat || row['Alamat Lengkap'] || null,
+      nomor_whatsapp: row.nomor_whatsapp || row['No. WhatsApp'] || row.WhatsApp || null,
+      status_aktif: row.status_aktif !== 'false' && row.status_aktif !== false,
+    })).filter(r => r.nama && r.kelas);
+
+    if (records.length === 0) throw new Error('Tidak ada data valid untuk diimpor');
+
+    const { error } = await supabase.from('murid').insert(records);
+    if (error) throw error;
+    showToast(`${records.length} santri berhasil diimpor!`, 'success');
+    fetchMurid();
+  };
+
+  // Detail View
+  if (selectedMurid) {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setSelectedMurid(null)} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-600 transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Kembali
+        </button>
+
+        {/* Header */}
+        <div className="card p-4 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Users className="w-6 h-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-bold truncate">{selectedMurid.nama}</h2>
+              <p className="text-xs text-emerald-100">Kelas {selectedMurid.kelas || '-'}</p>
+            </div>
+            <div className="flex gap-1">
+              <button onClick={() => openEdit(selectedMurid)} className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button onClick={() => { setDeletingId(selectedMurid.id); setShowDeleteDialog(true); }} className="p-2 rounded-lg bg-white/20 hover:bg-rose-500/50 transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
-        <button
-          onClick={() => { 
-            resetForm(); 
-            setShowModal(true); 
-            window.history.pushState(null, '', '#murid/form'); // PERUBAHAN
-          }}
-          className="btn-primary flex items-center justify-center gap-2 text-sm font-semibold"
-        >
-          <Plus className="w-4 h-4" />
-          Tambah Santri
-        </button>
+
+        {/* Detail Info */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-500">Status</span>
+            {selectedMurid.status_aktif === false ? (
+              <span className="flex items-center gap-1 text-xs text-rose-600 font-medium">
+                <XCircle className="w-3.5 h-3.5" /> Non-aktif
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                <CheckCircle className="w-3.5 h-3.5" /> Aktif
+              </span>
+            )}
+          </div>
+
+          {selectedMurid.domisili && (
+            <div className="flex items-start gap-2">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
+              <div>
+                <p className="text-[10px] text-slate-400">Domisili</p>
+                <p className="text-xs text-slate-700">{selectedMurid.domisili}</p>
+              </div>
+            </div>
+          )}
+
+          {selectedMurid.alamat && (
+            <div className="flex items-start gap-2">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
+              <div>
+                <p className="text-[10px] text-slate-400">Alamat Lengkap</p>
+                <p className="text-xs text-slate-700">{selectedMurid.alamat}</p>
+              </div>
+            </div>
+          )}
+
+          {selectedMurid.nomor_whatsapp && (
+            <div className="flex items-start gap-2">
+              <Phone className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
+              <div>
+                <p className="text-[10px] text-slate-400">No. WhatsApp</p>
+                <p className="text-xs text-slate-700">{selectedMurid.nomor_whatsapp}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Santri</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{filteredMuridList.length} santri</p>
+        </div>
+        <div className="flex gap-2">
+          {isAdmin && (
+            <button onClick={() => setShowImportModal(true)} className="btn-secondary flex items-center gap-1.5 text-xs">
+              <Upload className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Impor</span>
+            </button>
+          )}
+          <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 text-xs">
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tambah</span>
+          </button>
+        </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="relative sm:col-span-2">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+      {/* Filter */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama santri atau domisili..."
-            className="w-full pl-9 pr-4 py-2.5 bg-white rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari nama atau kelas..."
+            className="input-field text-xs pl-7"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600">
-              <X className="w-4 h-4" />
+            <button onClick={() => setSearch('')} className="absolute right-2 top-2.5 text-slate-400">
+              <X className="w-3 h-3" />
             </button>
           )}
         </div>
-
-        <div className="relative">
-          <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-          <select
-            value={filterKelas}
-            onChange={(e) => setFilterKelas(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white rounded-xl border border-slate-200 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-          >
-            <option value="all">Semua Kelas</option>
-            {kelasOptions.map(kelas => (
-              <option key={kelas} value={kelas}>Kelas {kelas}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filterKelas}
+          onChange={e => setFilterKelas(e.target.value)}
+          className="input-field text-xs w-28"
+        >
+          <option value="all">Semua</option>
+          {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
       </div>
 
-      {/* Main Content Area */}
+      {/* List */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm text-slate-500 font-medium">Memuat data santri...</p>
+        <div className="flex justify-center py-8">
+          <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filteredMuridList.length === 0 ? (
-        <EmptyState
-          title="Tidak ada data santri"
-          description={search || filterKelas !== 'all' ? "Tidak ada hasil yang cocok dengan filter pencarian Anda." : "Belum ada data santri yang ditambahkan."}
-        />
+        <EmptyState title="Tidak ada santri" description={search || filterKelas !== 'all' ? 'Tidak ada hasil yang cocok' : 'Belum ada data santri'} icon={<Users className="w-8 h-8 text-slate-300" />} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredMuridList.map((murid: any) => (
-            <div key={murid.id} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all group relative">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-800 text-base line-clamp-1">{murid.nama}</h3>
-                    {murid.status_aktif === false ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-50 text-rose-600">
-                        <XCircle className="w-3 h-3" /> Non-aktif
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-600">
-                        <CheckCircle className="w-3 h-3" /> Aktif
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs font-semibold text-emerald-600 mt-0.5">Kelas {murid.kelas}</p>
-                </div>
-
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => openEdit(murid)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                    title="Ubah Data"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => { 
-                      setDeletingId(murid.id); 
-                      setShowDeleteModal(true); 
-                      window.history.pushState(null, '', '#murid/delete'); // PERUBAHAN
-                    }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    title="Hapus Data"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+        <div className="space-y-1">
+          {filteredMuridList.map(murid => (
+            <button
+              key={murid.id}
+              onClick={() => setSelectedMurid(murid)}
+              className="card p-2.5 w-full text-left hover:shadow-sm transition-all flex items-center gap-2.5 group"
+            >
+              <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  {murid.status_aktif === false ? <XCircle className="w-4 h-4 text-rose-400" /> : murid.nama.charAt(0).toUpperCase()}
+                </span>
               </div>
-
-              <div className="mt-4 pt-4 border-t border-slate-50 space-y-2 text-xs text-slate-600">
-                {murid.nomor_whatsapp && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{murid.nomor_whatsapp}</span>
-                  </div>
-                )}
-                {murid.domisili && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="line-clamp-1">{murid.domisili}</span>
-                  </div>
-                )}
-                {murid.alamat && (
-                  <p className="text-slate-400 italic line-clamp-2 mt-1 pl-5">"{murid.alamat}"</p>
-                )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{murid.nama}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">Kelas {murid.kelas || '-'}</p>
               </div>
-            </div>
+              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" />
+            </button>
           ))}
         </div>
       )}
 
-      {/* Modal Form Tambah / Edit */}
-      <Modal
-        isOpen={showModal}
-        onClose={handleCloseFormModal} // PERUBAHAN
-        title={editingId ? 'Ubah Data Santri' : 'Tambah Santri Baru'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Modal Form */}
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingId ? 'Edit Santri' : 'Tambah Santri'} size="sm">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Lengkap *</label>
-            <input
-              type="text"
-              required
-              value={form.nama}
-              onChange={e => setForm(p => ({ ...p, nama: e.target.value }))}
-              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              placeholder="Masukkan nama lengkap..."
-            />
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap *</label>
+            <input type="text" required value={form.nama} onChange={e => setForm(p => ({ ...p, nama: e.target.value }))} className="input-field text-xs" placeholder="Nama lengkap..." />
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <select
-                required
-                value={form.kelas}
-                onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
-                className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                <option value="">Pilih Kelas</option>
-                {kelasOptions.map(kelas => <option key={kelas} value={kelas}>{kelas}</option>)}
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Kelas *</label>
+              <select required value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-xs">
+                <option value="">Pilih</option>
+                {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status Aktif</label>
-              <select
-                value={form.status_aktif ? 'true' : 'false'}
-                onChange={e => setForm(p => ({ ...p, status_aktif: e.target.value === 'true' }))}
-                className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+              <select value={form.status_aktif ? 'true' : 'false'} onChange={e => setForm(p => ({ ...p, status_aktif: e.target.value === 'true' }))} className="input-field text-xs">
                 <option value="true">Aktif</option>
                 <option value="false">Non-aktif</option>
               </select>
             </div>
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">No. WhatsApp (Opsional)</label>
-            <input
-              type="tel"
-              value={form.nomor_whatsapp}
-              onChange={e => setForm(p => ({ ...p, nomor_whatsapp: e.target.value }))}
-              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              placeholder="08xx..."
-            />
+            <label className="block text-xs font-semibold text-slate-600 mb-1">No. WhatsApp</label>
+            <input type="tel" value={form.nomor_whatsapp} onChange={e => setForm(p => ({ ...p, nomor_whatsapp: e.target.value }))} className="input-field text-xs" placeholder="08xx..." />
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Domisili (Opsional)</label>
-            <input
-              type="text"
-              value={form.domisili}
-              onChange={e => setForm(p => ({ ...p, domisili: e.target.value }))}
-              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              placeholder="Kota/Kecamatan asal..."
-            />
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Domisili</label>
+            <input type="text" value={form.domisili} onChange={e => setForm(p => ({ ...p, domisili: e.target.value }))} className="input-field text-xs" placeholder="Kota/Kecamatan..." />
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Alamat Lengkap (Opsional)</label>
-            <textarea
-              value={form.alamat}
-              onChange={e => setForm(p => ({ ...p, alamat: e.target.value }))}
-              className="w-full p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              rows={2}
-              placeholder="Alamat lengkap rumah..."
-            />
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Alamat</label>
+            <textarea value={form.alamat} onChange={e => setForm(p => ({ ...p, alamat: e.target.value }))} className="input-field text-xs resize-none" rows={2} placeholder="Alamat lengkap..." />
           </div>
-
-          <div className="flex gap-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={handleCloseFormModal} // PERUBAHAN
-              className="btn-secondary flex-1 text-sm py-2.5"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary flex-1 text-sm py-2.5"
-            >
-              {saving ? 'Menyimpan...' : 'Simpan Data'}
-            </button>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-xs">Batal</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 text-xs">{saving ? 'Menyimpan...' : 'Simpan'}</button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal Konfirmasi Hapus */}
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={handleCloseDeleteModal} // PERUBAHAN
-        title="Hapus Data Santri"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600 leading-relaxed">
-            Apakah Anda yakin ingin menghapus data santri ini? Tindakan ini bersifat permanen dan data riwayat absensi atau nilai yang terikat mungkin akan ikut terpengaruh.
-          </p>
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={handleCloseDeleteModal} // PERUBAHAN
-              className="btn-secondary flex-1 text-sm"
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all flex-1 text-sm"
-            >
-              Ya, Hapus
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* Excel Import */}
+      <ExcelImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        title="Impor Santri dari Excel"
+        columns={santriColumns}
+        onImport={handleImportSantri}
+      />
+
+      {/* Confirm Delete */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => { setShowDeleteDialog(false); setDeletingId(null); }}
+        onConfirm={confirmDelete}
+        title="Hapus Santri"
+        message="Yakin ingin menghapus data santri ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmText="Hapus"
+        variant="danger"
+      />
     </div>
   );
 }
