@@ -4,10 +4,60 @@ import {
   BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
   CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
   Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X,
+  Moon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SkeletonCard } from '../components/Skeleton';
 import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab } from '../types';
+
+// Hijri month names in Indonesian/Arabic
+const HIJRI_MONTHS = [
+  'Muharram', 'Shafar', 'Rabi\'ul Awwal', 'Rabi\'ul Akhir',
+  'Jumadil Awwal', 'Jumadil Akhir', 'Rajab', 'Sya\'ban',
+  'Ramadhan', 'Syawal', 'Dzulqa\'dah', 'Dzulhijjah'
+];
+
+// Convert Gregorian date to Hijri using Julian Day Number method
+function gregorianToHijri(date: Date): { day: number; month: number; year: number; monthName: string } {
+  // Convert to UTC to avoid timezone issues
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+
+  // Calculate Julian Day Number
+  let jd: number;
+  if (month <= 2) {
+    const y = year - 1;
+    const m = month + 12;
+    jd = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day - 1524.5;
+  } else {
+    jd = Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day - 1524.5;
+  }
+
+  // Adjust for Gregorian calendar (dates after 1582 Oct 15)
+  const a = Math.floor(year / 100);
+  const b = 2 - a + Math.floor(a / 4);
+  if (year > 1582 || (year === 1582 && month > 10) || (year === 1582 && month === 10 && day >= 15)) {
+    jd += b;
+  }
+
+  // Convert Julian Day Number to Hijri
+  const l = Math.floor(jd - 1948439.5) + 10632;
+  const n = Math.floor((l - 1) / 10631);
+  const l2 = l - 10631 * n + 354;
+  const j = Math.floor((10985 - l2) / 5316) * Math.floor((50 * l2) / 17719) + Math.floor(l2 / 5670) * Math.floor((43 * l2) / 15238);
+  const l3 = l2 - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29;
+  const hijriMonth = Math.floor((24 * l3) / 709);
+  const hijriDay = l3 - Math.floor((709 * hijriMonth) / 24);
+  const hijriYear = 30 * n + j - 30;
+
+  return {
+    day: hijriDay,
+    month: hijriMonth,
+    year: hijriYear,
+    monthName: HIJRI_MONTHS[hijriMonth - 1] || ''
+  };
+}
 
 interface DashboardPageProps {
   showToast: ShowToast;
@@ -235,6 +285,38 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
       {/* Greeting Header with Marquee */}
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
+        {/* Date & Time Bar */}
+        <div className="bg-emerald-800/40 px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+          {/* WIB Clock */}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center">
+              <Clock className="w-4 h-4 text-emerald-100" />
+            </div>
+            <div>
+              <p className="font-mono font-bold text-lg leading-none">
+                {now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </p>
+              <p className="text-[10px] text-emerald-200 font-semibold">WIB</p>
+            </div>
+          </div>
+
+          {/* Hijri Date */}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center">
+              <Moon className="w-4 h-4 text-amber-300" />
+            </div>
+            <div className="text-right">
+              <p className="font-semibold text-sm leading-tight">
+                {(() => {
+                  const hijri = gregorianToHijri(now);
+                  return `${hijri.day} ${hijri.monthName} ${hijri.year} H`;
+                })()}
+              </p>
+              <p className="text-[10px] text-emerald-200">Tanggal Hijriyah</p>
+            </div>
+          </div>
+        </div>
+
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden">
