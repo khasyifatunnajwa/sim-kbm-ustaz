@@ -104,7 +104,7 @@ export default defineConfig({
             src: '/icon/192x192.png',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
           },
           {
             src: '/icon/logo_asli_trp.png',
@@ -116,7 +116,7 @@ export default defineConfig({
             src: '/icon/1024x1024.png',
             sizes: '1024x1024',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
           }
         ]
       }
