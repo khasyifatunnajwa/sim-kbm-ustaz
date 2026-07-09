@@ -18,9 +18,11 @@ import type {
 } from '../types';
 import DataSiswaPage from './DataSiswaPage';
 import DataUstazPage from './DataUstazPage';
+import AdminPengumuman from './AdminPengumuman'; // <-- IMPORT DITAMBAHKAN
 import { useThemeContext } from '../contexts/ThemeContext';
 
-type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan';
+// <-- TIPE 'pengumuman' DITAMBAHKAN
+type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan' | 'pengumuman'; 
 type PresensiTab = 'ustaz' | 'murid';
 type KelolaUserTab = 'users' | 'tahun' | 'semester' | 'kelas' | 'mapel' | 'ruangan';
 type DataAkademikTab = 'siswa' | 'ustaz';
@@ -217,6 +219,8 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
     { icon: Shield, label: 'Kelola User', section: 'kelola-user' as AdminSection, color: 'violet' },
     { icon: BookOpen, label: 'Data Akademik', section: 'data-akademik' as AdminSection, color: 'sky' },
     { icon: AlertTriangle, label: 'Kenakalan', section: 'kenakalan' as AdminSection, color: 'rose' },
+    // <-- TOMBOL PENGUMUMAN DITAMBAHKAN
+    { icon: Megaphone, label: 'Pengumuman', section: 'pengumuman' as AdminSection, color: 'amber' }, 
   ];
 
   return (
@@ -245,7 +249,7 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
       {/* Quick Menu */}
       <div>
         <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Menu Utama</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-3">
           {quickMenuItems.map((item, i) => {
             const Icon = item.icon;
             const colors: Record<string, string> = {
@@ -253,6 +257,7 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
               violet: 'bg-violet-50 dark:bg-violet-900/20 border-violet-100 dark:border-violet-800',
               sky: 'bg-sky-50 dark:bg-sky-900/20 border-sky-100 dark:border-sky-800',
               rose: 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800',
+              amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800', // <-- WARNA AMBER DITAMBAHKAN
             };
             return (
               <button key={i} onClick={() => onViewChange(item.section)} className={`card p-2.5 flex flex-col items-center gap-1.5 hover:shadow-md transition-all group border ${colors[item.color]}`}>
@@ -295,7 +300,8 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
 export default function AdminPage({ showToast, profile, setActiveTab }: { showToast: ShowToast; profile: Profile | null; setActiveTab?: (tab: ActiveTab) => void }) {
   const [section, setSection] = useState<AdminSection>(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
-    if (['presensi', 'kelola-user', 'data-akademik', 'kenakalan'].includes(hashParts[1])) return hashParts[1] as AdminSection;
+    // <-- ROUTING 'pengumuman' DITAMBAHKAN
+    if (['presensi', 'kelola-user', 'data-akademik', 'kenakalan', 'pengumuman'].includes(hashParts[1])) return hashParts[1] as AdminSection;
     return 'dashboard';
   });
 
@@ -333,7 +339,8 @@ export default function AdminPage({ showToast, profile, setActiveTab }: { showTo
   useEffect(() => {
     const handlePopState = () => {
       const hashParts = window.location.hash.replace('#', '').split('/');
-      if (['dashboard', 'presensi', 'kelola-user', 'data-akademik', 'kenakalan'].includes(hashParts[1])) {
+      // <-- ROUTING 'pengumuman' DITAMBAHKAN
+      if (['dashboard', 'presensi', 'kelola-user', 'data-akademik', 'kenakalan', 'pengumuman'].includes(hashParts[1])) {
         setSection(hashParts[1] as AdminSection);
       }
     };
@@ -411,6 +418,11 @@ export default function AdminPage({ showToast, profile, setActiveTab }: { showTo
 
       {section === 'kenakalan' && (
         <KenakalanSection kenakalanTab={kenakalanTab} setKenakalanTab={setKenakalanTab} showToast={showToast} users={users} kelasList={kelasList} />
+      )}
+
+      {/* <-- PERENDERAN PENGUMUMAN DITAMBAHKAN */}
+      {section === 'pengumuman' && (
+        <AdminPengumuman showToast={showToast} />
       )}
     </div>
   );
