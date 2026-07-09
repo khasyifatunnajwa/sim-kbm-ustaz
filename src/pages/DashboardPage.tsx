@@ -238,7 +238,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-14 h-14 flex items-center justify-center">
-              <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
+              <img src="/icon/logo_asli_trp.png" alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
             </div>
             <div>
               <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
