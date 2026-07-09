@@ -17,43 +17,59 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
   for (let i = start; i <= end; i++) pages.push(i);
 
   return (
-    <div className="flex items-center justify-center gap-1 mt-4">
+    <div className="flex items-center justify-center gap-1 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/50">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+        className="btn-icon w-8 h-8 disabled:opacity-30 disabled:pointer-events-none"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft size={16} />
       </button>
+
       {start > 1 && (
         <>
-          <button onClick={() => onPageChange(1)} className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100">1</button>
-          {start > 2 && <span className="px-1 text-slate-400 text-xs">...</span>}
+          <button
+            onClick={() => onPageChange(1)}
+            className="w-8 h-8 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400 transition-colors"
+          >
+            1
+          </button>
+          {start > 2 && <span className="text-slate-300 dark:text-slate-600 px-0.5 text-xs">…</span>}
         </>
       )}
+
       {pages.map(p => (
         <button
           key={p}
           onClick={() => onPageChange(p)}
-          className={`min-w-[28px] px-2 py-1 rounded-lg text-xs font-bold transition-all ${
-            p === currentPage ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-100'
+          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+            p === currentPage
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400'
           }`}
         >
           {p}
         </button>
       ))}
+
       {end < totalPages && (
         <>
-          {end < totalPages - 1 && <span className="px-1 text-slate-400 text-xs">...</span>}
-          <button onClick={() => onPageChange(totalPages)} className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100">{totalPages}</button>
+          {end < totalPages - 1 && <span className="text-slate-300 dark:text-slate-600 px-0.5 text-xs">…</span>}
+          <button
+            onClick={() => onPageChange(totalPages)}
+            className="w-8 h-8 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400 transition-colors"
+          >
+            {totalPages}
+          </button>
         </>
       )}
+
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+        className="btn-icon w-8 h-8 disabled:opacity-30 disabled:pointer-events-none"
       >
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight size={16} />
       </button>
     </div>
   );

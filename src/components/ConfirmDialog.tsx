@@ -13,33 +13,27 @@ interface ConfirmDialogProps {
 }
 
 export default function ConfirmDialog({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  message,
-  confirmText = 'Hapus',
-  cancelText = 'Batal',
-  variant = 'danger',
+  isOpen, onClose, onConfirm, title, message,
+  confirmText = 'Hapus', cancelText = 'Batal', variant = 'danger',
 }: ConfirmDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="flex items-start gap-3 mb-5">
-        <div className={`p-2 rounded-xl ${variant === 'danger' ? 'bg-rose-50' : 'bg-amber-50'}`}>
-          <AlertTriangle className={`w-5 h-5 ${variant === 'danger' ? 'text-rose-500' : 'text-amber-500'}`} />
+        <div className={`icon-box icon-box-md flex-shrink-0 mt-0.5 ${variant === 'danger' ? 'icon-box-rose' : 'icon-box-amber'}`}>
+          <AlertTriangle size={18} />
         </div>
-        <p className="text-sm text-slate-600 leading-relaxed">{message}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{message}</p>
       </div>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className="btn-secondary text-sm">
+      <div className="flex gap-2.5">
+        <button onClick={onClose} className="btn-secondary flex-1 text-sm">
           {cancelText}
         </button>
         <button
           onClick={() => { onConfirm(); onClose(); }}
-          className={`text-sm px-5 py-2.5 rounded-xl font-semibold text-white transition-all active:scale-95 ${
+          className={`flex-1 text-sm inline-flex items-center justify-center gap-2 font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95 ${
             variant === 'danger'
-              ? 'bg-rose-600 hover:bg-rose-700 shadow-sm shadow-rose-100'
-              : 'bg-amber-600 hover:bg-amber-700 shadow-sm shadow-amber-100'
+              ? 'bg-rose-600 hover:bg-rose-700 text-white'
+              : 'bg-amber-500 hover:bg-amber-600 text-white'
           }`}
         >
           {confirmText}

@@ -217,99 +217,193 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
 
+  /* ─── helpers ─── */
+  const classAttendancePct = (() => {
+    let totalHadir = 0, totalAll = 0;
+    muridFiltered.forEach(m => {
+      const d = rekapData[m.id] ?? { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0, Telat: 0 };
+      const t = d.Hadir + d.Izin + d.Sakit + d.Alpha + d.Telat;
+      totalHadir += d.Hadir;
+      totalAll += t;
+    });
+    return totalAll > 0 ? (totalHadir / totalAll) * 100 : 0;
+  })();
+
   return (
-    <div>
-      <div className="mb-5">
-        <h2 className="section-title">Absensi</h2>
-        <p className="section-subtitle">Input dan rekapitulasi kehadiran santri</p>
+    <div className="animate-fadeIn">
+
+      {/* ── Page Header ── */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="icon-box icon-box-md icon-box-emerald">
+          <ClipboardCheck className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="section-title">Absensi</h2>
+          <p className="section-subtitle">Input dan rekapitulasi kehadiran santri</p>
+        </div>
       </div>
 
+      {/* ── Tab Switcher ── */}
       <div className="tab-switcher mb-5">
-        <button onClick={() => handleTabChange('input')} className={`tab-btn ${tab === 'input' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Input Harian</button>
-        <button onClick={() => handleTabChange('rekap')} className={`tab-btn ${tab === 'rekap' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Rekapitulasi</button>
+        <button
+          onClick={() => handleTabChange('input')}
+          className={`tab-btn ${tab === 'input' ? 'tab-btn-active' : 'tab-btn-inactive'}`}
+        >
+          Input Harian
+        </button>
+        <button
+          onClick={() => handleTabChange('rekap')}
+          className={`tab-btn ${tab === 'rekap' ? 'tab-btn-active' : 'tab-btn-inactive'}`}
+        >
+          Rekapitulasi
+        </button>
       </div>
 
+      {/* ════════════════════════════════
+          TAB: INPUT HARIAN
+      ════════════════════════════════ */}
       {tab === 'input' && (
-        <>
-          {/* Header info */}
-          <div className="card p-3 mb-3 bg-gradient-to-br from-slate-50 to-white">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs font-bold text-slate-700">{todayInfo}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
+        <div className="animate-slideUp space-y-4">
+
+          {/* ── Filter Card ── */}
+          <div className="card p-4">
+            {/* Date banner */}
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-700/50">
+              <div className="icon-box icon-box-sm icon-box-emerald">
+                <Calendar className="w-3.5 h-3.5" />
+              </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Kelas</label>
-                <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-xs">
-                  <option value="">Pilih</option>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{todayInfo}</p>
+                {tanggal !== today && (
+                  <span className="badge badge-warning mt-0.5">Bukan hari ini</span>
+                )}
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Kelas</label>
+                <select
+                  value={selectedKelas}
+                  onChange={e => setSelectedKelas(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Pilih Kelas</option>
                   {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Pelajaran</label>
-                <select value={selectedMapel} onChange={e => setSelectedMapel(e.target.value)} className="input-field text-xs">
-                  <option value="">Pilih</option>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Mata Pelajaran</label>
+                <select
+                  value={selectedMapel}
+                  onChange={e => setSelectedMapel(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Pilih Mapel</option>
                   {mapelOptions.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Tanggal</label>
-                <input type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} className="input-field text-xs" />
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Tanggal</label>
+                <input
+                  type="date"
+                  value={tanggal}
+                  onChange={e => setTanggal(e.target.value)}
+                  className="input-field"
+                />
               </div>
             </div>
           </div>
 
-          {/* Stats */}
+          {/* ── Stat Strip ── */}
           {muridFiltered.length > 0 && (
-            <div className="grid grid-cols-5 gap-1.5 mb-3">
+            <div className="grid grid-cols-5 gap-2">
               {[
-                { label: 'Hadir', val: stats.hadir, color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-                { label: 'Izin',  val: stats.izin,  color: 'bg-amber-50 text-amber-700 border-amber-100' },
-                { label: 'Sakit', val: stats.sakit, color: 'bg-sky-50 text-sky-700 border-sky-100' },
-                { label: 'Alpha', val: stats.alpha, color: 'bg-rose-50 text-rose-700 border-rose-100' },
-                { label: 'Telat', val: stats.telat, color: 'bg-orange-50 text-orange-700 border-orange-100' },
+                { label: 'Hadir', val: stats.hadir,  cls: 'border-emerald-200 dark:border-emerald-700/50', num: 'text-emerald-600 dark:text-emerald-400', lbl: 'text-emerald-500 dark:text-emerald-500' },
+                { label: 'Izin',  val: stats.izin,   cls: 'border-amber-200 dark:border-amber-700/50',   num: 'text-amber-600 dark:text-amber-400',   lbl: 'text-amber-500 dark:text-amber-500' },
+                { label: 'Sakit', val: stats.sakit,  cls: 'border-sky-200 dark:border-sky-700/50',       num: 'text-sky-600 dark:text-sky-400',       lbl: 'text-sky-500 dark:text-sky-500' },
+                { label: 'Alpha', val: stats.alpha,  cls: 'border-rose-200 dark:border-rose-700/50',     num: 'text-rose-600 dark:text-rose-400',     lbl: 'text-rose-500 dark:text-rose-500' },
+                { label: 'Telat', val: stats.telat,  cls: 'border-orange-200 dark:border-orange-700/50', num: 'text-orange-600 dark:text-orange-400', lbl: 'text-orange-500 dark:text-orange-500' },
               ].map(s => (
-                <div key={s.label} className={`card p-2 text-center border ${s.color}`}>
-                  <p className="text-base font-bold">{s.val}</p>
-                  <p className="text-[9px] font-semibold">{s.label}</p>
+                <div key={s.label} className={`card p-2.5 text-center border ${s.cls}`}>
+                  <p className={`text-xl font-bold leading-none ${s.num}`}>{s.val}</p>
+                  <p className={`text-[10px] font-semibold mt-1 ${s.lbl}`}>{s.label}</p>
                 </div>
               ))}
             </div>
           )}
 
+          {/* ── Student List ── */}
           {loading ? (
-            <div className="space-y-1.5">{[1, 2, 3, 4].map(i => <div key={i} className="card p-3 animate-pulse h-14 bg-slate-50 rounded-xl" />)}</div>
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="card p-4 animate-pulse">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="skeleton w-7 h-7 rounded-lg" />
+                    <div className="skeleton h-3.5 w-40 rounded-md" />
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[1,2,3,4,5].map(j => <div key={j} className="skeleton h-8 rounded-lg" />)}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : !selectedKelas ? (
-            <EmptyState title="Pilih kelas" description="Pilih kelas untuk mulai absensi." icon={<ClipboardCheck className="w-8 h-8 text-slate-300" />} />
+            <EmptyState
+              title="Pilih kelas terlebih dahulu"
+              description="Silakan pilih kelas untuk mulai menginput absensi santri."
+              icon={<ClipboardCheck className="w-10 h-10 text-slate-300" />}
+            />
           ) : muridFiltered.length === 0 ? (
-            <EmptyState title="Tidak ada santri" description="Belum ada santri aktif di kelas ini." icon={<ClipboardCheck className="w-8 h-8 text-slate-300" />} />
+            <EmptyState
+              title="Belum ada santri"
+              description="Tidak ada santri aktif yang terdaftar di kelas ini."
+              icon={<ClipboardCheck className="w-10 h-10 text-slate-300" />}
+            />
           ) : (
             <>
-              <div className="space-y-1.5 mb-3">
+              {/* Student rows */}
+              <div className="space-y-2">
                 {muridFiltered.map((m, i) => {
                   const status = attendance[m.id] ?? 'Hadir';
+                  const Icon = STATUS_CONFIG[status].icon;
                   return (
-                    <div key={m.id} className="card p-2.5">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <span className="text-slate-600 font-bold text-[10px]">{i + 1}</span>
+                    <div key={m.id} className="card p-3">
+                      {/* Name row */}
+                      <div className="flex items-center gap-2.5 mb-2.5">
+                        <div className="w-7 h-7 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px]">{i + 1}</span>
                         </div>
-                        <p className="font-medium text-slate-800 text-xs flex-1 min-w-0 truncate">{m.nama}</p>
-                        <span className={`badge text-[8px] flex-shrink-0 ${status === 'Hadir' ? 'badge-success' : status === 'Izin' ? 'badge-warning' : status === 'Sakit' ? 'badge-info' : status === 'Telat' ? 'badge-warning' : 'badge-danger'}`}>
+                        <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm flex-1 min-w-0 truncate">
+                          {m.nama}
+                        </p>
+                        <span className={`badge badge-${status === 'Hadir' ? 'success' : status === 'Izin' || status === 'Telat' ? 'warning' : status === 'Sakit' ? 'info' : 'danger'} text-[10px] flex-shrink-0 flex items-center gap-1`}>
+                          <Icon className="w-3 h-3" />
                           {status}
                         </span>
                       </div>
-                      <div className="grid grid-cols-5 gap-1">
+
+                      {/* Status buttons */}
+                      <div className="grid grid-cols-5 gap-1.5">
                         {STATUS_LIST.map(s => {
-                          const Icon = STATUS_CONFIG[s].icon;
+                          const Ico = STATUS_CONFIG[s].icon;
+                          const isActive = status === s;
                           return (
                             <button
                               key={s}
                               onClick={() => setAttendance(prev => ({ ...prev, [m.id]: s }))}
-                              className={`py-1.5 rounded-lg text-[9px] font-bold border transition-all flex items-center justify-center gap-0.5 ${status === s ? STATUS_CONFIG[s].active : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+                              className={`
+                                py-1.5 rounded-xl text-[10px] font-bold border transition-all duration-150
+                                flex flex-col items-center justify-center gap-0.5
+                                ${isActive
+                                  ? `${STATUS_CONFIG[s].active} shadow-sm`
+                                  : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                }
+                              `}
                             >
-                              <Icon className="w-3 h-3" />
-                              {s}
+                              <Ico className="w-3.5 h-3.5" />
+                              <span>{s}</span>
                             </button>
                           );
                         })}
@@ -318,138 +412,223 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                   );
                 })}
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => loadData(selectedKelas, tanggal)} className="btn-secondary flex-1 flex items-center justify-center gap-1.5 text-xs">
-                  <Pencil className="w-3.5 h-3.5" /> Edit
+
+              {/* Action buttons */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => loadData(selectedKelas, tanggal)}
+                  className="btn-secondary flex-1 gap-2"
+                >
+                  <Pencil className="w-4 h-4" />
+                  Reset
                 </button>
-                <button onClick={confirmSave} disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs">
-                  <Save className="w-3.5 h-3.5" /> {saving ? 'Menyimpan...' : 'Simpan'}
+                <button
+                  onClick={confirmSave}
+                  disabled={saving}
+                  className="btn-primary flex-1 gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Menyimpan…' : 'Simpan Absensi'}
                 </button>
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
+      {/* ════════════════════════════════
+          TAB: REKAPITULASI
+      ════════════════════════════════ */}
       {tab === 'rekap' && (
-        <>
-          {/* Filter Rekap */}
-          <div className="card p-3 mb-3">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="animate-slideUp space-y-4">
+
+          {/* ── Filter Card ── */}
+          <div className="card p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Kelas</label>
-                <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-xs">
-                  <option value="">Pilih</option>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Kelas</label>
+                <select
+                  value={selectedKelas}
+                  onChange={e => setSelectedKelas(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Pilih Kelas</option>
                   {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Jenis</label>
-                <select value={rekapType} onChange={e => setRekapType(e.target.value as 'bulanan' | 'tahunan')} className="input-field text-xs">
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Jenis</label>
+                <select
+                  value={rekapType}
+                  onChange={e => setRekapType(e.target.value as 'bulanan' | 'tahunan')}
+                  className="input-field"
+                >
                   <option value="bulanan">Bulanan</option>
                   <option value="tahunan">Tahunan</option>
                 </select>
               </div>
               {rekapType === 'bulanan' && (
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">Bulan</label>
-                  <select value={rekapBulan} onChange={e => setRekapBulan(Number(e.target.value))} className="input-field text-xs">
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Bulan</label>
+                  <select
+                    value={rekapBulan}
+                    onChange={e => setRekapBulan(Number(e.target.value))}
+                    className="input-field"
+                  >
                     {BULAN.map((b, i) => <option key={b} value={i + 1}>{b}</option>)}
                   </select>
                 </div>
               )}
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Tahun</label>
-                <select value={rekapTahun} onChange={e => setRekapTahun(Number(e.target.value))} className="input-field text-xs">
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Tahun</label>
+                <select
+                  value={rekapTahun}
+                  onChange={e => setRekapTahun(Number(e.target.value))}
+                  className="input-field"
+                >
                   {years.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Export & Share */}
+          {/* ── Export Actions ── */}
           {selectedKelas && muridFiltered.length > 0 && (
-            <div className="flex gap-2 mb-3">
-              <button onClick={exportRekapPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 rounded-xl text-xs font-bold transition-colors">
-                <FileText className="w-3.5 h-3.5" /> PDF
+            <div className="flex gap-2">
+              <button
+                onClick={exportRekapPDF}
+                className="btn-danger flex items-center gap-2 text-sm"
+              >
+                <FileText className="w-4 h-4" />
+                Ekspor PDF
               </button>
-              <button onClick={shareRekapWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-2 rounded-xl text-xs font-bold transition-colors">
-                <Share2 className="w-3.5 h-3.5" /> WA
+              <button
+                onClick={shareRekapWA}
+                className="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-700 font-semibold text-sm px-4 py-2 rounded-xl transition-all duration-150 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 dark:text-emerald-400"
+              >
+                <Share2 className="w-4 h-4" />
+                Bagikan WA
               </button>
             </div>
           )}
 
+          {/* ── Rekap Content ── */}
           {rekapLoading ? (
-            <div className="space-y-1.5">{[1, 2, 3].map(i => <div key={i} className="card p-3 animate-pulse h-14 bg-slate-50 rounded-xl" />)}</div>
-          ) : !selectedKelas ? (
-            <EmptyState title="Pilih kelas" description="Pilih kelas dan periode untuk melihat rekap." icon={<Calendar className="w-8 h-8 text-slate-300" />} />
-          ) : muridFiltered.length === 0 ? (
-            <EmptyState title="Tidak ada santri" description="Belum ada santri di kelas ini." icon={<Calendar className="w-8 h-8 text-slate-300" />} />
-          ) : (
             <div className="space-y-2">
-              {/* Overall */}
-              <div className="card p-3 bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-slate-700">Kehadiran Kelas</span>
-                  <span className="text-xl font-bold text-emerald-700">
-                    {(() => {
-                      let totalHadir = 0, totalAll = 0;
-                      muridFiltered.forEach(m => {
-                        const d = rekapData[m.id] ?? { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0, Telat: 0 };
-                        const t = d.Hadir + d.Izin + d.Sakit + d.Alpha + d.Telat;
-                        totalHadir += d.Hadir; totalAll += t;
-                      });
-                      return totalAll > 0 ? ((totalHadir / totalAll) * 100).toFixed(0) : '0';
-                    })()}%
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="card p-4 animate-pulse">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="skeleton w-7 h-7 rounded-lg" />
+                    <div className="skeleton h-3.5 w-36 rounded-md" />
+                    <div className="skeleton h-5 w-12 rounded-full ml-auto" />
+                  </div>
+                  <div className="skeleton h-2 w-full rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : !selectedKelas ? (
+            <EmptyState
+              title="Pilih kelas & periode"
+              description="Pilih kelas dan periode untuk melihat rekapitulasi kehadiran."
+              icon={<Calendar className="w-10 h-10 text-slate-300" />}
+            />
+          ) : muridFiltered.length === 0 ? (
+            <EmptyState
+              title="Belum ada santri"
+              description="Tidak ada santri yang terdaftar di kelas ini."
+              icon={<Calendar className="w-10 h-10 text-slate-300" />}
+            />
+          ) : (
+            <div className="space-y-3">
+
+              {/* ── Class-wide summary card ── */}
+              <div className="card p-4 border-emerald-200 dark:border-emerald-700/40"
+                   style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="icon-box icon-box-sm icon-box-emerald">
+                      <ClipboardCheck className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Kehadiran Kelas</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {selectedKelas} · {muridFiltered.length} santri
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-3xl font-black ${classAttendancePct >= 80 ? 'text-emerald-600' : classAttendancePct >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>
+                    {classAttendancePct.toFixed(0)}%
                   </span>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div className="progress-bar">
                   <div
-                    className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all"
-                    style={{ width: `${(() => {
-                      let totalHadir = 0, totalAll = 0;
-                      muridFiltered.forEach(m => {
-                        const d = rekapData[m.id] ?? { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0, Telat: 0 };
-                        const t = d.Hadir + d.Izin + d.Sakit + d.Alpha + d.Telat;
-                        totalHadir += d.Hadir; totalAll += t;
-                      });
-                      return totalAll > 0 ? (totalHadir / totalAll) * 100 : 0;
-                    })()}%` }}
+                    className={`progress-fill ${classAttendancePct >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' : classAttendancePct >= 60 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+                    style={{ width: `${classAttendancePct}%` }}
                   />
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-3 mt-3 flex-wrap">
+                  {STATUS_LIST.map(s => {
+                    let total = 0;
+                    muridFiltered.forEach(m => {
+                      const d = rekapData[m.id] ?? { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0, Telat: 0 };
+                      total += d[s];
+                    });
+                    return (
+                      <span key={s} className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLOR[s]}`} />
+                        {s}: <strong className="text-slate-700 dark:text-slate-200">{total}</strong>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Per Student */}
-              <div className="space-y-1">
+              {/* ── Per-student rows ── */}
+              <div className="space-y-2">
                 {muridFiltered.map((m, i) => {
                   const d = rekapData[m.id] ?? { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0, Telat: 0 };
                   const total = d.Hadir + d.Izin + d.Sakit + d.Alpha + d.Telat;
                   const pct = total > 0 ? (d.Hadir / total) * 100 : 0;
+                  const pctLabel = pct.toFixed(0);
+                  const badgeCls = pct >= 80 ? 'badge-success' : pct >= 50 ? 'badge-warning' : 'badge-danger';
+
                   return (
-                    <div key={m.id} className="card p-2.5">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <span className="text-slate-600 font-bold text-[10px]">{i + 1}</span>
+                    <div key={m.id} className="card p-3">
+                      {/* Header row */}
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-7 h-7 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px]">{i + 1}</span>
                         </div>
-                        <p className="font-medium text-slate-800 text-xs flex-1 min-w-0 truncate">{m.nama}</p>
-                        <span className={`badge text-[9px] ${pct >= 80 ? 'badge-success' : pct >= 50 ? 'badge-warning' : 'badge-danger'}`}>
-                          {pct.toFixed(0)}%
-                        </span>
+                        <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm flex-1 min-w-0 truncate">
+                          {m.nama}
+                        </p>
+                        <span className={`badge ${badgeCls} text-[10px]`}>{pctLabel}%</span>
                       </div>
-                      <div className="flex h-1.5 rounded-full overflow-hidden bg-slate-100">
+
+                      {/* Multi-color progress bar */}
+                      <div className="flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 mb-2">
                         {total > 0 && STATUS_LIST.map(s => {
                           const val = d[s];
                           if (val === 0) return null;
                           return (
-                            <div key={s} className={STATUS_COLOR[s]} style={{ width: `${(val / total) * 100}%` }} title={`${s}: ${val}`} />
+                            <div
+                              key={s}
+                              className={`${STATUS_COLOR[s]} transition-all`}
+                              style={{ width: `${(val / total) * 100}%` }}
+                              title={`${s}: ${val}`}
+                            />
                           );
                         })}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+
+                      {/* Mini stats */}
+                      <div className="flex items-center gap-2.5 flex-wrap">
                         {STATUS_LIST.map(s => (
-                          <span key={s} className="flex items-center gap-0.5 text-[9px] text-slate-500">
-                            <span className={`w-1.5 h-1.5 rounded-full ${STATUS_COLOR[s]}`} />
-                            {s.charAt(0)}:<strong className="text-slate-700">{d[s]}</strong>
+                          <span key={s} className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_COLOR[s]}`} />
+                            {s.charAt(0)}:<strong className="text-slate-700 dark:text-slate-200 font-semibold">{d[s]}</strong>
                           </span>
                         ))}
                       </div>
@@ -457,12 +636,13 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                   );
                 })}
               </div>
+
             </div>
           )}
-        </>
+        </div>
       )}
 
-      {/* Confirm Dialog */}
+      {/* ── Confirm Dialog ── */}
       <ConfirmDialog
         isOpen={showConfirmDialog}
         onClose={() => setShowConfirmDialog(false)}

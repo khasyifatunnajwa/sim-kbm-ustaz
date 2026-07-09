@@ -34,7 +34,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className={`p-2 rounded-lg transition-all ${isDark ? 'bg-slate-700 text-amber-400 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+      className={`p-2 rounded-lg transition-all ${isDark ? 'bg-white/10 text-amber-300 hover:bg-white/20' : 'bg-white/20 text-white hover:bg-white/30'}`}
       title={isDark ? 'Mode Terang' : 'Mode Gelap'}
     >
       {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -42,32 +42,30 @@ function ThemeToggle() {
   );
 }
 
-// ================== DASHBOARD CARDS ==================
+// ================== DASHBOARD STAT CARDS ==================
 function DashboardPresensiUstazCard({ data, loading, onClick }: { data: DashboardPresensiUstaz | null; loading: boolean; onClick: () => void }) {
   if (loading) {
-    return <div className="card p-3 animate-pulse"><div className="h-16 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
+    return <div className="card p-4 animate-pulse"><div className="skeleton h-16 rounded-xl" /></div>;
   }
 
   const sudahPresensi = (data?.hadir || 0) + (data?.terlambat || 0);
   const persentase = data?.total_guru ? Math.round((sudahPresensi / data.total_guru) * 100) : 0;
 
   return (
-    <button onClick={onClick} className="card p-3 w-full text-left hover:shadow-md transition-all group">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
-            <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Presensi Ustaz</span>
+    <button onClick={onClick} className="card card-hover p-4 w-full text-left group">
+      <div className="flex items-center justify-between mb-3">
+        <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all" />
       </div>
-      <div className="flex items-center gap-3">
-        <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{persentase}%</p>
-        <p className="text-[10px] text-slate-500 dark:text-slate-400">Klik untuk detail</p>
-      </div>
-      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden mt-2">
-        <div className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all" style={{ width: `${persentase}%` }} />
+      <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{persentase}%</p>
+      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-0.5">Presensi Ustaz</p>
+      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 mt-3 overflow-hidden">
+        <div
+          className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all duration-700"
+          style={{ width: `${persentase}%` }}
+        />
       </div>
     </button>
   );
@@ -75,33 +73,37 @@ function DashboardPresensiUstazCard({ data, loading, onClick }: { data: Dashboar
 
 function DashboardKelasKosongCard({ data, loading, onClick }: { data: KelasKosong[]; loading: boolean; onClick: () => void }) {
   if (loading) {
-    return <div className="card p-3 animate-pulse"><div className="h-16 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
+    return <div className="card p-4 animate-pulse"><div className="skeleton h-16 rounded-xl" /></div>;
   }
 
   const jumlahKosong = data?.length || 0;
+  const isAlert = jumlahKosong > 0;
 
   return (
-    <button onClick={onClick} className={`card p-3 w-full text-left hover:shadow-md transition-all group ${jumlahKosong > 0 ? 'border-l-2 border-l-rose-500' : ''}`}>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${jumlahKosong > 0 ? 'bg-rose-100 dark:bg-rose-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
-            <AlertTriangle className={`w-4 h-4 ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
-          </div>
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Kelas Kosong</span>
+    <button
+      onClick={onClick}
+      className={`card card-hover p-4 w-full text-left group ${isAlert ? 'border-l-2 border-l-rose-500' : ''}`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isAlert ? 'bg-rose-100 dark:bg-rose-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
+          <AlertTriangle className={`w-4 h-4 ${isAlert ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all" />
       </div>
-      <div className="flex items-center gap-3">
-        <p className={`text-3xl font-bold ${jumlahKosong > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{jumlahKosong}</p>
-        <p className="text-[10px] text-slate-500 dark:text-slate-400">{jumlahKosong > 0 ? 'kelas' : 'aman'}</p>
-      </div>
+      <p className={`text-2xl font-bold tabular-nums ${isAlert ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+        {jumlahKosong}
+      </p>
+      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-0.5">Kelas Kosong</p>
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
+        {isAlert ? `${jumlahKosong} kelas belum` : 'Semua aman ✓'}
+      </p>
     </button>
   );
 }
 
 function DashboardPresensiMuridCard({ data, loading, onClick }: { data: PresensiMuridByKelas[]; loading: boolean; onClick: () => void }) {
   if (loading) {
-    return <div className="card p-3 animate-pulse"><div className="h-16 bg-slate-200 dark:bg-slate-700 rounded" /></div>;
+    return <div className="card p-4 animate-pulse"><div className="skeleton h-16 rounded-xl" /></div>;
   }
 
   const totalHadir = data.reduce((sum, k) => sum + (k.hadir || 0), 0);
@@ -109,22 +111,20 @@ function DashboardPresensiMuridCard({ data, loading, onClick }: { data: Presensi
   const persentase = totalMurid > 0 ? Math.round((totalHadir / totalMurid) * 100) : 0;
 
   return (
-    <button onClick={onClick} className="card p-3 w-full text-left hover:shadow-md transition-all group">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center">
-            <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-          </div>
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Presensi Murid</span>
+    <button onClick={onClick} className="card card-hover p-4 w-full text-left group">
+      <div className="flex items-center justify-between mb-3">
+        <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-sky-500 group-hover:translate-x-0.5 transition-all" />
       </div>
-      <div className="flex items-center gap-3">
-        <p className="text-3xl font-bold text-sky-600 dark:text-sky-400">{persentase}%</p>
-        <p className="text-[10px] text-slate-500 dark:text-slate-400">Klik untuk detail</p>
-      </div>
-      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 mt-2">
-        <div className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full" style={{ width: `${persentase}%` }} />
+      <p className="text-2xl font-bold text-sky-600 dark:text-sky-400 tabular-nums">{persentase}%</p>
+      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-0.5">Presensi Murid</p>
+      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 mt-3 overflow-hidden">
+        <div
+          className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full transition-all duration-700"
+          style={{ width: `${persentase}%` }}
+        />
       </div>
     </button>
   );
@@ -192,78 +192,94 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
   };
 
   const quickMenuItems = [
-    { icon: Users, label: 'Presensi', section: 'presensi' as AdminSection, color: 'emerald' },
-    { icon: Shield, label: 'Kelola User', section: 'kelola-user' as AdminSection, color: 'violet' },
-    { icon: BookOpen, label: 'Data Akademik', section: 'data-akademik' as AdminSection, color: 'sky' },
-    { icon: AlertTriangle, label: 'Kenakalan', section: 'kenakalan' as AdminSection, color: 'rose' },
+    { icon: Users, label: 'Presensi', section: 'presensi' as AdminSection, bgClass: 'bg-emerald-50 dark:bg-emerald-900/20', iconClass: 'text-emerald-600 dark:text-emerald-400', borderClass: 'border-emerald-100 dark:border-emerald-800' },
+    { icon: Shield, label: 'Kelola User', section: 'kelola-user' as AdminSection, bgClass: 'bg-violet-50 dark:bg-violet-900/20', iconClass: 'text-violet-600 dark:text-violet-400', borderClass: 'border-violet-100 dark:border-violet-800' },
+    { icon: BookOpen, label: 'Data Akademik', section: 'data-akademik' as AdminSection, bgClass: 'bg-sky-50 dark:bg-sky-900/20', iconClass: 'text-sky-600 dark:text-sky-400', borderClass: 'border-sky-100 dark:border-sky-800' },
+    { icon: AlertTriangle, label: 'Kenakalan', section: 'kenakalan' as AdminSection, bgClass: 'bg-rose-50 dark:bg-rose-900/20', iconClass: 'text-rose-600 dark:text-rose-400', borderClass: 'border-rose-100 dark:border-rose-800' },
   ];
 
   const todayDate = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-4">
-      {/* Header with Date */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-4 text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-            <LayoutDashboard className="w-5 h-5" />
+
+      {/* ===== HEADER GRADIENT CARD (surface-secondary = dark slate) ===== */}
+      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-5 text-white shadow-xl overflow-hidden relative">
+        {/* Decorative blobs */}
+        <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/5 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-5 -left-5 w-20 h-20 bg-emerald-500/10 rounded-full pointer-events-none" />
+
+        <div className="relative flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/10">
+            <LayoutDashboard className="w-6 h-6 text-emerald-300" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-bold truncate">Dashboard Admin</h2>
-            <p className="text-slate-300 text-xs truncate">Halo, {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Admin'}</p>
-            <p className="text-emerald-300 text-[10px] mt-0.5">{todayDate}</p>
+            <p className="text-slate-400 text-[10px] uppercase tracking-widest font-semibold">Dashboard Admin</p>
+            <h2 className="text-base font-bold text-white truncate mt-0.5">
+              Halo, {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Admin'} 👋
+            </h2>
+            <p className="text-emerald-400 text-[10px] mt-0.5">{todayDate}</p>
           </div>
           <ThemeToggle />
         </div>
       </div>
 
-      {/* Dashboard Cards - 3 columns on md */}
+      {/* ===== STAT CARDS 3-COL ===== */}
       <div className="grid grid-cols-3 gap-2">
         <DashboardPresensiUstazCard data={presensiUstaz} loading={loading} onClick={() => onViewChange('presensi')} />
         <DashboardKelasKosongCard data={kelasKosong} loading={loading} onClick={() => onViewChange('presensi')} />
         <DashboardPresensiMuridCard data={presensiMurid} loading={loading} onClick={() => onViewChange('presensi')} />
       </div>
 
-      {/* Quick Menu */}
+      {/* ===== QUICK MENU 2×2 GRID ===== */}
       <div>
-        <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Menu Utama</p>
-        <div className="grid grid-cols-4 gap-2">
+        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2.5">Menu Utama</p>
+        <div className="grid grid-cols-2 gap-2">
           {quickMenuItems.map((item, i) => {
             const Icon = item.icon;
-            const colors: Record<string, string> = {
-              emerald: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800',
-              violet: 'bg-violet-50 dark:bg-violet-900/20 border-violet-100 dark:border-violet-800',
-              sky: 'bg-sky-50 dark:bg-sky-900/20 border-sky-100 dark:border-sky-800',
-              rose: 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800',
-            };
             return (
-              <button key={i} onClick={() => onViewChange(item.section)} className={`card p-2.5 flex flex-col items-center gap-1.5 hover:shadow-md transition-all group border ${colors[item.color]}`}>
-                <Icon className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-                <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300">{item.label}</span>
+              <button
+                key={i}
+                onClick={() => onViewChange(item.section)}
+                className={`card card-hover p-4 flex items-center gap-3 group text-left border ${item.borderClass} ${item.bgClass}`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white dark:bg-slate-800 shadow-sm`}>
+                  <Icon className={`w-4 h-4 ${item.iconClass}`} />
+                </div>
+                <span className="flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{item.label}</span>
+                <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Kelas Kosong Alert */}
+      {/* ===== KELAS KOSONG ALERT (card with rose left border) ===== */}
       {kelasKosong.length > 0 && (
-        <div className="card p-3 border-l-2 border-l-rose-500">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 text-rose-500" />
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Perhatian: Kelas Kosong</span>
+        <div className="card p-4 border-l-4 border-l-rose-500 bg-rose-50/50 dark:bg-rose-900/10">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 bg-rose-100 dark:bg-rose-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+            </div>
+            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Perhatian: Kelas Kosong</span>
+            <span className="ml-auto badge badge-danger">{kelasKosong.length}</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {kelasKosong.slice(0, 3).map((k, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs p-1.5 bg-rose-50 dark:bg-rose-900/20 rounded">
-                <span className="text-rose-600 dark:text-rose-400 font-medium w-12">{k.jam_mulai}</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">{k.nama_kelas}</span>
-                <span className="text-slate-500 dark:text-slate-400 truncate">{k.nama_guru}</span>
+              <div key={i} className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 rounded-lg border border-rose-100 dark:border-rose-900/30">
+                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 tabular-nums bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded-md min-w-[44px] text-center">
+                  {k.jam_mulai}
+                </span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{k.nama_kelas}</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate flex-1">{k.nama_guru}</span>
               </div>
             ))}
             {kelasKosong.length > 3 && (
-              <button onClick={() => onViewChange('presensi')} className="text-[10px] text-rose-600 dark:text-rose-400 font-medium hover:underline">
-                +{kelasKosong.length - 3} kelas lainnya
+              <button
+                onClick={() => onViewChange('presensi')}
+                className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold hover:underline w-full text-left pt-0.5"
+              >
+                +{kelasKosong.length - 3} kelas lainnya →
               </button>
             )}
           </div>
@@ -361,8 +377,11 @@ export default function AdminPage({ showToast, profile, setActiveTab }: { showTo
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <div className="text-center">
-          <Shield className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">Akses ditolak</p>
+          <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <Shield className="w-6 h-6 text-slate-400" />
+          </div>
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Akses ditolak</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Halaman ini hanya untuk admin</p>
         </div>
       </div>
     );
@@ -370,29 +389,91 @@ export default function AdminPage({ showToast, profile, setActiveTab }: { showTo
 
   return (
     <div>
+      {/* Back button — btn-ghost with ArrowLeft */}
       {isAdminSection && (
-        <button onClick={() => handleSectionChange('dashboard')} className="mb-3 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" />
+        <button
+          onClick={() => handleSectionChange('dashboard')}
+          className="btn-ghost mb-4 flex items-center gap-1.5 text-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
           Dashboard
         </button>
       )}
 
-      {section === 'dashboard' && <AdminDashboard onViewChange={handleSectionChange} profile={profile} showToast={showToast} />}
+      {section === 'dashboard' && (
+        <AdminDashboard onViewChange={handleSectionChange} profile={profile} showToast={showToast} />
+      )}
 
       {section === 'presensi' && (
-        <PresensiSection presensiTab={presensiTab} setPresensiTab={setPresensiTab} showToast={showToast} profile={profile} kelasList={kelasList} />
+        <PresensiSection
+          presensiTab={presensiTab}
+          setPresensiTab={setPresensiTab}
+          showToast={showToast}
+          profile={profile}
+          kelasList={kelasList}
+        />
       )}
 
       {section === 'kelola-user' && (
-        <KelolaUserSection kelolaUserTab={kelolaUserTab} setKelolaUserTab={setKelolaUserTab} showToast={showToast} profile={profile} users={users} tahunList={tahunList} semesterList={semesterList} kelasList={kelasList} mapelList={mapelList} ruanganList={ruanganList} loading={loading} saving={saving} showModal={showModal} setShowModal={setShowModal} editingId={editingId} setEditingId={setEditingId} search={search} setSearch={setSearch} page={page} setPage={setPage} userForm={userForm} setUserForm={setUserForm} tahunForm={tahunForm} setTahunForm={setTahunForm} semesterForm={semesterForm} setSemesterForm={setSemesterForm} kelasForm={kelasForm} setKelasForm={setKelasForm} mapelForm={mapelForm} setMapelForm={setMapelForm} ruanganForm={ruanganForm} setRuanganForm={setRuanganForm} resetPassId={resetPassId} setResetPassId={setResetPassId} newPassword={newPassword} setNewPassword={setNewPassword} isResetting={isResetting} setIsResetting={setIsResetting} fetchMasterData={fetchMasterData} />
+        <KelolaUserSection
+          kelolaUserTab={kelolaUserTab}
+          setKelolaUserTab={setKelolaUserTab}
+          showToast={showToast}
+          profile={profile}
+          users={users}
+          tahunList={tahunList}
+          semesterList={semesterList}
+          kelasList={kelasList}
+          mapelList={mapelList}
+          ruanganList={ruanganList}
+          loading={loading}
+          saving={saving}
+          showModal={showModal}
+          setShowModal={setShowModal}
+          editingId={editingId}
+          setEditingId={setEditingId}
+          search={search}
+          setSearch={setSearch}
+          page={page}
+          setPage={setPage}
+          userForm={userForm}
+          setUserForm={setUserForm}
+          tahunForm={tahunForm}
+          setTahunForm={setTahunForm}
+          semesterForm={semesterForm}
+          setSemesterForm={setSemesterForm}
+          kelasForm={kelasForm}
+          setKelasForm={setKelasForm}
+          mapelForm={mapelForm}
+          setMapelForm={setMapelForm}
+          ruanganForm={ruanganForm}
+          setRuanganForm={setRuanganForm}
+          resetPassId={resetPassId}
+          setResetPassId={setResetPassId}
+          newPassword={newPassword}
+          setNewPassword={setNewPassword}
+          isResetting={isResetting}
+          setIsResetting={setIsResetting}
+          fetchMasterData={fetchMasterData}
+        />
       )}
 
       {section === 'data-akademik' && (
-        <DataAkademikSection dataAkademikTab={dataAkademikTab} setDataAkademikTab={setDataAkademikTab} showToast={showToast} />
+        <DataAkademikSection
+          dataAkademikTab={dataAkademikTab}
+          setDataAkademikTab={setDataAkademikTab}
+          showToast={showToast}
+        />
       )}
 
       {section === 'kenakalan' && (
-        <KenakalanSection kenakalanTab={kenakalanTab} setKenakalanTab={setKenakalanTab} showToast={showToast} users={users} kelasList={kelasList} />
+        <KenakalanSection
+          kenakalanTab={kenakalanTab}
+          setKenakalanTab={setKenakalanTab}
+          showToast={showToast}
+          users={users}
+          kelasList={kelasList}
+        />
       )}
     </div>
   );
@@ -536,14 +617,26 @@ function KelolaUserSection({ kelolaUserTab, setKelolaUserTab, showToast, profile
         <p className="text-xs text-slate-500 dark:text-slate-400">Pengguna dan data master</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5">
+      {/* Scrollable horizontal chip row */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5" style={{ scrollbarWidth: 'none' }}>
         {masterTabs.map(t => {
           const Icon = t.icon;
+          const isActive = kelolaUserTab === t.id;
           return (
-            <button key={t.id} onClick={() => setKelolaUserTab(t.id)} className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold transition-all border ${kelolaUserTab === t.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
-              <Icon className="w-4 h-4" />
-              <span className="truncate">{t.label}</span>
-              <span className={`ml-auto px-1.5 py-0.5 rounded text-[9px] ${kelolaUserTab === t.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'}`}>{t.count}</span>
+            <button
+              key={t.id}
+              onClick={() => setKelolaUserTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 border ${
+                isActive
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {t.label}
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                {t.count}
+              </span>
             </button>
           );
         })}
@@ -592,11 +685,11 @@ function KelolaUserSection({ kelolaUserTab, setKelolaUserTab, showToast, profile
         }}
         onDelete={async (item: any) => {
           if (!confirm('Yakin ingin menghapus data ini?')) return;
-          const tableMap: Record<KelolaUserTab, string> = {
+          const tableMap: Record<string, string> = {
             users: 'profiles', tahun: 'tahun_ajaran', semester: 'semester',
             kelas: 'kelas', mapel: 'mata_pelajaran', ruangan: 'ruangan'
           };
-          const { error } = await supabase.from(tableMap[kelolaUserTab]).delete().eq('id', item.id);
+          const { error } = await supabase.from(tableMap[kelolaUserTab as string]).delete().eq('id', item.id);
           if (error) {
             showToast('Gagal menghapus: ' + error.message, 'error');
           } else {

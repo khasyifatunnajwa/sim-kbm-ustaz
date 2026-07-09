@@ -33,18 +33,23 @@ const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-20 h-20 rounded-3xl bg-white shadow-xl shadow-emerald-100 ring-4 ring-white flex items-center justify-center p-2">
-          <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f1117]">
+      <div className="flex flex-col items-center gap-5">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-3xl bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-3" style={{boxShadow:'0 8px 32px rgba(5,150,105,0.15)'}}>
+            <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-600 rounded-lg flex items-center justify-center">
+            <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
+          </div>
         </div>
-        <div>
-          <p className="text-lg font-bold text-slate-800 text-center">SIM KBM Ustaz</p>
-          <p className="text-xs text-slate-400 text-center mt-0.5">V2.0 Multi-Tenant</p>
+        <div className="text-center">
+          <p className="text-base font-bold text-slate-800 dark:text-slate-100">SIM KBM Ustaz</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">V2.0 Multi-Tenant</p>
         </div>
-        <div className="flex items-center gap-2 text-slate-500">
+        <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-          <span className="text-sm font-medium">Memuat aplikasi...</span>
+          <span className="text-xs font-medium">Memuat aplikasi...</span>
         </div>
       </div>
     </div>
@@ -53,15 +58,14 @@ function LoadingScreen() {
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-emerald-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f1117] p-6">
       <div className="max-w-sm w-full text-center">
-        <div className="text-6xl mb-4">⚠️</div>
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">Aplikasi Gagal Dimuat</h1>
-        <p className="text-slate-600 mb-6">{message}</p>
-        <button
-          onClick={onRetry}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-200 transition-all"
-        >
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center mx-auto mb-5">
+          <AlertCircle className="w-8 h-8 text-rose-500" />
+        </div>
+        <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">Aplikasi Gagal Dimuat</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{message}</p>
+        <button onClick={onRetry} className="btn-primary px-8">
           Coba Lagi
         </button>
       </div>
@@ -117,53 +121,36 @@ function SetupScreen({ showToast, onComplete }: { showToast: ShowToast; onComple
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f1117] p-5">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-3xl bg-white mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white flex items-center justify-center p-2">
+          <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 shadow-lg mx-auto mb-5 flex items-center justify-center p-2" style={{boxShadow:'0 8px 24px rgba(5,150,105,0.15)'}}>
             <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Setup Awal</h1>
-          <p className="text-slate-500 text-sm mt-1">Buat akun admin pertama</p>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">Setup Awal</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Buat akun admin pertama</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl border border-amber-200 p-6">
-          <div className="bg-amber-50 rounded-xl p-3 mb-5 flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700">
+        <div className="card p-6">
+          <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3.5 mb-5">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
               Selamat datang! Ini adalah pengaturan pertama kali. Buat akun admin untuk mulai menggunakan aplikasi.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">ID Login Admin</label>
-              <input
-                type="text"
-                value={idLogin}
-                onChange={e => setIdLogin(e.target.value)}
-                className="input-field"
-                placeholder="Contoh: admin"
-                required
-              />
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">ID Login Admin</label>
+              <input type="text" value={idLogin} onChange={e => setIdLogin(e.target.value)}
+                className="input-field" placeholder="Contoh: admin" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Kata Sandi</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input-field"
-                placeholder="Minimal 6 karakter"
-                required
-                minLength={6}
-              />
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kata Sandi</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                className="input-field" placeholder="Minimal 6 karakter" required minLength={6} />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full py-3 justify-center">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Membuat...' : 'Buat Admin'}
             </button>
@@ -248,70 +235,46 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f1117] p-5">
       <div className="w-full max-w-sm">
+        {/* Logo + Brand */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-3xl bg-white mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white flex items-center justify-center p-2">
+          <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 shadow-lg mx-auto mb-5 flex items-center justify-center p-2" style={{boxShadow:'0 8px 24px rgba(5,150,105,0.15)'}}>
             <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">SIM KBM Ustaz</h1>
-          <p className="text-slate-500 text-sm mt-1">Manajemen Kelas & Santri</p>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">SIM KBM Ustaz</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Sistem Informasi Manajemen KBM</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6">
-          <div className="flex bg-slate-100 rounded-2xl p-1 mb-6">
-            <button
-              onClick={() => setMode('login')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${mode === 'login' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
-            >
-              Masuk
-            </button>
-            <button
-              onClick={() => setMode('register')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${mode === 'register' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
-            >
-              Daftar
-            </button>
+        <div className="card p-6">
+          {/* Mode Toggle */}
+          <div className="tab-switcher mb-5">
+            <button onClick={() => setMode('login')} className={`tab-btn ${mode === 'login' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Masuk</button>
+            <button onClick={() => setMode('register')} className={`tab-btn ${mode === 'register' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Daftar</button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">ID Login / Email</label>
-              <input
-                type="text"
-                value={idLogin}
-                onChange={e => setIdLogin(e.target.value)}
-                className="input-field"
-                placeholder="ID Login atau alamat email"
-                required
-                autoComplete="username"
-              />
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">ID Login / Email</label>
+              <input type="text" value={idLogin} onChange={e => setIdLogin(e.target.value)}
+                className="input-field" placeholder="ID Login atau alamat email"
+                required autoComplete="username" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Kata Sandi</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input-field"
-                placeholder="Minimal 6 karakter"
-                required
-                minLength={6}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              />
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kata Sandi</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                className="input-field" placeholder="Minimal 6 karakter"
+                required minLength={6}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full py-3 justify-center">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Memproses...' : mode === 'login' ? 'Masuk' : 'Buat Akun'}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-xs text-slate-400 dark:text-slate-600 mt-6">
           Sistem Informasi Manajemen KBM Ustaz V2.0
         </p>
       </div>
@@ -531,17 +494,18 @@ export default function App() {
         size="sm"
       >
         <div className="flex items-start gap-3 mb-5">
-          <div className="p-2 rounded-xl bg-amber-50">
-            <LogOut className="w-5 h-5 text-amber-500" />
+          <div className="icon-box icon-box-md icon-box-amber flex-shrink-0">
+            <LogOut size={18} />
           </div>
-          <p className="text-sm text-slate-600 leading-relaxed">Apakah Anda ingin keluar dari aplikasi?</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Apakah Anda ingin keluar dari aplikasi ini?</p>
         </div>
-        <div className="flex gap-2 justify-end">
-          <button onClick={() => setShowExitDialog(false)} className="btn-secondary text-sm">Batal</button>
+        <div className="flex gap-2.5">
+          <button onClick={() => setShowExitDialog(false)} className="btn-secondary flex-1">Batal</button>
           <button
             onClick={() => { setShowExitDialog(false); handleLogout(); }}
-            className="text-sm px-5 py-2.5 rounded-xl font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-sm shadow-rose-100 transition-all active:scale-95"
+            className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 px-5 py-2.5 rounded-xl transition-all active:scale-95"
           >
+            <LogOut size={15} />
             Ya, Keluar
           </button>
         </div>
