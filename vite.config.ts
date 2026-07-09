@@ -107,7 +107,7 @@ export default defineConfig({
             purpose: 'any maskable'
           },
           {
-            src: '/icon/512x512.png',
+            src: '/icon/logo_asli_trp.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
