@@ -235,8 +235,8 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
         </div>
       </div>
 
-      {/* Dashboard Cards - 3 columns on md */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Dashboard Cards - 1 col di HP, 3 col di Desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-2">
         <DashboardPresensiUstazCard data={presensiUstaz} loading={loading} onClick={() => onViewChange('presensi')} />
         <DashboardKelasKosongCard data={kelasKosong} loading={loading} onClick={() => onViewChange('presensi')} />
         <DashboardPresensiMuridCard data={presensiMurid} loading={loading} onClick={() => onViewChange('presensi')} />
@@ -245,7 +245,7 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
       {/* Quick Menu */}
       <div>
         <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Menu Utama</p>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
           {quickMenuItems.map((item, i) => {
             const Icon = item.icon;
             const colors: Record<string, string> = {
