@@ -107,10 +107,10 @@ export default defineConfig({
             purpose: 'any'
           },
           {
-            src: '/icon/logo_asli_trp.png',
+            src: '/icon/logo_asli.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'maskable'
+            purpose: 'any'
           },
           {
             src: '/icon/1024x1024.png',
