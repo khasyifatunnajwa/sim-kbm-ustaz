@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -11,7 +11,7 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100;
+    @apply bg-[#F5F6FA] text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100;
   }
 
   * {
@@ -26,18 +26,16 @@
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden
-           dark:bg-slate-800 dark:border-slate-700;
+    @apply bg-white rounded-2xl shadow-sm border border-slate-100
+           dark:bg-slate-800 dark:border-slate-700/60;
   }
 
   .card-hover {
-    @apply hover:shadow-md hover:border-slate-200 transition-all duration-300
-           dark:hover:border-slate-600;
+    @apply hover:shadow-md transition-all duration-300;
   }
 
   .btn-primary {
-    @apply bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm shadow-emerald-100 transition-all duration-200 active:scale-95
-           dark:shadow-emerald-900/30;
+    @apply bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-all duration-200;
   }
 
   .btn-secondary {
@@ -60,7 +58,7 @@
   }
 
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
   }
 
   .badge-success {
@@ -84,11 +82,11 @@
   }
 
   .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200;
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200;
   }
 
   .nav-item-active {
-    @apply bg-emerald-50 text-emerald-700 font-bold shadow-sm
+    @apply bg-emerald-50 text-emerald-700 font-bold
            dark:bg-emerald-900/30 dark:text-emerald-400;
   }
 
@@ -161,6 +159,13 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }
 
 /* Toast notification */
@@ -181,27 +186,11 @@
   @apply border-l-4 border-l-rose-500;
 }
 
-@layer utilities {
-  .animate-marquee {
-    animation: marquee 25s linear infinite;
-  }
-}
-
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
 
-/* Dark mode specific adjustments */
-.dark .shadow-emerald-100 {
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05), 0 1px 3px 0 rgb(0 0 0 / 0.1);
-}
-
-/* Graph/Chart colors in dark mode */
-.dark .chart-bar-emerald {
-  @apply bg-emerald-400;
-}
-
-.dark .chart-bar-amber {
-  @apply bg-amber-400;
+.animate-marquee {
+  animation: marquee 25s linear infinite;
 }
