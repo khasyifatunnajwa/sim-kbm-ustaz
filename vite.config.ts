@@ -89,7 +89,7 @@ export default defineConfig({
         background_color: '#ffffff',
         lang: 'id',
         categories: ['education', 'productivity'],
-        icons: [
+                icons: [
           {
             src: '/icon/16x16.png',
             sizes: '16x16',
@@ -104,19 +104,19 @@ export default defineConfig({
             src: '/icon/192x192.png',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any'
+            purpose: 'any' // PERBAIKAN: Hapus kata 'maskable'
           },
           {
-            src: '/icon/logo_asli.png',
+            src: '/icon/512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any'
+            purpose: 'any' // PERBAIKAN: Hapus kata 'maskable'
           },
           {
             src: '/icon/1024x1024.png',
             sizes: '1024x1024',
             type: 'image/png',
-            purpose: 'any'
+            purpose: 'any' // PERBAIKAN: Hapus kata 'maskable'
           }
         ]
       }
