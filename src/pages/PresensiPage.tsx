@@ -40,7 +40,7 @@ async function getGPS(): Promise<{ latitude: number; longitude: number; accuracy
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-      (err) => reject(new Error('Gagal mendapatkan lokasi GPS: ' + err.message)),
+      (err) => reject(new Error('Gagal mendapatkan lokasi GPS. Pastikan izin GPS aktif.')),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   });
@@ -58,9 +58,9 @@ async function compressImage(file: File, maxSize: number = 1280, quality: number
       const canvas = document.createElement('canvas');
       canvas.width = width; canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) { reject(new Error('Canvas error')); return; }
+      if (!ctx) return reject('Canvas error');
       ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Gagal kompres')), 'image/jpeg', quality);
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject('Gagal kompres'), 'image/jpeg', quality);
     };
     img.src = URL.createObjectURL(file);
   });
@@ -96,6 +96,7 @@ export default function PresensiPage({ showToast, profile }: { showToast: ShowTo
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedJadwal, setSelectedJadwal] = useState<JadwalMengajar | null>(null);
+  const [gpsData, setGpsData] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -118,9 +119,17 @@ export default function PresensiPage({ showToast, profile }: { showToast: ShowTo
         video: { facingMode: 'environment' }, audio: false
       });
       streamRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; }
+      if (videoRef.current) { 
+        videoRef.current.srcObject = stream; 
+        await videoRef.current.play();
+      }
       setCameraOpen(true);
-    } catch (err) { setCameraError('Gagal akses kamera.'); }
+    } catch (err) { setCameraError('Gagal akses kamera. Pastikan izin diizinkan.'); }
+  };
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    setCameraOpen(false);
   };
 
   const capturePhoto = () => {
@@ -135,40 +144,80 @@ export default function PresensiPage({ showToast, profile }: { showToast: ShowTo
     stopCamera();
   };
 
-  const stopCamera = () => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    setCameraOpen(false);
+  const handlePresensi = async (jadwal: JadwalMengajar) => {
+    try {
+      const gps = await getGPS();
+      setGpsData(gps);
+      setSelectedJadwal(jadwal);
+      startCamera();
+    } catch (err: any) { showToast(err.message, 'error'); }
+  };
+
+  const submitPresensi = async () => {
+    if (!capturedPhoto || !selectedJadwal || !gpsData || !profile) return;
+    setUploading(true);
+    try {
+      const timeData = await getServerTime();
+      const watermarked = await addWatermark(capturedPhoto, {
+        namaGuru: profile.nama_lengkap || 'Ustaz',
+        mapel: selectedJadwal.pelajaran,
+        kelas: selectedJadwal.kelas,
+        tanggal: timeData.server_date,
+        jamServer: timeData.server_hour
+      });
+      const compressed = await compressImage(new File([watermarked], 'img.jpg'));
+      
+      const path = `${profile.id}/${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage.from('presensi-ustaz').upload(path, compressed);
+      if (uploadErr) throw uploadErr;
+
+      const { error: insertErr } = await supabase.from('presensi_ustaz').insert({
+        guru_id: profile.id, jadwal_id: selectedJadwal.id, tanggal: timeData.server_date,
+        jam_server: timeData.server_time, latitude: gpsData.latitude, longitude: gpsData.longitude,
+        photo_url: `${SUPABASE_URL}/storage/v1/object/public/presensi-ustaz/${path}`, status: 'Hadir'
+      });
+      
+      if (insertErr) throw insertErr;
+      showToast('Presensi berhasil!', 'success');
+      window.location.reload();
+    } catch (err: any) { showToast(err.message, 'error'); }
+    setUploading(false);
   };
 
   return (
     <div className="space-y-4 p-4">
       <h2 className="text-lg font-bold text-slate-800">Presensi Mengajar</h2>
-      
-      {/* Daftar Jadwal */}
-      <div className="space-y-3">
-        {jadwalList.filter(j => j.hari === getHariToday()).map(j => (
-          <div key={j.id} className="card p-4 flex justify-between items-center">
-            <div>
-              <p className="font-bold text-sm">{j.pelajaran}</p>
-              <p className="text-xs text-slate-500">Kelas {j.kelas}</p>
-            </div>
-            <button onClick={() => { setSelectedJadwal(j); startCamera(); }} className="btn-primary text-xs">Presensi</button>
-          </div>
-        ))}
-      </div>
+      {jadwalList.filter(j => j.hari === getHariToday()).map(j => (
+        <div key={j.id} className="card p-4 flex justify-between items-center">
+          <div><p className="font-bold text-sm">{j.pelajaran}</p><p className="text-xs text-slate-500">Kelas {j.kelas}</p></div>
+          <button onClick={() => handlePresensi(j)} className="btn-primary text-xs">Presensi</button>
+        </div>
+      ))}
 
-      {/* Modal Kamera - PERBAIKAN DI SINI */}
+      {/* Modal Kamera - PERBAIKAN: playsInline & muted */}
       {cameraOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
           <video
             ref={videoRef}
             autoPlay
-            playsInline // <-- PERBAIKAN: Agar jalan di iPhone
-            muted       // <-- PERBAIKAN: Agar tidak diblokir browser
+            playsInline
+            muted
             className="flex-1 w-full object-cover"
           />
-          <div className="p-6 flex justify-center bg-black">
+          <div className="p-6 flex justify-center bg-black gap-4">
+            <button onClick={() => { stopCamera(); setCapturedPhoto(null); }} className="bg-rose-600 text-white px-4 py-2 rounded-lg">Batal</button>
             <button onClick={capturePhoto} className="w-16 h-16 rounded-full bg-white border-4 border-emerald-500" />
+          </div>
+        </div>
+      )}
+
+      {/* Preview */}
+      {capturedUrl && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-4">
+          <img src={capturedUrl} className="max-h-[60vh] rounded-lg" alt="preview" />
+          <div className="flex gap-4 mt-6">
+            <button onClick={() => setCapturedUrl(null)} className="btn-secondary">Ulang</button>
+            <button onClick={submitPresensi} disabled={uploading} className="btn-primary">{uploading ? 'Mengirim...' : 'Kirim'}</button>
           </div>
         </div>
       )}
