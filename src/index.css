@@ -60,6 +60,7 @@
            dark:bg-slate-800/90 dark:border-slate-700/50;
     box-shadow: var(--shadow-sm);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
+    min-width: 0;
   }
 
   .card-hover {

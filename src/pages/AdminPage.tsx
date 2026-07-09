@@ -5,7 +5,7 @@ import {
   Building2, Key, BarChart3, TrendingUp, Clock, AlertCircle, FileText,
   ChevronRight, Settings, LayoutDashboard, Activity, AlertTriangle,
   Sun, Moon, UsersRound, UserX, School, MessageCircleWarning,
-  RefreshCw, ArrowLeft, Eye, Phone, Send, Filter
+  RefreshCw, ArrowLeft, Eye, Phone, Send, Filter, Bell
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -20,7 +20,7 @@ import DataSiswaPage from './DataSiswaPage';
 import DataUstazPage from './DataUstazPage';
 import { useThemeContext } from '../contexts/ThemeContext';
 
-type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan';
+type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan' | 'pengumuman';
 type PresensiTab = 'ustaz' | 'murid';
 type KelolaUserTab = 'users' | 'tahun' | 'semester' | 'kelas' | 'mapel' | 'ruangan';
 type DataAkademikTab = 'siswa' | 'ustaz';
@@ -131,7 +131,7 @@ function DashboardPresensiMuridCard({ data, loading, onClick }: { data: Presensi
 }
 
 // ================== ADMIN DASHBOARD ==================
-function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (section: AdminSection) => void; profile: Profile | null; showToast: ShowToast }) {
+function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (section: AdminSection | '_nav_pengumuman') => void; profile: Profile | null; showToast: ShowToast }) {
   const [loading, setLoading] = useState(true);
   const [presensiUstaz, setPresensiUstaz] = useState<DashboardPresensiUstaz | null>(null);
   const [kelasKosong, setKelasKosong] = useState<KelasKosong[]>([]);
@@ -192,10 +192,11 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
   };
 
   const quickMenuItems = [
-    { icon: Users, label: 'Presensi', section: 'presensi' as AdminSection, bgClass: 'bg-emerald-50 dark:bg-emerald-900/20', iconClass: 'text-emerald-600 dark:text-emerald-400', borderClass: 'border-emerald-100 dark:border-emerald-800' },
-    { icon: Shield, label: 'Kelola User', section: 'kelola-user' as AdminSection, bgClass: 'bg-violet-50 dark:bg-violet-900/20', iconClass: 'text-violet-600 dark:text-violet-400', borderClass: 'border-violet-100 dark:border-violet-800' },
-    { icon: BookOpen, label: 'Data Akademik', section: 'data-akademik' as AdminSection, bgClass: 'bg-sky-50 dark:bg-sky-900/20', iconClass: 'text-sky-600 dark:text-sky-400', borderClass: 'border-sky-100 dark:border-sky-800' },
-    { icon: AlertTriangle, label: 'Kenakalan', section: 'kenakalan' as AdminSection, bgClass: 'bg-rose-50 dark:bg-rose-900/20', iconClass: 'text-rose-600 dark:text-rose-400', borderClass: 'border-rose-100 dark:border-rose-800' },
+    { icon: Users,         label: 'Presensi',      section: 'presensi' as AdminSection,     bgClass: 'bg-emerald-50 dark:bg-emerald-900/20', iconClass: 'text-emerald-600 dark:text-emerald-400', borderClass: 'border-emerald-100 dark:border-emerald-800' },
+    { icon: Shield,        label: 'Kelola User',   section: 'kelola-user' as AdminSection,  bgClass: 'bg-violet-50 dark:bg-violet-900/20',  iconClass: 'text-violet-600 dark:text-violet-400',  borderClass: 'border-violet-100 dark:border-violet-800' },
+    { icon: BookOpen,      label: 'Akademik',      section: 'data-akademik' as AdminSection,bgClass: 'bg-sky-50 dark:bg-sky-900/20',        iconClass: 'text-sky-600 dark:text-sky-400',        borderClass: 'border-sky-100 dark:border-sky-800' },
+    { icon: AlertTriangle, label: 'Kenakalan',     section: 'kenakalan' as AdminSection,    bgClass: 'bg-rose-50 dark:bg-rose-900/20',      iconClass: 'text-rose-600 dark:text-rose-400',      borderClass: 'border-rose-100 dark:border-rose-800' },
+    { icon: Megaphone,     label: 'Pengumuman',    section: 'pengumuman' as AdminSection,   bgClass: 'bg-amber-50 dark:bg-amber-900/20',    iconClass: 'text-amber-600 dark:text-amber-400',    borderClass: 'border-amber-100 dark:border-amber-800' },
   ];
 
   const todayDate = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -203,51 +204,56 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
   return (
     <div className="space-y-4">
 
-      {/* ===== HEADER GRADIENT CARD (surface-secondary = dark slate) ===== */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-5 text-white shadow-xl overflow-hidden relative">
-        {/* Decorative blobs */}
-        <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/5 rounded-full pointer-events-none" />
-        <div className="absolute -bottom-5 -left-5 w-20 h-20 bg-emerald-500/10 rounded-full pointer-events-none" />
-
+      {/* ===== HEADER ===== */}
+      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-4 sm:p-5 text-white shadow-xl overflow-hidden relative">
+        <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/5 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-emerald-500/10 rounded-full pointer-events-none" />
         <div className="relative flex items-center gap-3">
-          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/10">
-            <LayoutDashboard className="w-6 h-6 text-emerald-300" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/10">
+            <LayoutDashboard className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-slate-400 text-[10px] uppercase tracking-widest font-semibold">Dashboard Admin</p>
-            <h2 className="text-base font-bold text-white truncate mt-0.5">
-              Halo, {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Admin'} 👋
+            <h2 className="text-sm sm:text-base font-bold text-white truncate mt-0.5">
+              Halo, {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Admin'}!
             </h2>
-            <p className="text-emerald-400 text-[10px] mt-0.5">{todayDate}</p>
+            <p className="text-emerald-400 text-[10px] mt-0.5 truncate">{todayDate}</p>
           </div>
           <ThemeToggle />
         </div>
       </div>
 
-      {/* ===== STAT CARDS 3-COL ===== */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* ===== STAT CARDS: 2-col top row + 1 wide bottom ===== */}
+      <div className="grid grid-cols-2 gap-2">
         <DashboardPresensiUstazCard data={presensiUstaz} loading={loading} onClick={() => onViewChange('presensi')} />
         <DashboardKelasKosongCard data={kelasKosong} loading={loading} onClick={() => onViewChange('presensi')} />
-        <DashboardPresensiMuridCard data={presensiMurid} loading={loading} onClick={() => onViewChange('presensi')} />
       </div>
+      <DashboardPresensiMuridCard data={presensiMurid} loading={loading} onClick={() => onViewChange('presensi')} />
 
-      {/* ===== QUICK MENU 2×2 GRID ===== */}
+      {/* ===== QUICK MENU ===== */}
       <div>
-        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2.5">Menu Utama</p>
+        <p className="section-label mb-2.5">Menu Utama</p>
         <div className="grid grid-cols-2 gap-2">
           {quickMenuItems.map((item, i) => {
             const Icon = item.icon;
+            const isPengumuman = item.section === 'pengumuman';
             return (
               <button
                 key={i}
-                onClick={() => onViewChange(item.section)}
-                className={`card card-hover p-4 flex items-center gap-3 group text-left border ${item.borderClass} ${item.bgClass}`}
+                onClick={() => {
+                  if (isPengumuman) {
+                    onViewChange('_nav_pengumuman');
+                  } else {
+                    onViewChange(item.section);
+                  }
+                }}
+                className={`card card-hover p-3.5 flex items-center gap-2.5 group text-left border ${item.borderClass} ${item.bgClass}`}
               >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white dark:bg-slate-800 shadow-sm`}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white dark:bg-slate-800 shadow-sm">
                   <Icon className={`w-4 h-4 ${item.iconClass}`} />
                 </div>
-                <span className="flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{item.label}</span>
-                <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
+                <span className="flex-1 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 leading-tight">{item.label}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
               </button>
             );
           })}
@@ -339,8 +345,15 @@ export default function AdminPage({ showToast, profile, setActiveTab }: { showTo
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleSectionChange = (newSection: AdminSection) => {
-    setSection(newSection);
+  const handleSectionChange = (newSection: AdminSection | '_nav_pengumuman') => {
+    if (newSection === '_nav_pengumuman') {
+      if (setActiveTab) {
+        setActiveTab('pengumuman');
+        window.history.pushState(null, '', '#pengumuman');
+      }
+      return;
+    }
+    setSection(newSection as AdminSection);
     window.history.pushState(null, '', `#admin/${newSection}`);
   };
 
@@ -541,10 +554,12 @@ function PresensiSection({ presensiTab, setPresensiTab, showToast, profile, kela
         <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
       ) : presensiTab === 'ustaz' ? (
         <div className="space-y-2">
-          <div className="card p-3 grid grid-cols-3 gap-2 text-center">
-            <div><p className="text-lg font-bold text-emerald-600">{hadirCount}</p><p className="text-[9px] text-slate-500">Hadir</p></div>
-            <div><p className="text-lg font-bold text-rose-600">{belumCount}</p><p className="text-[9px] text-slate-500">Belum</p></div>
-            <div><p className="text-lg font-bold text-slate-800 dark:text-slate-100">{ustazList.length}</p><p className="text-[9px] text-slate-500">Total</p></div>
+          <div className="card p-3 flex items-center justify-around text-center">
+            <div><p className="text-xl font-bold text-emerald-600">{hadirCount}</p><p className="text-[10px] text-slate-500 font-medium">Hadir</p></div>
+            <div className="w-px h-8 bg-slate-100 dark:bg-slate-700" />
+            <div><p className="text-xl font-bold text-rose-600">{belumCount}</p><p className="text-[10px] text-slate-500 font-medium">Belum</p></div>
+            <div className="w-px h-8 bg-slate-100 dark:bg-slate-700" />
+            <div><p className="text-xl font-bold text-slate-800 dark:text-slate-100">{ustazList.length}</p><p className="text-[10px] text-slate-500 font-medium">Total</p></div>
           </div>
           <div className="space-y-1">
             {ustazList.map(ustaz => (

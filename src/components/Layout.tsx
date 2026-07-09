@@ -1,7 +1,8 @@
 import {
   CalendarDays, ClipboardCheck, BookOpen, BarChart3, Users, LogOut,
-  Menu, X, User, ChevronRight, Heart, FileQuestion, Home, FileText,
-  Shield, Download, GraduationCap, Camera, Bell, Settings,
+  Menu, X, Heart, FileQuestion, Home, FileText,
+  Shield, Download, GraduationCap, Camera, Bell, Megaphone,
+  LayoutDashboard, ChevronRight,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,34 +33,36 @@ const navGroups: NavGroup[] = [
   {
     label: 'Utama',
     items: [
-      { id: 'dashboard', icon: Home,         label: 'Beranda' },
-      { id: 'jadwal',    icon: CalendarDays,  label: 'Jadwal' },
-      { id: 'murid',     icon: Users,         label: 'Santri' },
+      { id: 'dashboard',  icon: Home,          label: 'Beranda' },
+      { id: 'jadwal',     icon: CalendarDays,   label: 'Jadwal' },
+      { id: 'murid',      icon: Users,          label: 'Santri' },
     ],
   },
   {
     label: 'KBM',
     items: [
       { id: 'absensi',  icon: ClipboardCheck, label: 'Absensi' },
-      { id: 'presensi', icon: Camera,         label: 'Presensi' },
-      { id: 'jurnal',   icon: FileText,       label: 'Jurnal' },
-      { id: 'nilai',    icon: BarChart3,       label: 'Nilai' },
-      { id: 'sikap',    icon: Heart,           label: 'Sikap' },
+      { id: 'presensi', icon: Camera,          label: 'Presensi' },
+      { id: 'jurnal',   icon: FileText,        label: 'Jurnal' },
+      { id: 'nilai',    icon: BarChart3,        label: 'Nilai' },
+      { id: 'sikap',    icon: Heart,            label: 'Sikap' },
     ],
   },
   {
     label: 'Lainnya',
     items: [
-      { id: 'catatan', icon: BookOpen,      label: 'Catatan' },
-      { id: 'soal',    icon: FileQuestion,  label: 'Soal' },
-      { id: 'izin',    icon: FileText,      label: 'Izin' },
-      { id: 'rapor',   icon: GraduationCap, label: 'Rapor' },
+      { id: 'catatan', icon: BookOpen,       label: 'Catatan' },
+      { id: 'soal',    icon: FileQuestion,   label: 'Soal' },
+      { id: 'izin',    icon: FileText,       label: 'Izin' },
+      { id: 'rapor',   icon: GraduationCap,  label: 'Rapor' },
     ],
   },
   {
     label: 'Admin',
     items: [
-      { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true },
+      { id: 'admin',          icon: Shield,           label: 'Panel Admin',      adminOnly: true },
+      { id: 'pengumuman',     icon: Megaphone,        label: 'Pengumuman',       adminOnly: true },
+      { id: 'presensi-admin', icon: LayoutDashboard,  label: 'Presensi Admin',   adminOnly: true },
     ],
   },
 ];
@@ -67,7 +70,7 @@ const navGroups: NavGroup[] = [
 const allNavItems = navGroups.flatMap(g => g.items);
 
 const bottomNavItems: NavItem[] = [
-  { id: 'dashboard', icon: Home,         label: 'Beranda' },
+  { id: 'dashboard', icon: Home,          label: 'Beranda' },
   { id: 'jadwal',    icon: CalendarDays,  label: 'Jadwal' },
   { id: 'presensi',  icon: Camera,        label: 'Presensi' },
   { id: 'murid',     icon: Users,         label: 'Santri' },
@@ -98,8 +101,8 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
   };
 
   const renderSidebarContent = () => (
-    <>
-      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
         {navGroups.map(group => {
           const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
           if (!visibleItems.length) return null;
@@ -130,7 +133,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         })}
       </div>
 
-      <div className="p-3 space-y-1.5 border-t border-slate-100 dark:border-slate-700/50">
+      <div className="px-2 pb-3 pt-2 space-y-0.5 border-t border-slate-100 dark:border-slate-700/50 flex-shrink-0">
         {isInstallable && !isInstalled && (
           <button
             onClick={() => { promptInstall(); setSidebarOpen(false); }}
@@ -152,6 +155,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             <p className="text-sm font-semibold leading-tight truncate">{displayName}</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{roleLabel}</p>
           </div>
+          <ChevronRight size={14} className="text-slate-300 flex-shrink-0" />
         </button>
 
         <button
@@ -162,23 +166,33 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
           <span className="text-sm">Keluar</span>
         </button>
       </div>
-    </>
+    </div>
+  );
+
+  const LogoBrand = ({ size = 'md' }: { size?: 'sm' | 'md' }) => (
+    <div className="flex items-center gap-2.5">
+      {/* Logo container — fixed size, no overflow clip that cuts the image */}
+      <div className={`${size === 'sm' ? 'w-7 h-7' : 'w-9 h-9'} rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm flex-shrink-0`}>
+        <img
+          src="/icon/logo_asli.png"
+          alt="Logo"
+          className={`${size === 'sm' ? 'w-5 h-5' : 'w-6 h-6'} object-contain`}
+          style={{ imageRendering: 'crisp-edges' }}
+        />
+      </div>
+      <div className="min-w-0">
+        <p className={`font-bold text-slate-800 dark:text-slate-100 leading-tight ${size === 'sm' ? 'text-sm' : 'text-sm'}`}>SIM KBM</p>
+        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-tight">Ustaz Three</p>
+      </div>
+    </div>
   );
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0f1117] pb-20 md:pb-0 md:pl-60">
       {/* ─── DESKTOP SIDEBAR ─── */}
       <nav className="hidden md:flex flex-col w-60 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 fixed top-0 bottom-0 left-0 z-40">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl overflow-hidden bg-emerald-600 flex items-center justify-center shadow-sm flex-shrink-0">
-              <img src="/icon/logo_asli.png" alt="Logo" className="w-7 h-7 object-contain" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">SIM KBM</p>
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Ustaz Three</p>
-            </div>
-          </div>
+        <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+          <LogoBrand />
         </div>
         {renderSidebarContent()}
       </nav>
@@ -202,20 +216,9 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               transition={{ type: 'tween', duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
               className="fixed top-0 left-0 bottom-0 w-72 bg-white dark:bg-slate-900 z-50 shadow-2xl flex flex-col md:hidden"
             >
-              <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl overflow-hidden bg-emerald-600 flex items-center justify-center shadow-sm">
-                    <img src="/icon/logo_asli.png" alt="Logo" className="w-7 h-7 object-contain" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">SIM KBM</p>
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Ustaz Three</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="btn-icon"
-                >
+              <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+                <LogoBrand />
+                <button onClick={() => setSidebarOpen(false)} className="btn-icon flex-shrink-0">
                   <X size={18} />
                 </button>
               </div>
@@ -226,23 +229,16 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
       </AnimatePresence>
 
       {/* ─── MOBILE HEADER ─── */}
-      <header className="md:hidden sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800">
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800">
         <div className="flex items-center justify-between px-4 h-14">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="btn-icon -ml-1"
-            >
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSidebarOpen(true)} className="btn-icon -ml-1">
               <Menu size={20} />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center overflow-hidden">
-                <img src="/icon/logo_asli.png" alt="Logo" className="w-5 h-5 object-contain" />
-              </div>
-              <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
-                {activeNavItem?.label ?? 'Beranda'}
-              </span>
-            </div>
+            {/* Mobile: just show the active tab title */}
+            <span className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight">
+              {activeNavItem?.label ?? 'Beranda'}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -250,7 +246,6 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               className="btn-icon relative"
             >
               <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
             </button>
             <button
               onClick={() => handleNav('profil')}
@@ -263,32 +258,26 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
       </header>
 
       {/* ─── DESKTOP HEADER ─── */}
-      <header className="hidden md:block sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800">
-        <div className="px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
-              {activeNavItem?.label ?? 'Beranda'}
-            </span>
+      <header className="hidden md:flex sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800 items-center justify-between px-6 h-14">
+        <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
+          {activeNavItem?.label ?? 'Beranda'}
+        </span>
+        <button
+          onClick={() => handleNav('profil')}
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs text-white flex-shrink-0">
+            {displayName.charAt(0).toUpperCase()}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleNav('profil')}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
-            >
-              <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs text-white flex-shrink-0">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">{displayName}</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize leading-tight">{roleLabel}</p>
-              </div>
-            </button>
+          <div className="text-right">
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">{displayName}</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize leading-tight">{roleLabel}</p>
           </div>
-        </div>
+        </button>
       </header>
 
       {/* ─── BOTTOM NAV (MOBILE) ─── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100/80 dark:border-slate-800 pb-safe">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/98 dark:bg-slate-900/98 backdrop-blur-md border-t border-slate-100/80 dark:border-slate-800" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex justify-around items-center px-1 h-16">
           {bottomNavItems.map(item => {
             const Icon = item.icon;
@@ -303,15 +292,15 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
                 {isActive && (
                   <motion.div
                     layoutId="bottomNavIndicator"
-                    className="absolute top-2 inset-x-2 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/25"
+                    className="absolute top-2 inset-x-1.5 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/25"
                     transition={{ type: 'spring', stiffness: 400, damping: 35 }}
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center gap-0.5">
                   <Icon
-                    size={21}
+                    size={20}
                     strokeWidth={isActive ? 2.5 : 2}
-                    className={`transition-colors ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500 group-active:text-slate-600'}`}
+                    className={`transition-colors ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}
                   />
                   <span className={`text-[10px] font-semibold leading-tight transition-colors ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                     {item.label}
