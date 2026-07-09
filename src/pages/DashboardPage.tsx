@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import {
   BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
   CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
-  Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X,
-  Moon,
+  ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X,
+  Moon, Zap,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SkeletonCard } from '../components/Skeleton';
@@ -251,8 +251,6 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     return 'Selamat Malam';
   };
 
-  const marqueeText = `Ahlan Ustaz ${profile?.nama_panggilan || profile?.nama_lengkap || ''} — ${greeting()}! Semoga harimu penuh berkah dan ilmu yang bermanfaat. ${jadwalHariIni.length > 0 ? `Anda memiliki ${jadwalHariIni.length} jadwal mengajar hari ini.` : 'Tidak ada jadwal mengajar hari ini.'} ${agendaList.length > 0 ? `Ada ${agendaList.length} agenda mendatang yang perlu diperhatikan.` : ''} Tetap semangat dalam mengajar!`;
-
   // Show skeleton only on very first load (no cached data yet)
   const isLoading = jadwalHariIni.length === 0 && !broadcastList.length && !agendaList.length && !pengumumanList.length;
   // But if we have ANY data, show it immediately (TanStack Query returns cached data instantly)
@@ -283,66 +281,55 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
         setDismissedIds={setDismissedIds}
       />
 
-      {/* Greeting Header with Marquee */}
+      {/* Greeting Header */}
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
-        {/* Date & Time Bar */}
-        <div className="bg-emerald-800/40 px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
-          {/* WIB Clock */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center">
-              <Clock className="w-4 h-4 text-emerald-100" />
+        <div className="p-5">
+          {/* Top Row: Greeting + WIB Clock */}
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img src="/icon/512x512.png" alt="Logo" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="font-bold text-lg leading-tight">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-mono font-bold text-lg leading-none">
+            {/* WIB Clock - top right */}
+            <div className="text-right flex-shrink-0">
+              <p className="font-mono font-bold text-xl leading-none">
                 {now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
-              <p className="text-[10px] text-emerald-200 font-semibold">WIB</p>
+              <p className="text-xs text-emerald-200 font-semibold mt-0.5">WIB</p>
             </div>
           </div>
 
-          {/* Hijri Date */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center">
-              <Moon className="w-4 h-4 text-amber-300" />
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-sm leading-tight">
-                {(() => {
-                  const hijri = gregorianToHijri(now);
-                  return `${hijri.day} ${hijri.monthName} ${hijri.year} H`;
-                })()}
-              </p>
-              <p className="text-[10px] text-emerald-200">Tanggal Hijriyah</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-5 pb-3">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden">
-              <img src="/icon/512x512.png" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
-              <p className="text-emerald-100 text-sm">
-                {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            </div>
+          {/* Horizontal Date Row: Gregorian + Hijri */}
+          <div className="flex items-center gap-2 flex-wrap text-sm text-emerald-100 mb-4">
+            <CalendarDays className="w-4 h-4 flex-shrink-0" />
+            <span>{now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            <span className="text-emerald-300">|</span>
+            <Moon className="w-4 h-4 text-amber-300 flex-shrink-0" />
+            <span className="font-medium">
+              {(() => {
+                const hijri = gregorianToHijri(now);
+                return `${hijri.day} ${hijri.monthName} ${hijri.year} H`;
+              })()}
+            </span>
           </div>
 
-          {/* Ongoing or Next Class */}
+          {/* Ongoing or Next Class - White card for contrast */}
           {ongoingClass ? (
-            <div className="bg-white/15 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-4 shadow-lg">
               <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 bg-emerald-300 rounded-full animate-pulse" />
-                <span className="text-xs font-bold text-emerald-100 uppercase">Sedang Berlangsung</span>
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-xs font-bold text-emerald-600 uppercase">Sedang Berlangsung</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <BookOpen className="w-5 h-5 text-emerald-100" />
-                <span className="font-bold">{ongoingClass.pelajaran}</span>
-                <span className="badge bg-white/20 text-white text-xs">{ongoingClass.kelas}</span>
+                <BookOpen className="w-5 h-5 text-emerald-600" />
+                <span className="font-bold text-slate-800">{ongoingClass.pelajaran}</span>
+                <span className="badge bg-emerald-100 text-emerald-700 text-xs">{ongoingClass.kelas}</span>
               </div>
-              <div className="flex items-center gap-3 mt-2 text-sm text-emerald-100">
+              <div className="flex items-center gap-3 mt-2 text-sm text-slate-600">
                 <span className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
                   {ongoingClass.jam_mulai} - {ongoingClass.jam_selesai}
@@ -353,49 +340,36 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
               </div>
             </div>
           ) : nextClass ? (
-            <div className="bg-white/15 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-4 shadow-lg">
               <div className="flex items-center gap-2 mb-2">
-                <CalendarDays className="w-4 h-4 text-emerald-100" />
-                <span className="text-xs font-bold text-emerald-100">Jadwal Berikutnya</span>
+                <CalendarDays className="w-4 h-4 text-slate-400" />
+                <span className="text-xs font-bold text-slate-500">Jadwal Berikutnya</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap mb-3">
-                <BookOpen className="w-5 h-5 text-emerald-100" />
-                <span className="font-bold">{nextClass.pelajaran}</span>
-                <span className="badge bg-white/20 text-white text-xs">{nextClass.kelas}</span>
-                <span className="text-sm text-emerald-100 ml-auto">{nextClass.jam_mulai} - {nextClass.jam_selesai}</span>
+                <BookOpen className="w-5 h-5 text-slate-600" />
+                <span className="font-bold text-slate-800">{nextClass.pelajaran}</span>
+                <span className="badge bg-slate-100 text-slate-700 text-xs">{nextClass.kelas}</span>
+                <span className="text-sm text-slate-500 ml-auto">{nextClass.jam_mulai} - {nextClass.jam_selesai}</span>
               </div>
               {countdown && (
-                <div className="flex items-center gap-2 bg-emerald-800/40 rounded-xl px-3 py-2">
-                  <Timer className="w-4 h-4 text-emerald-200" />
-                  <span className="text-xs font-semibold text-emerald-100">Masuk dalam:</span>
-                  <div className="flex items-center gap-1.5 ml-auto font-mono text-sm">
-                    <span className="bg-white/20 rounded px-2 py-0.5 font-bold">{String(countdown.hours).padStart(2, '0')}</span>
-                    <span className="text-emerald-200">:</span>
-                    <span className="bg-white/20 rounded px-2 py-0.5 font-bold">{String(countdown.minutes).padStart(2, '0')}</span>
-                    <span className="text-emerald-200">:</span>
-                    <span className="bg-white/20 rounded px-2 py-0.5 font-bold">{String(countdown.seconds).padStart(2, '0')}</span>
+                <div className="flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-2">
+                  <Timer className="w-4 h-4 text-slate-500" />
+                  <span className="text-xs font-semibold text-slate-600">Masuk dalam:</span>
+                  <div className="flex items-center gap-1 ml-auto font-mono text-sm">
+                    <span className="bg-emerald-600 text-white rounded px-2 py-0.5 font-bold">{String(countdown.hours).padStart(2, '0')}</span>
+                    <span className="text-slate-400">:</span>
+                    <span className="bg-emerald-600 text-white rounded px-2 py-0.5 font-bold">{String(countdown.minutes).padStart(2, '0')}</span>
+                    <span className="text-slate-400">:</span>
+                    <span className="bg-emerald-600 text-white rounded px-2 py-0.5 font-bold">{String(countdown.seconds).padStart(2, '0')}</span>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="bg-white/15 rounded-2xl p-4 backdrop-blur-sm">
-              <p className="text-sm text-emerald-100">Tidak ada jadwal mengajar hari ini.</p>
+            <div className="bg-white/90 rounded-2xl p-4">
+              <p className="text-sm text-slate-600">Tidak ada jadwal mengajar hari ini.</p>
             </div>
           )}
-        </div>
-
-        {/* Running Text Marquee */}
-        <div className="bg-emerald-800/50 border-t border-white/10 py-2.5 overflow-hidden">
-          <div className="flex items-center gap-2 px-4">
-            <Sparkles className="w-4 h-4 text-amber-300 flex-shrink-0 animate-pulse" />
-            <div className="flex-1 overflow-hidden relative">
-              <div className="flex whitespace-nowrap animate-marquee">
-                <span className="text-sm text-emerald-50 font-medium px-4">{marqueeText}</span>
-                <span className="text-sm text-emerald-50 font-medium px-4">{marqueeText}</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -455,7 +429,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
       {setActiveTab && (
         <div className="card p-4">
           <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-            <Sparkles className="w-4 h-4 text-emerald-500" />
+            <Zap className="w-4 h-4 text-amber-500" />
             Aksi Cepat
           </h3>
           <div className="grid grid-cols-4 gap-2">
