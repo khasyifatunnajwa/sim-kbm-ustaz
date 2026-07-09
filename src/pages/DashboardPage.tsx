@@ -237,8 +237,8 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden">
-              <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-cover" />
+            <div className="w-14 h-14 flex items-center justify-center">
+              <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
             </div>
             <div>
               <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
