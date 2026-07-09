@@ -12,8 +12,30 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import * as idbKeyval from 'idb-keyval';
 
+// 3. Offline Mutation Sync
+import { initOfflineSync } from './lib/offlineQueue';
+import { supabase } from './lib/supabase';
+
+// 4. Theme Provider
+import { ThemeProvider } from './contexts/ThemeContext';
+
 // Aktifkan Service Worker segera saat aplikasi dibuka
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    console.log('[PWA] Update tersedia, akan diterapkan otomatis');
+  },
+  onOfflineReady() {
+    console.log('[PWA] Aplikasi siap digunakan offline');
+  },
+});
+
+// Initialize offline sync after a short delay to let app load
+setTimeout(() => {
+  initOfflineSync(supabase, (msg, type) => {
+    console.log(`[OfflineSync] ${type.toUpperCase()}: ${msg}`);
+  });
+}, 1000);
 
 // Konfigurasi Client: Cache 24 Jam & Offline Support
 const queryClient = new QueryClient({
@@ -99,12 +121,14 @@ if (!rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{ persister: idbPersister }}
-        >
-          <App />
-        </PersistQueryClientProvider>
+        <ThemeProvider>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{ persister: idbPersister }}
+          >
+            <App />
+          </PersistQueryClientProvider>
+        </ThemeProvider>
       </ErrorBoundary>
     </StrictMode>
   );

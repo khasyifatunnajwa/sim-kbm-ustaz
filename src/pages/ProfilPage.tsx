@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Save, Loader2, Copy, CheckCircle2, Hash, Clock } from 'lucide-react';
+import { User, Phone, MapPin, Save, Loader2, Copy, CheckCircle2, Hash, Clock, Download, Smartphone, Share } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 import type { Profile, ShowToast } from '../types';
 
 interface ProfilPageProps {
@@ -288,6 +289,84 @@ export default function ProfilPage({ profile, setProfile, showToast }: ProfilPag
           </button>
         </div>
       </form>
+
+      {/* Install App Section */}
+      <InstallAppSection />
     </div>
   );
+}
+
+function InstallAppSection() {
+  const { isInstallable, isInstalled, promptInstall } = usePWAInstall();
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+
+  if (isStandalone || isInstalled) {
+    return (
+      <div className="bg-emerald-50 rounded-3xl border border-emerald-100 p-5 flex items-center gap-3">
+        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-emerald-800">Aplikasi Terpasang</p>
+          <p className="text-xs text-emerald-600">SIM KBM sudah berjalan sebagai aplikasi di perangkat Anda.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isInstallable) {
+    return (
+      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl border border-emerald-100 p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Download className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">Pasang Aplikasi</h3>
+            <p className="text-xs text-slate-500">Akses lebih cepat dari layar utama</p>
+          </div>
+        </div>
+        <button
+          onClick={promptInstall}
+          className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 transition-all"
+        >
+          <Download className="w-4 h-4" />
+          <span>Pasang Sekarang</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (isIOS) {
+    return (
+      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl border border-emerald-100 p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Smartphone className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">Pasang di iPhone/iPad</h3>
+            <p className="text-xs text-slate-500">Ikuti langkah berikut</p>
+          </div>
+        </div>
+        <ol className="space-y-2.5">
+          <li className="flex items-start gap-2.5 text-sm text-slate-600">
+            <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+            <span>Tap tombol <strong className="inline-flex items-center gap-1"><Share className="w-3.5 h-3.5" /> Share</strong> di Safari</span>
+          </li>
+          <li className="flex items-start gap-2.5 text-sm text-slate-600">
+            <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+            <span>Pilih <strong>"Tambah ke Layar Utama"</strong></span>
+          </li>
+          <li className="flex items-start gap-2.5 text-sm text-slate-600">
+            <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+            <span>Tap <strong>"Tambah"</strong> untuk menyelesaikan</span>
+          </li>
+        </ol>
+      </div>
+    );
+  }
+
+  return null;
 }
