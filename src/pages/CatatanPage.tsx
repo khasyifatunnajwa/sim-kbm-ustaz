@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, Pencil, FileText, Calendar, MapPin, CheckCircle,
-  Circle, Search, X
+  Circle, Search, X, Bell
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import ConfirmDialog from '../components/ConfirmDialog';
+import SearchableSelect from '../components/SearchableSelect';
+import { useLembaga } from '../hooks/useLembaga';
 import type { CatatanGuru, ShowToast, KategoriCatatan, StatusCatatan, Profile } from '../types';
 
 const KATEGORI_CONFIG: Record<KategoriCatatan, { color: string; bg: string; border: string }> = {
@@ -18,21 +21,32 @@ const KATEGORI_CONFIG: Record<KategoriCatatan, { color: string; bg: string; bord
 const KATEGORI_LIST: KategoriCatatan[] = ['Umum', 'Acara', 'Undangan', 'Agenda'];
 const STATUS_LIST: StatusCatatan[] = ['Belum Selesai', 'Selesai'];
 
+// Opsi untuk SearchableSelect pada field kategori
+const KATEGORI_OPTIONS = KATEGORI_LIST.map(k => ({ value: k, label: k }));
+
 export default function CatatanPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+  // useLembaga diimpor sesuai permintaan; tabel catatan_guru tidak memiliki
+  // kolom lembaga_id, sehingga hook ini tidak digunakan untuk menyaring data,
+  // tetapi tetap dipanggil agar konsisten dengan halaman lain.
+  useLembaga();
+
   const [catatanList, setCatatanList] = useState<CatatanGuru[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
   const [showModal, setShowModal] = useState(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     return hashParts[0] === 'catatan' && hashParts[1] === 'form';
   });
-  
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterKategori, setFilterKategori] = useState<KategoriCatatan | ''>('');
   const [filterStatus, setFilterStatus] = useState<StatusCatatan | ''>('');
+
+  // State untuk ConfirmDialog hapus (soft delete)
+  const [deleteTarget, setDeleteTarget] = useState<CatatanGuru | null>(null);
 
   const now = new Date();
   const defaultDateTime = new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
@@ -78,15 +92,61 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     fetchCatatan();
   }, []);
 
+  // 7. REALTIME: subscribe ke perubahan catatan_guru agar data baru muncul tanpa refresh
+  useEffect(() => {
+    const channel = supabase
+      .channel('catatan_guru_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'catatan_guru' },
+        (payload) => {
+          const row = payload.new as CatatanGuru;
+          // Abaikan baris yang sudah di-soft-delete / non-aktif
+          if (row && !row.is_active && row.deleted_at) {
+            setCatatanList(prev => prev.filter(c => c.id !== row.id));
+            return;
+          }
+          if (payload.eventType === 'INSERT' && row) {
+            // Admin melihat semua; non-admin hanya miliknya sendiri
+            const isAdmin = profile?.role === 'admin';
+            if (isAdmin || row.user_id === profile?.id) {
+              setCatatanList(prev => prev.some(c => c.id === row.id) ? prev : [row, ...prev]);
+            }
+          } else if (payload.eventType === 'UPDATE' && row) {
+            const isAdmin = profile?.role === 'admin';
+            if (!row.is_active) {
+              setCatatanList(prev => prev.filter(c => c.id !== row.id));
+            } else if (isAdmin || row.user_id === profile?.id) {
+              setCatatanList(prev => prev.map(c => (c.id === row.id ? row : c)));
+            } else {
+              // Jika sebelumnya terlihat (admin) tapi sekarang bukan milik & non-admin, buang
+              setCatatanList(prev => prev.filter(c => c.id !== row.id));
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const oldRow = payload.old as { id?: string } | undefined;
+            if (oldRow?.id) {
+              setCatatanList(prev => prev.filter(c => c.id !== oldRow.id));
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id, profile?.role]);
+
   const fetchCatatan = async () => {
     setLoading(true);
     const isAdmin = profile?.role === 'admin';
     let q = supabase
       .from('catatan_guru')
       .select('*')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .is('deleted_at', null);
     if (!isAdmin) q = q.eq('user_id', profile?.id ?? '');
-    const { data, error } = await q.order('tanggal_waktu', { ascending: true });
+    const { data, error } = await q.order('created_at', { ascending: false });
 
     if (error) {
       showToast(error.message, 'error');
@@ -125,6 +185,11 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
 
   // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (c: CatatanGuru) => {
+    // Hanya pemilik yang boleh mengedit
+    if (c.user_id !== profile?.id) {
+      showToast('Anda hanya dapat mengedit catatan milik sendiri', 'error');
+      return;
+    }
     setEditingId(c.id);
     setForm({
       kategori: c.kategori,
@@ -136,6 +201,39 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     });
     setShowModal(true);
     window.history.pushState(null, '', '#catatan/form');
+  };
+
+  // 6. BUAT NOTIFIKASI untuk setiap ustaz (role != admin, is_active=true) saat catatan baru dibuat
+  const createNotifications = async (catatanGuruId: string) => {
+    try {
+      const { data: ustazList, error: ustazError } = await supabase
+        .from('profiles')
+        .select('id')
+        .neq('role', 'admin')
+        .eq('is_active', true);
+
+      if (ustazError) {
+        console.error('Gagal mengambil daftar ustaz untuk notifikasi:', ustazError.message);
+        return;
+      }
+      if (!ustazList || ustazList.length === 0) return;
+
+      const rows = ustazList.map(u => ({
+        catatan_guru_id: catatanGuruId,
+        user_id: u.id,
+        dibaca: false,
+      }));
+
+      const { error: notifError } = await supabase
+        .from('catatan_guru_notifikasi')
+        .insert(rows);
+
+      if (notifError) {
+        console.error('Gagal membuat notifikasi catatan_guru:', notifError.message);
+      }
+    } catch (err) {
+      console.error('createNotifications error:', err);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,10 +254,17 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     };
 
     let error;
+    let insertedId: string | null = null;
     if (editingId) {
       ({ error } = await supabase.from('catatan_guru').update(payload).eq('id', editingId));
     } else {
-      ({ error } = await supabase.from('catatan_guru').insert(payload));
+      const { data: insData, error: insError } = await supabase
+        .from('catatan_guru')
+        .insert(payload)
+        .select('id')
+        .single();
+      error = insError;
+      insertedId = insData?.id ?? null;
     }
 
     setSaving(false);
@@ -168,14 +273,24 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
       return;
     }
 
+    // Buat notifikasi hanya untuk catatan baru
+    if (!editingId && insertedId) {
+      createNotifications(insertedId);
+    }
+
     showToast(editingId ? 'Catatan diperbarui!' : 'Catatan disimpan!', 'success');
-    
+
     // PERUBAHAN: Memanggil handleCloseModal agar kembali otomatis secara native
     handleCloseModal();
     fetchCatatan();
   };
 
   const toggleStatus = async (c: CatatanGuru) => {
+    // Hanya pemilik yang boleh mengubah status catatannya
+    if (c.user_id !== profile?.id) {
+      showToast('Anda hanya dapat mengubah catatan milik sendiri', 'error');
+      return;
+    }
     const newStatus = c.status === 'Belum Selesai' ? 'Selesai' : 'Belum Selesai';
     const { error } = await supabase.from('catatan_guru').update({ status: newStatus }).eq('id', c.id);
     if (error) {
@@ -186,14 +301,29 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     showToast(newStatus === 'Selesai' ? 'Catatan selesai!' : 'Catatan dibuka kembali', 'success');
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('catatan_guru').delete().eq('id', id);
-    if (error) {
-      showToast(error.message, 'error');
+  // 5. SOFT DELETE: set is_active=false & deleted_at=now() (hanya pemilik)
+  const requestDelete = (c: CatatanGuru) => {
+    if (c.user_id !== profile?.id) {
+      showToast('Anda hanya dapat menghapus catatan milik sendiri', 'error');
       return;
     }
-    setCatatanList(prev => prev.filter(c => c.id !== id));
+    setDeleteTarget(c);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase
+      .from('catatan_guru')
+      .update({ is_active: false, deleted_at: new Date().toISOString() })
+      .eq('id', deleteTarget.id);
+    if (error) {
+      showToast(error.message, 'error');
+      setDeleteTarget(null);
+      return;
+    }
+    setCatatanList(prev => prev.filter(c => c.id !== deleteTarget.id));
     showToast('Catatan dihapus', 'info');
+    setDeleteTarget(null);
   };
 
   const formatDateTime = (d: string) => {
@@ -215,6 +345,9 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     belumSelesai: catatanList.filter(c => c.status === 'Belum Selesai').length,
     selesai: catatanList.filter(c => c.status === 'Selesai').length,
   }), [catatanList]);
+
+  // Apakah catatan ini milik user saat ini?
+  const isOwner = (c: CatatanGuru) => c.user_id === profile?.id;
 
   return (
     <div>
@@ -288,6 +421,7 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
             const config = KATEGORI_CONFIG[c.kategori];
             const isDone = c.status === 'Selesai';
             const upcoming = c.tanggal_waktu && isUpcoming(c.tanggal_waktu);
+            const canModify = isOwner(c);
 
             return (
               <div
@@ -297,7 +431,9 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
                 <div className="flex items-start gap-3">
                   <button
                     onClick={() => toggleStatus(c)}
-                    className={`mt-0.5 ${isDone ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'} transition-colors`}
+                    disabled={!canModify}
+                    className={`mt-0.5 ${isDone ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'} transition-colors ${!canModify ? 'cursor-not-allowed opacity-50' : ''}`}
+                    title={canModify ? 'Ubah status' : 'Hanya pemilik yang dapat mengubah'}
                   >
                     {isDone ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                   </button>
@@ -309,6 +445,16 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
                       <span className={`badge text-[10px] ${config.bg} ${config.color} border ${config.border}`}>
                         {c.kategori}
                       </span>
+                      {/* Badge pemilik: tandai catatan milik sendiri vs milik ustaz lain (admin view) */}
+                      {canModify ? (
+                        <span className="badge text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Bell className="w-2.5 h-2.5 mr-0.5" />Milik Anda
+                        </span>
+                      ) : (
+                        <span className="badge text-[10px] bg-slate-50 text-slate-500 border border-slate-200">
+                          Ustaz lain
+                        </span>
+                      )}
                     </div>
 
                     {c.isi && (
@@ -331,16 +477,20 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className={`flex items-center gap-1 transition-opacity ${canModify ? 'opacity-0 group-hover:opacity-100' : 'opacity-40'}`}>
                     <button
                       onClick={() => openEdit(c)}
-                      className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
+                      disabled={!canModify}
+                      className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                      title={canModify ? 'Edit' : 'Hanya pemilik yang dapat mengedit'}
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDelete(c.id)}
-                      className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors"
+                      onClick={() => requestDelete(c)}
+                      disabled={!canModify}
+                      className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                      title={canModify ? 'Hapus' : 'Hanya pemilik yang dapat menghapus'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -352,7 +502,7 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal Tambah/Edit Catatan Guru */}
       <Modal
         isOpen={showModal}
         onClose={handleCloseModal} // PERUBAHAN
@@ -362,18 +512,24 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-2">Kategori</label>
-            <div className="grid grid-cols-4 gap-2">
+            {/* SearchableSelect untuk field kategori */}
+            <SearchableSelect
+              value={form.kategori}
+              onChange={(v) => setForm(p => ({ ...p, kategori: v as KategoriCatatan }))}
+              options={KATEGORI_OPTIONS}
+              placeholder="Pilih kategori..."
+            />
+            {/* Tampilan visual badge kategori (opsional, selaras desain sebelumnya) */}
+            <div className="flex gap-1.5 mt-2 flex-wrap">
               {KATEGORI_LIST.map(k => {
                 const config = KATEGORI_CONFIG[k];
                 return (
-                  <button
+                  <span
                     key={k}
-                    type="button"
-                    onClick={() => setForm(p => ({ ...p, kategori: k }))}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all border ${form.kategori === k ? `${config.bg} ${config.color} ${config.border} ring-2 ring-offset-1` : 'bg-white text-slate-500 border-slate-200'}`}
+                    className={`badge text-[10px] ${form.kategori === k ? `${config.bg} ${config.color} ${config.border}` : 'bg-white text-slate-400 border-slate-200'}`}
                   >
                     {k}
-                  </button>
+                  </span>
                 );
               })}
             </div>
@@ -451,6 +607,17 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
           </div>
         </form>
       </Modal>
+
+      {/* ConfirmDialog untuk soft delete */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Hapus Catatan"
+        message={`Yakin ingin menghapus catatan "${deleteTarget?.judul ?? ''}"? Catatan akan dipindahkan ke sampah (soft delete).`}
+        confirmText="Hapus"
+        variant="danger"
+      />
     </div>
   );
 }
