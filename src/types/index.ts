@@ -14,6 +14,16 @@ export type PrioritasPengumuman = 'Normal' | 'Penting' | 'Sangat Penting';
 export type StatusWA = 'pending' | 'sent' | 'failed';
 export type StatusPresensi = 'Hadir' | 'Terlambat' | 'Belum Presensi';
 
+export interface Lembaga {
+  id: string;
+  nama_lembaga: string;
+  alamat?: string;
+  telepon?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ============ CORE TABLES ============
 
 export interface TahunAjaran {
@@ -111,6 +121,7 @@ export interface Murid {
   nomor_whatsapp?: string; 
   status?: MuridStatus;
   status_aktif?: boolean; 
+  lembaga_id?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -153,6 +164,7 @@ export interface JurnalKBM {
   realisasi?: string;
   metode?: string;
   catatan?: string;
+  lembaga_id?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -168,6 +180,7 @@ export interface Absensi {
   tanggal: string;
   status?: StatusAbsensi;
   keterangan?: string;
+  lembaga_id?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -187,6 +200,7 @@ export interface Penilaian {
   jenis?: JenisPenilaian;
   bobot?: number;
   tanggal: string;
+  lembaga_id?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -219,6 +233,7 @@ export interface Sikap {
   kejujuran?: number;
   tanggung_jawab?: number;
   catatan?: string;
+  lembaga_id?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -354,6 +369,9 @@ export interface PresensiGuru {
   jam_keluar?: string;
   lokasi?: string;
   keterangan?: string;
+  lembaga_id?: string;
+  foto_url?: string;
+  telat_menit?: number;
   created_at: string;
   updated_at: string;
 }
@@ -387,6 +405,7 @@ export interface Soal {
   jawaban?: string;
   tingkat?: string;
   lampiran?: string;
+  lembaga_id?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -450,7 +469,11 @@ export type ActiveTab =
   | 'admin-data-akademik'
   | 'admin-kenakalan'
   | 'admin-presensi-ustaz'
-  | 'admin-presensi-murid';
+  | 'admin-presensi-murid'
+  | 'admin-jadwal-ustaz'
+  | 'admin-data-santri'
+  | 'admin-jadwal-asatiz'
+  | 'admin-kelola-lembaga';
 
 export type ShowToast = (message: string, type?: 'success' | 'error' | 'info') => void;
 
@@ -488,6 +511,9 @@ export interface JadwalMengajar {
   pelajaran: string;
   ruangan?: string;
   catatan?: string;
+  lembaga_id?: string;
+  is_libur?: boolean;
+  guru_pengganti_id?: string;
   user_id: string;
   created_at: string;
   updated_at?: string;

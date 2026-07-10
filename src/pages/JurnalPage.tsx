@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import SearchableSelect from '../components/SearchableSelect';
+import { useLembaga, useLembagaKelas } from '../hooks/useLembaga';
 import type { JurnalKBM, Profile, ShowToast } from '../types';
 
 type FilterTab = 'semua' | 'hari_ini' | 'minggu_ini';
@@ -16,6 +18,12 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
   const [mapelList, setMapelList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const { data: lembagaList = [] } = useLembaga();
+  const lembagaOptions = useMemo(
+    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
+    [lembagaList]
+  );
   
   // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
   const [showModal, setShowModal] = useState(() => {
@@ -38,7 +46,11 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     realisasi: '',
     metode: '',
     catatan: '',
+    lembaga_id: '',
   });
+
+  // Kelas yang difilter berdasarkan lembaga yang dipilih di form
+  const { data: formKelasList = [] } = useLembagaKelas(form.lembaga_id || undefined);
 
   // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
   useEffect(() => {
@@ -117,7 +129,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
   const openAdd = () => {
     setEditingId(null);
     setForm({
-      kelas: kelasList[0] || '',
+      kelas: '',
       pelajaran: mapelList[0] || '',
       tanggal: today,
       materi: '',
@@ -125,6 +137,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
       realisasi: '',
       metode: '',
       catatan: '',
+      lembaga_id: '',
     });
     setShowModal(true);
     window.history.pushState(null, '', '#jurnal/form');
@@ -142,6 +155,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
       realisasi: j.realisasi || '',
       metode: j.metode || '',
       catatan: j.catatan || '',
+      lembaga_id: (j as any).lembaga_id ?? '',
     });
     setShowModal(true);
     window.history.pushState(null, '', '#jurnal/form');
@@ -164,6 +178,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
       realisasi: form.realisasi || null,
       metode: form.metode || null,
       catatan: form.catatan || null,
+      lembaga_id: form.lembaga_id || null,
     };
 
     let error;
@@ -203,6 +218,12 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     { id: 'hari_ini' as FilterTab, label: 'Hari Ini' },
     { id: 'minggu_ini' as FilterTab, label: 'Minggu Ini' },
   ];
+
+  // Daftar kelas untuk dropdown di form: filter berdasarkan lembaga jika dipilih
+  const formKelasOptions = useMemo(() => {
+    if (form.lembaga_id) return formKelasList;
+    return kelasList;
+  }, [form.lembaga_id, formKelasList, kelasList]);
 
   return (
     <div>
@@ -321,33 +342,45 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <select
-                value={form.kelas}
-                onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
-                className="input-field text-sm"
-                required
-              >
-                <option value="">Pilih Kelas</option>
-                {kelasList.map(k => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pelajaran *</label>
-              <select
-                value={form.pelajaran}
-                onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))}
-                className="input-field text-sm"
-                required
-              >
-                <option value="">Pilih Pelajaran</option>
-                {mapelList.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </div>
+          {/* 1. Lembaga */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Lembaga</label>
+            <SearchableSelect
+              value={form.lembaga_id}
+              onChange={v => setForm(p => ({ ...p, lembaga_id: v, kelas: '' }))}
+              options={lembagaOptions}
+              placeholder="Pilih Lembaga"
+            />
+          </div>
+
+          {/* 2. Kelas (filter berdasarkan lembaga) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
+            <select
+              value={form.kelas}
+              onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
+              className="input-field text-sm"
+              required
+            >
+              <option value="">Pilih Kelas</option>
+              {formKelasOptions.map(k => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Mata Pelajaran */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pelajaran *</label>
+            <select
+              value={form.pelajaran}
+              onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))}
+              className="input-field text-sm"
+              required
+            >
+              <option value="">Pilih Pelajaran</option>
+              {mapelList.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
 
           <div>
@@ -361,6 +394,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
             />
           </div>
 
+          {/* 4. Materi */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Materi</label>
             <textarea
@@ -406,8 +440,9 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
             />
           </div>
 
+          {/* 5. Keterangan */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catatan</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Keterangan</label>
             <textarea
               value={form.catatan}
               onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))}
