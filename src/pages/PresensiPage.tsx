@@ -189,6 +189,16 @@ export default function PresensiPage({ showToast, profile }: { showToast: ShowTo
   const now = new Date();
   const currentMinutes = timeToMinutes(formatTime(now));
 
+  // --- KODE SAKTI KUNCI PERBAIKAN KAMERA ---
+  // Pastikan stream ditempel saat kotak (modal) video terbuka.
+  useEffect(() => {
+    if (cameraOpen && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(e => console.error("AutoPlay tertunda: ", e));
+    }
+  }, [cameraOpen]);
+  // ----------------------------------------
+
   useEffect(() => {
     (async () => {
       if (!profile) return;
@@ -239,10 +249,6 @@ export default function PresensiPage({ showToast, profile }: { showToast: ShowTo
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
       setCameraOpen(true);
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
@@ -259,6 +265,9 @@ export default function PresensiPage({ showToast, profile }: { showToast: ShowTo
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setCameraOpen(false);
   };
