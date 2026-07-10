@@ -410,20 +410,67 @@ export default function AdminPage({ showToast, profile, initialSection, initialS
 function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, setPresensiUstazSubTab, showToast }: { presensiTab: PresensiTab; setPresensiTab: (tab: PresensiTab) => void; presensiUstazSubTab: PresensiUstazSubTab; setPresensiUstazSubTab: (tab: PresensiUstazSubTab) => void; showToast: ShowToast }) {
   const [muridByKelas, setMuridByKelas] = useState<PresensiMuridByKelas[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterLembagaId, setFilterLembagaId] = useState('');
+  const [filterKelas, setFilterKelas] = useState('');
+  const [kelasOptions, setKelasOptions] = useState<string[]>([]);
+  const { data: lembagaList } = useLembaga();
 
-  useEffect(() => { if (presensiTab === 'murid') fetchMuridByKelas(); }, [presensiTab]);
+  useEffect(() => { if (presensiTab === 'murid') fetchMuridByKelas(); }, [presensiTab, filterLembagaId, filterKelas]);
 
   const fetchMuridByKelas = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('v_presensi_murid_by_kelas_hari_ini').select('*');
-      setMuridByKelas((data || []) as PresensiMuridByKelas[]);
+      const today = new Date().toISOString().split('T')[0];
+      let muridQuery = supabase.from('murid').select('id, nama, kelas, lembaga_id, status_aktif').eq('status_aktif', true);
+      if (filterLembagaId) muridQuery = muridQuery.eq('lembaga_id', filterLembagaId);
+      if (filterKelas) muridQuery = muridQuery.eq('kelas', filterKelas);
+      const { data: muridData } = await muridQuery.order('kelas').order('nama');
+
+      if (!muridData || muridData.length === 0) {
+        setMuridByKelas([]);
+        setKelasOptions([]);
+        setLoading(false);
+        return;
+      }
+
+      const kelasSet = [...new Set(muridData.map(m => m.kelas).filter(Boolean))].sort();
+      setKelasOptions(kelasSet);
+
+      const muridIds = muridData.map(m => m.id);
+      const { data: absensiData } = await supabase.from('absensi').select('murid_id, status').eq('tanggal', today).in('murid_id', muridIds);
+      const absensiMap = new Map((absensiData || []).map(a => [a.murid_id, a.status]));
+
+      const byKelas: Record<string, { hadir: number; izin: number; sakit: number; alfa: number; total: number }> = {};
+      muridData.forEach(m => {
+        const k = m.kelas || 'Tanpa Kelas';
+        if (!byKelas[k]) byKelas[k] = { hadir: 0, izin: 0, sakit: 0, alfa: 0, total: 0 };
+        byKelas[k].total++;
+        const status = absensiMap.get(m.id);
+        if (status === 'Hadir') byKelas[k].hadir++;
+        else if (status === 'Izin') byKelas[k].izin++;
+        else if (status === 'Sakit') byKelas[k].sakit++;
+        else if (status === 'Alpha' || status === 'Alfa') byKelas[k].alfa++;
+      });
+
+      const result: PresensiMuridByKelas[] = Object.entries(byKelas).map(([namaKelas, s]) => ({
+        kelas_id: namaKelas,
+        nama_kelas: namaKelas,
+        hadir: s.hadir,
+        izin: s.izin,
+        sakit: s.sakit,
+        alfa: s.alfa,
+        total_murid: s.total,
+        persentase: s.total > 0 ? Math.round((s.hadir / s.total) * 100) : 0,
+      }));
+      setMuridByKelas(result);
     } catch (err) {
       showToast('Gagal memuat data', 'error');
     } finally {
       setLoading(false);
     }
   };
+
+  const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
   return (
     <div className="space-y-3">
@@ -452,6 +499,30 @@ function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, set
         </div>
       )}
 
+      {presensiTab === 'murid' && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Lembaga</label>
+            <SearchableSelect
+              value={filterLembagaId}
+              onChange={v => { setFilterLembagaId(v); setFilterKelas(''); }}
+              options={lembagaOptions}
+              placeholder="Semua Lembaga"
+              icon={<Building2 className="w-3.5 h-3.5" />}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Kelas</label>
+            <SearchableSelect
+              value={filterKelas}
+              onChange={v => setFilterKelas(v)}
+              options={kelasOptions.map(k => ({ value: k, label: k }))}
+              placeholder="Semua Kelas"
+            />
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
       ) : presensiTab === 'ustaz' ? (
@@ -460,10 +531,12 @@ function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, set
         ) : (
           <JadwalUstazHariIniSubTab showToast={showToast} />
         )
+      ) : muridByKelas.length === 0 ? (
+        <EmptyState title="Tidak ada data presensi" icon={<GraduationCap className="w-8 h-8 text-slate-300" />} />
       ) : (
         <div className="space-y-1">
           {muridByKelas.map(kelas => (
-            <button key={kelas.kelas_id} className="card p-3 w-full text-left hover:shadow-sm transition-all flex items-center gap-3">
+            <div key={kelas.kelas_id} className="card p-3 w-full text-left hover:shadow-sm transition-all flex items-center gap-3">
               <div className="w-9 h-9 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center">
                 <span className="text-[10px] font-bold text-sky-600">{kelas.nama_kelas}</span>
               </div>
@@ -479,7 +552,7 @@ function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, set
               <div className="text-right">
                 <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{kelas.persentase}%</p>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

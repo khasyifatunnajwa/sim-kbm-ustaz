@@ -124,10 +124,21 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     fetchMurid();
   }, []);
 
-  const kelasOptions = useMemo(
-    () => kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
-    [kelasList, muridList]
-  );
+  const kelasOptions = useMemo(() => {
+    if (form.lembaga_id) {
+      const kelasFromMurid = [...new Set(muridList.filter(m => m.lembaga_id === form.lembaga_id).map(m => m.kelas).filter(Boolean))].sort();
+      return kelasFromMurid.length > 0 ? kelasFromMurid : (kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort());
+    }
+    return kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort();
+  }, [kelasList, muridList, form.lembaga_id]);
+
+  const formKelasOptions = useMemo(() => {
+    if (form.lembaga_id) {
+      const kelasFromMurid = [...new Set(muridList.filter(m => m.lembaga_id === form.lembaga_id).map(m => m.kelas).filter(Boolean))].sort();
+      return kelasFromMurid.length > 0 ? kelasFromMurid : (kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort());
+    }
+    return kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort();
+  }, [kelasList, muridList, form.lembaga_id]);
 
   const filteredMuridList = useMemo(() => {
     return muridList.filter(m => {
@@ -412,7 +423,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                 className="w-full p-2 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               >
                 <option value="">Pilih Kelas</option>
-                {kelasOptions.map(kelas => <option key={kelas} value={kelas}>{kelas}</option>)}
+                {formKelasOptions.map(kelas => <option key={kelas} value={kelas}>{kelas}</option>)}
               </select>
             </div>
             <div>

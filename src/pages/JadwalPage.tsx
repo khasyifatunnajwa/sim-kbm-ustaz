@@ -11,6 +11,7 @@ import { useLembaga } from '../hooks/useLembaga';
 import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, Profile, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
+const HARI_NON_JUMAT = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Sabtu', 'Ahad'];
 
 function getTodayHari(): string {
   const today = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
@@ -28,6 +29,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
+  const [muridKelasByLembaga, setMuridKelasByLembaga] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -93,18 +95,29 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     const jadwalQuery = profile?.role === 'admin'
       ? supabase.from('jadwal_mengajar').select('*').order('jam_mulai')
       : supabase.from('jadwal_mengajar').select('*').eq('user_id', profile?.id ?? '').order('jam_mulai');
-    const [jr, ar, pr, kr, mr] = await Promise.all([
+    const [jr, ar, pr, kr, mr, muridRes] = await Promise.all([
       jadwalQuery,
       supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
       supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
       supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
       supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
+      supabase.from('murid').select('kelas, lembaga_id'),
     ]);
     if (jr.data) setJadwal(jr.data as JadwalMengajar[]);
     if (ar.data) setAgendaList(ar.data as AgendaPenting[]);
     if (pr.data) setPengumumanList(pr.data as Pengumuman[]);
     if (kr.data) setKelasList(kr.data as Kelas[]);
     if (mr.data) setMapelList(mr.data as MataPelajaran[]);
+    if (muridRes.data) {
+      const byLembaga: Record<string, string[]> = {};
+      (muridRes.data as any[]).forEach(m => {
+        if (m.lembaga_id && m.kelas) {
+          if (!byLembaga[m.lembaga_id]) byLembaga[m.lembaga_id] = [];
+          if (!byLembaga[m.lembaga_id].includes(m.kelas)) byLembaga[m.lembaga_id].push(m.kelas);
+        }
+      });
+      setMuridKelasByLembaga(byLembaga);
+    }
     setLoading(false);
   };
 
@@ -207,6 +220,13 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   };
 
   const grouped = HARI.reduce((acc, h) => { acc[h] = jadwal.filter(j => j.hari === h); return acc; }, {} as Record<string, JadwalMengajar[]>);
+
+  const kelasFilteredByLembaga = useMemo(() => {
+    if (!form.lembaga_id) return kelasList;
+    const kelasNames = muridKelasByLembaga[form.lembaga_id] || [];
+    if (kelasNames.length === 0) return kelasList;
+    return kelasList.filter(k => kelasNames.includes(k.nama_kelas));
+  }, [kelasList, form.lembaga_id, muridKelasByLembaga]);
 
   return (
     <div>
@@ -424,14 +444,19 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Hari</label>
               <select value={form.hari} onChange={e => setForm(p => ({ ...p, hari: e.target.value }))} className="input-field text-sm">
-                {HARI.map(h => <option key={h}>{h}</option>)}
+                {(form.hari === 'Jumat' ? HARI : HARI_NON_JUMAT).map(h => <option key={h}>{h}</option>)}
               </select>
+              {form.hari === 'Jumat' && (
+                <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Jumat adalah hari libur
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
               <select value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" required>
                 <option value="">Pilih Kelas</option>
-                {kelasList.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
+                {kelasFilteredByLembaga.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
               </select>
             </div>
           </div>

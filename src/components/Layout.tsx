@@ -19,7 +19,6 @@ import {
   Camera,
   Megaphone,
   LayoutDashboard,
-  ChevronRight,
   Building2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
