@@ -4,7 +4,7 @@ import {
   BookOpen, Calendar, Search, X, Database, GraduationCap, Megaphone,
   Building2, Key, BarChart3, TrendingUp, Clock, AlertCircle, FileText,
   ChevronRight, Settings, LayoutDashboard, Activity, AlertTriangle,
-  Sun, Moon, UsersRound, UserX, School, MessageCircleWarning,
+  UsersRound, UserX, School, MessageCircleWarning,
   RefreshCw, ArrowLeft, Eye, Phone, Send, Filter
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -18,9 +18,8 @@ import type {
 } from '../types';
 import DataSiswaPage from './DataSiswaPage';
 import DataUstazPage from './DataUstazPage';
-import AdminPengumuman from './AdminPengumumanPage'; // <-- IMPORT DIPERBAIKI SESUAI NAMA FILE
+import AdminPengumuman from './AdminPengumumanPage';
 
-// <-- TIPE 'pengumuman' DITAMBAHKAN
 type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan' | 'pengumuman'; 
 type PresensiTab = 'ustaz' | 'murid';
 type KelolaUserTab = 'users' | 'tahun' | 'semester' | 'kelas' | 'mapel' | 'ruangan';
@@ -28,20 +27,6 @@ type DataAkademikTab = 'siswa' | 'ustaz';
 type KenakalanTab = 'ustaz' | 'murid';
 
 const PAGE_SIZE = 10;
-
-// ================== THEME TOGGLE ==================
-function ThemeToggle() {
-  const { isDark, toggleTheme } = useThemeContext();
-  return (
-    <button
-      onClick={toggleTheme}
-      className={`p-2 rounded-lg transition-all ${isDark ? 'bg-slate-700 text-amber-400 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-      title={isDark ? 'Mode Terang' : 'Mode Gelap'}
-    >
-      {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-    </button>
-  );
-}
 
 // ================== DASHBOARD CARDS ==================
 function DashboardPresensiUstazCard({ data, loading, onClick }: { data: DashboardPresensiUstaz | null; loading: boolean; onClick: () => void }) {
@@ -218,27 +203,23 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
     { icon: Shield, label: 'Kelola User', section: 'kelola-user' as AdminSection, color: 'violet' },
     { icon: BookOpen, label: 'Data Akademik', section: 'data-akademik' as AdminSection, color: 'sky' },
     { icon: AlertTriangle, label: 'Kenakalan', section: 'kenakalan' as AdminSection, color: 'rose' },
-    // <-- TOMBOL PENGUMUMAN DITAMBAHKAN
     { icon: Megaphone, label: 'Pengumuman', section: 'pengumuman' as AdminSection, color: 'amber' }, 
   ];
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-4 text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-            <LayoutDashboard className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base font-bold truncate">Dashboard Admin</h2>
-            <p className="text-slate-300 text-xs truncate">Halo, {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Admin'}</p>
-          </div>
-          <ThemeToggle />
+      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-4 text-white shadow-lg flex items-center gap-3">
+        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+          <LayoutDashboard className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold truncate">Dashboard Admin</h2>
+          <p className="text-slate-300 text-xs truncate">Halo, {profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Admin'}</p>
         </div>
       </div>
 
-      {/* Dashboard Cards - 1 col di HP, 3 col di Desktop */}
+      {/* Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-2">
         <DashboardPresensiUstazCard data={presensiUstaz} loading={loading} onClick={() => onViewChange('presensi')} />
         <DashboardKelasKosongCard data={kelasKosong} loading={loading} onClick={() => onViewChange('presensi')} />
@@ -256,7 +237,7 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
               violet: 'bg-violet-50 dark:bg-violet-900/20 border-violet-100 dark:border-violet-800',
               sky: 'bg-sky-50 dark:bg-sky-900/20 border-sky-100 dark:border-sky-800',
               rose: 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800',
-              amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800', // <-- WARNA AMBER DITAMBAHKAN
+              amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800',
             };
             return (
               <button key={i} onClick={() => onViewChange(item.section)} className={`card p-2.5 flex flex-col items-center gap-1.5 hover:shadow-md transition-all group border ${colors[item.color]}`}>
@@ -299,7 +280,6 @@ function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (s
 export default function AdminPage({ showToast, profile, setActiveTab }: { showToast: ShowToast; profile: Profile | null; setActiveTab?: (tab: ActiveTab) => void }) {
   const [section, setSection] = useState<AdminSection>(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
-    // <-- ROUTING 'pengumuman' DITAMBAHKAN
     if (['presensi', 'kelola-user', 'data-akademik', 'kenakalan', 'pengumuman'].includes(hashParts[1])) return hashParts[1] as AdminSection;
     return 'dashboard';
   });
@@ -338,7 +318,6 @@ export default function AdminPage({ showToast, profile, setActiveTab }: { showTo
   useEffect(() => {
     const handlePopState = () => {
       const hashParts = window.location.hash.replace('#', '').split('/');
-      // <-- ROUTING 'pengumuman' DITAMBAHKAN
       if (['dashboard', 'presensi', 'kelola-user', 'data-akademik', 'kenakalan', 'pengumuman'].includes(hashParts[1])) {
         setSection(hashParts[1] as AdminSection);
       }
@@ -402,27 +381,11 @@ export default function AdminPage({ showToast, profile, setActiveTab }: { showTo
       )}
 
       {section === 'dashboard' && <AdminDashboard onViewChange={handleSectionChange} profile={profile} showToast={showToast} />}
-
-      {section === 'presensi' && (
-        <PresensiSection presensiTab={presensiTab} setPresensiTab={setPresensiTab} showToast={showToast} profile={profile} kelasList={kelasList} />
-      )}
-
-      {section === 'kelola-user' && (
-        <KelolaUserSection kelolaUserTab={kelolaUserTab} setKelolaUserTab={setKelolaUserTab} showToast={showToast} profile={profile} users={users} tahunList={tahunList} semesterList={semesterList} kelasList={kelasList} mapelList={mapelList} ruanganList={ruanganList} loading={loading} saving={saving} showModal={showModal} setShowModal={setShowModal} editingId={editingId} setEditingId={setEditingId} search={search} setSearch={setSearch} page={page} setPage={setPage} userForm={userForm} setUserForm={setUserForm} tahunForm={tahunForm} setTahunForm={setTahunForm} semesterForm={semesterForm} setSemesterForm={setSemesterForm} kelasForm={kelasForm} setKelasForm={setKelasForm} mapelForm={mapelForm} setMapelForm={setMapelForm} ruanganForm={ruanganForm} setRuanganForm={setRuanganForm} resetPassId={resetPassId} setResetPassId={setResetPassId} newPassword={newPassword} setNewPassword={setNewPassword} isResetting={isResetting} setIsResetting={setIsResetting} fetchMasterData={fetchMasterData} />
-      )}
-
-      {section === 'data-akademik' && (
-        <DataAkademikSection dataAkademikTab={dataAkademikTab} setDataAkademikTab={setDataAkademikTab} showToast={showToast} />
-      )}
-
-      {section === 'kenakalan' && (
-        <KenakalanSection kenakalanTab={kenakalanTab} setKenakalanTab={setKenakalanTab} showToast={showToast} users={users} kelasList={kelasList} />
-      )}
-
-      {/* <-- PERENDERAN PENGUMUMAN DITAMBAHKAN */}
-      {section === 'pengumuman' && (
-        <AdminPengumuman showToast={showToast} />
-      )}
+      {section === 'presensi' && <PresensiSection presensiTab={presensiTab} setPresensiTab={setPresensiTab} showToast={showToast} profile={profile} kelasList={kelasList} />}
+      {section === 'kelola-user' && <KelolaUserSection kelolaUserTab={kelolaUserTab} setKelolaUserTab={setKelolaUserTab} showToast={showToast} profile={profile} users={users} tahunList={tahunList} semesterList={semesterList} kelasList={kelasList} mapelList={mapelList} ruanganList={ruanganList} loading={loading} saving={saving} showModal={showModal} setShowModal={setShowModal} editingId={editingId} setEditingId={setEditingId} search={search} setSearch={setSearch} page={page} setPage={setPage} userForm={userForm} setUserForm={setUserForm} tahunForm={tahunForm} setTahunForm={setTahunForm} semesterForm={semesterForm} setSemesterForm={setSemesterForm} kelasForm={kelasForm} setKelasForm={setKelasForm} mapelForm={mapelForm} setMapelForm={setMapelForm} ruanganForm={ruanganForm} setRuanganForm={setRuanganForm} resetPassId={resetPassId} setResetPassId={setResetPassId} newPassword={newPassword} setNewPassword={setNewPassword} isResetting={isResetting} setIsResetting={setIsResetting} fetchMasterData={fetchMasterData} />}
+      {section === 'data-akademik' && <DataAkademikSection dataAkademikTab={dataAkademikTab} setDataAkademikTab={setDataAkademikTab} showToast={showToast} />}
+      {section === 'kenakalan' && <KenakalanSection kenakalanTab={kenakalanTab} setKenakalanTab={setKenakalanTab} showToast={showToast} users={users} kelasList={kelasList} />}
+      {section === 'pengumuman' && <AdminPengumuman showToast={showToast} />}
     </div>
   );
 }
