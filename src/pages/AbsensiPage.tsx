@@ -6,6 +6,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import EmptyState from '../components/EmptyState';
+import SearchableSelect from '../components/SearchableSelect';
+import { useLembaga } from '../hooks/useLembaga';
 import { generatePDF, shareWA } from '../lib/pdf';
 import type { Murid, Absensi, Profile, ShowToast } from '../types';
 
@@ -41,6 +43,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
   const [mapelOptions, setMapelOptions] = useState<string[]>([]);
+  const [selectedLembagaId, setSelectedLembagaId] = useState<string>('');
   const [selectedKelas, setSelectedKelas] = useState<string>('');
   const [selectedMapel, setSelectedMapel] = useState<string>('');
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
@@ -54,6 +57,8 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const [rekapTahun, setRekapTahun] = useState(new Date().getFullYear());
   const [rekapData, setRekapData] = useState<Record<string, Record<Status, number>>>({});
   const [rekapLoading, setRekapLoading] = useState(false);
+
+  const { data: lembagaList = [] } = useLembaga();
 
   const today = new Date().toISOString().split('T')[0];
   void today;
@@ -108,9 +113,32 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     })();
   }, [profile]);
 
+  // Filter kelas options based on selected lembaga
+  const kelasOptionsFiltered = useMemo(() => {
+    if (!selectedLembagaId) return kelasOptions;
+    const kelasSet = new Set<string>();
+    muridList
+      .filter(m => m.lembaga_id === selectedLembagaId)
+      .forEach(m => { if (m.kelas) kelasSet.add(m.kelas); });
+    return Array.from(kelasSet).sort();
+  }, [kelasOptions, muridList, selectedLembagaId]);
+
+  // Reset kelas if it's no longer valid when lembaga changes
+  useEffect(() => {
+    if (selectedLembagaId && kelasOptionsFiltered.length > 0 && !kelasOptionsFiltered.includes(selectedKelas)) {
+      setSelectedKelas(kelasOptionsFiltered[0]);
+    }
+    if (selectedLembagaId && kelasOptionsFiltered.length === 0 && selectedKelas) {
+      setSelectedKelas('');
+    }
+  }, [selectedLembagaId, kelasOptionsFiltered]);
+
   const muridFiltered = useMemo(
-    () => muridList.filter(m => m.kelas === selectedKelas),
-    [muridList, selectedKelas]
+    () => muridList.filter(m =>
+      m.kelas === selectedKelas &&
+      (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
+    ),
+    [muridList, selectedKelas, selectedLembagaId]
   );
 
   useEffect(() => {
@@ -119,12 +147,17 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
 
   const loadData = async (kelas: string, tgl: string) => {
     setLoading(true);
-    const muridKelas = muridList.filter(m => m.kelas === kelas);
+    const muridKelas = muridList.filter(m =>
+      m.kelas === kelas &&
+      (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
+    );
     const muridIds = muridKelas.map(m => m.id);
     const map: Record<string, Status> = {};
     muridKelas.forEach(m => { map[m.id] = 'Hadir'; });
     if (muridIds.length) {
-      const { data } = await supabase.from('absensi').select('*').eq('tanggal', tgl).in('murid_id', muridIds);
+      let query = supabase.from('absensi').select('*').eq('tanggal', tgl).in('murid_id', muridIds);
+      if (selectedLembagaId) query = query.eq('lembaga_id', selectedLembagaId);
+      const { data } = await query;
       (data ?? []).forEach((a: Absensi) => { if (a.murid_id) map[a.murid_id] = a.status as Status; });
     }
     setAttendance(map);
@@ -135,8 +168,15 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     if (!selectedKelas || !muridFiltered.length) return;
     setSaving(true);
     const muridIds = muridFiltered.map(m => m.id);
-    await supabase.from('absensi').delete().eq('tanggal', tanggal).in('murid_id', muridIds);
-    const records = muridFiltered.map(m => ({ murid_id: m.id, tanggal, status: attendance[m.id] ?? 'Hadir' }));
+    let deleteQuery = supabase.from('absensi').delete().eq('tanggal', tanggal).in('murid_id', muridIds);
+    if (selectedLembagaId) deleteQuery = deleteQuery.eq('lembaga_id', selectedLembagaId);
+    await deleteQuery;
+    const records = muridFiltered.map(m => ({
+      murid_id: m.id,
+      tanggal,
+      status: attendance[m.id] ?? 'Hadir',
+      ...(selectedLembagaId ? { lembaga_id: selectedLembagaId } : {}),
+    }));
     const { error } = await supabase.from('absensi').insert(records);
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
@@ -146,11 +186,15 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const loadRekap = async () => {
     if (!selectedKelas) return;
     setRekapLoading(true);
-    const muridKelas = muridList.filter(m => m.kelas === selectedKelas);
+    const muridKelas = muridList.filter(m =>
+      m.kelas === selectedKelas &&
+      (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
+    );
     const muridIds = muridKelas.map(m => m.id);
     if (!muridIds.length) { setRekapData({}); setRekapLoading(false); return; }
 
     let query = supabase.from('absensi').select('*').in('murid_id', muridIds);
+    if (selectedLembagaId) query = query.eq('lembaga_id', selectedLembagaId);
     if (rekapType === 'bulanan') {
       const start = `${rekapTahun}-${String(rekapBulan).padStart(2, '0')}-01`;
       const end = `${rekapTahun}-${String(rekapBulan).padStart(2, '0')}-31`;
@@ -177,7 +221,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
 
   useEffect(() => {
     if (tab === 'rekap' && selectedKelas) loadRekap();
-  }, [tab, selectedKelas, rekapType, rekapBulan, rekapTahun]);
+  }, [tab, selectedKelas, rekapType, rekapBulan, rekapTahun, selectedLembagaId]);
 
   const stats = {
     hadir: Object.values(attendance).filter(s => s === 'Hadir').length,
@@ -240,12 +284,21 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
               <Calendar className="w-4 h-4 text-emerald-600" />
               <span className="text-sm font-bold text-slate-700">{todayInfo}</span>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <SearchableSelect
+                  label="Pilih Lembaga"
+                  value={selectedLembagaId}
+                  onChange={(v) => setSelectedLembagaId(v)}
+                  options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
+                  placeholder="Semua Lembaga"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pilih Kelas</label>
                 <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
                   <option value="">Pilih Kelas</option>
-                  {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
+                  {kelasOptionsFiltered.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
               </div>
               <div>
@@ -337,12 +390,21 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
         <>
           {/* Filter Rekap */}
           <div className="card p-4 mb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div>
+                <SearchableSelect
+                  label="Lembaga"
+                  value={selectedLembagaId}
+                  onChange={(v) => setSelectedLembagaId(v)}
+                  options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
+                  placeholder="Semua Lembaga"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
                 <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
                   <option value="">Pilih</option>
-                  {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
+                  {kelasOptionsFiltered.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
               </div>
               <div>

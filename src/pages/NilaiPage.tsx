@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import SearchableSelect from '../components/SearchableSelect';
+import { useLembaga } from '../hooks/useLembaga';
 import { generatePDF, shareWA } from '../lib/pdf';
 import type { Murid, Penilaian, DetailNilai, Profile, ShowToast } from '../types';
 
@@ -22,10 +24,11 @@ const NAMA_PENILAIAN_OPTIONS = [
 ];
 
 export default function NilaiPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+  const { data: lembagaList = [] } = useLembaga();
   const [tab, setTab] = useState<Tab>('input');
   const [muridList, setMuridList] = useState<Murid[]>([]);
-  const [kelasOptions, setKelasOptions] = useState<string[]>([]);
   const [mapelOptions, setMapelOptions] = useState<string[]>([]);
+  const [selectedLembaga, setSelectedLembaga] = useState('');
   const [selectedKelas, setSelectedKelas] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +43,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
   const [detailNilaiMap, setDetailNilaiMap] = useState<Record<string, DetailNilai[]>>({});
   const [selectedPenilaian, setSelectedPenilaian] = useState<string>('');
 
+  const [inputLembagaId, setInputLembagaId] = useState('');
   const [inputMapel, setInputMapel] = useState('');
   const [inputJenis, setInputJenis] = useState<JenisUjian>('Ulangan');
   const [inputNama, setInputNama] = useState('');
@@ -82,9 +86,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
   const fetchData = async () => {
     setLoading(true);
     const scope = await getUstazScope(profile);
-    setKelasOptions(scope.kelasList);
     setMapelOptions(scope.mapelList);
-    if (scope.kelasList.length) setSelectedKelas(scope.kelasList[0]);
     if (scope.mapelList.length) setInputMapel(scope.mapelList[0]);
 
     const { data: muridData } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
@@ -95,6 +97,23 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     setMuridList(murid);
     setLoading(false);
   };
+
+  // Kelas options filtered by selected lembaga (query murid by lembaga_id to get classes)
+  const kelasOptionsFiltered: string[] = useMemo(() => {
+    const source = selectedLembaga
+      ? muridList.filter(m => m.lembaga_id === selectedLembaga)
+      : muridList;
+    return Array.from(new Set(source.map(m => m.kelas).filter((k): k is string => Boolean(k)))).sort();
+  }, [muridList, selectedLembaga]);
+
+  // Reset selectedKelas when lembaga changes, pick first available
+  useEffect(() => {
+    if (kelasOptionsFiltered.length > 0 && !kelasOptionsFiltered.includes(selectedKelas)) {
+      setSelectedKelas(kelasOptionsFiltered[0] ?? '');
+    } else if (kelasOptionsFiltered.length === 0) {
+      setSelectedKelas('');
+    }
+  }, [kelasOptionsFiltered]);
 
   const muridFiltered = useMemo(
     () => muridList.filter(m => m.kelas === selectedKelas),
@@ -134,6 +153,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
 
   // 4. MENDORONG HASH SAAT BUKA MODAL
   const openInputModal = () => {
+    setInputLembagaId(selectedLembaga || (lembagaList[0]?.id ?? ''));
     setInputMapel(mapelOptions[0] || '');
     setInputJenis('Ulangan');
     setInputNama('');
@@ -169,6 +189,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
           jenis: inputJenis,
           bobot: inputBobot,
           tanggal: inputTanggal,
+          lembaga_id: inputLembagaId || null,
         }])
         .select()
         .maybeSingle();
@@ -240,6 +261,21 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     shareWA(text);
   };
 
+  // Lembaga options for SearchableSelect
+  const lembagaOptions = useMemo(
+    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
+    [lembagaList]
+  );
+
+  // Kelas options for SearchableSelect inside modal (filtered by inputLembagaId)
+  const modalKelasOptions = useMemo(() => {
+    if (!inputLembagaId) {
+      return [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort().map(k => ({ value: k, label: k }));
+    }
+    return [...new Set(muridList.filter(m => m.lembaga_id === inputLembagaId).map(m => m.kelas).filter(Boolean))].sort().map(k => ({ value: k, label: k }));
+  }, [muridList, inputLembagaId]);
+
+
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
@@ -264,15 +300,26 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
         </button>
       </div>
 
-      {/* Tampilan Pilihan Kelas Baru (Dropdown) */}
+      {/* 1. Lembaga (SearchableSelect) */}
+      <div className="mb-4">
+        <SearchableSelect
+          value={selectedLembaga}
+          onChange={setSelectedLembaga}
+          options={lembagaOptions}
+          placeholder="Pilih Lembaga"
+          label="Lembaga"
+        />
+      </div>
+
+      {/* 2. Kelas (select filtered by lembaga) */}
       <div className="mb-4 relative">
         <select
           value={selectedKelas}
           onChange={(e) => setSelectedKelas(e.target.value)}
           className="input-field text-sm font-semibold appearance-none w-full bg-white cursor-pointer pr-10"
         >
-          {kelasOptions.length === 0 && <option value="">Belum ada kelas</option>}
-          {kelasOptions.map((k) => (
+          {kelasOptionsFiltered.length === 0 && <option value="">Belum ada kelas</option>}
+          {kelasOptionsFiltered.map((k) => (
             <option key={k} value={k}>
               Pilihan Kelas: {k}
             </option>
@@ -392,6 +439,32 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
 
       <Modal isOpen={showModal} onClose={handleCloseModal} title="Input Nilai Santri" size="lg">
         <form onSubmit={handleSaveBatch} className="space-y-4">
+          {/* 1. Lembaga (SearchableSelect) */}
+          <div className="relative">
+            <SearchableSelect
+              value={inputLembagaId}
+              onChange={setInputLembagaId}
+              options={lembagaOptions}
+              placeholder="Pilih Lembaga"
+              label="Lembaga"
+            />
+          </div>
+
+          {/* 2. Kelas (select filtered by lembaga) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
+            <select
+              value={selectedKelas}
+              onChange={(e) => setSelectedKelas(e.target.value)}
+              className="input-field text-sm"
+              required
+            >
+              <option value="">Pilih Kelas</option>
+              {modalKelasOptions.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+            </select>
+          </div>
+
+          {/* 3. Mata Pelajaran */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran</label>
@@ -427,6 +500,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
             <input type="date" value={inputTanggal} onChange={e => setInputTanggal(e.target.value)} className="input-field text-sm" required />
           </div>
 
+          {/* 4. Santri */}
           <div>
             <p className="text-xs font-semibold text-slate-600 mb-2">Nilai Santri (0-100, kosongkan jika tidak ada)</p>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
