@@ -18,8 +18,7 @@ import type {
 } from '../types';
 import DataSiswaPage from './DataSiswaPage';
 import DataUstazPage from './DataUstazPage';
-import AdminPengumuman from './AdminPengumuman'; // <-- IMPORT DITAMBAHKAN
-import { useThemeContext } from '../contexts/ThemeContext';
+import AdminPengumuman from './AdminPengumumanPage'; // <-- IMPORT DIPERBAIKI SESUAI NAMA FILE
 
 // <-- TIPE 'pengumuman' DITAMBAHKAN
 type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan' | 'pengumuman'; 
