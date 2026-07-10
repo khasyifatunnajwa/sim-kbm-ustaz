@@ -1,25 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  User, Users, Shield, Plus, Trash2, Pencil, CheckCircle,
-  BookOpen, Calendar, Search, Database, GraduationCap, Megaphone,
-  Building2, Clock, FileText,
-  ChevronRight, LayoutDashboard, AlertTriangle,
+  User, Users, Shield, Plus, Trash2, Pencil, CheckCircle, XCircle,
+  BookOpen, Calendar, Search, X, Database, GraduationCap, Megaphone,
+  Building2, Key, BarChart3, TrendingUp, Clock, AlertCircle, FileText,
+  ChevronRight, Settings, LayoutDashboard, Activity, AlertTriangle,
   UsersRound, UserX, School, MessageCircleWarning,
-  ArrowLeft, Phone, MapPin,
-  ChevronDown, ChevronUp
+  RefreshCw, ArrowLeft, Eye, Phone, Send, Filter
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga } from '../hooks/useLembaga';
 import type {
   Profile, ShowToast, TahunAjaran, Semester, MataPelajaran, UserRole, KelompokMapel, Ruangan, ActiveTab,
-  DashboardPresensiUstaz, KelasKosong,
-  KenakalanUstaz,
-  PresensiMuridByKelas,
-  Lembaga, Murid, JadwalMengajar
+  DashboardPresensiUstaz, DashboardPresensiMurid, KelasKosong, UstazPresensiList,
+  KenakalanUstaz, KenakalanMurid, PresensiMuridByKelas, UstazDetailPresensi
 } from '../types';
 import DataSiswaPage from './DataSiswaPage';
 import DataUstazPage from './DataUstazPage';
@@ -27,9 +22,8 @@ import AdminPengumuman from './AdminPengumumanPage';
 
 type AdminSection = 'dashboard' | 'presensi' | 'kelola-user' | 'data-akademik' | 'kenakalan' | 'pengumuman'; 
 type PresensiTab = 'ustaz' | 'murid';
-type PresensiUstazSubTab = 'presensi-ustaz' | 'jadwal-ustaz';
 type KelolaUserTab = 'users' | 'tahun' | 'semester' | 'kelas' | 'mapel' | 'ruangan';
-type DataAkademikTab = 'siswa' | 'ustaz' | 'data-santri' | 'jadwal-asatiz' | 'kelola-lembaga';
+type DataAkademikTab = 'siswa' | 'ustaz';
 type KenakalanTab = 'ustaz' | 'murid';
 
 const PAGE_SIZE = 10;
@@ -144,7 +138,7 @@ function DashboardPresensiMuridCard({ data, loading, onClick }: { data: Presensi
 }
 
 // ================== ADMIN DASHBOARD ==================
-function AdminDashboard({ onViewChange, profile }: { onViewChange: (section: AdminSection) => void; profile: Profile | null }) {
+function AdminDashboard({ onViewChange, profile, showToast }: { onViewChange: (section: AdminSection) => void; profile: Profile | null; showToast: ShowToast }) {
   const [loading, setLoading] = useState(true);
   const [presensiUstaz, setPresensiUstaz] = useState<DashboardPresensiUstaz | null>(null);
   const [kelasKosong, setKelasKosong] = useState<KelasKosong[]>([]);
@@ -283,30 +277,20 @@ function AdminDashboard({ onViewChange, profile }: { onViewChange: (section: Adm
 }
 
 // ================== MAIN COMPONENT ==================
-export default function AdminPage({ showToast, profile, initialSection, initialSubTab }: { showToast: ShowToast; profile: Profile | null; setActiveTab?: (tab: ActiveTab) => void; initialSection?: string; initialSubTab?: string }) {
+export default function AdminPage({ showToast, profile, setActiveTab }: { showToast: ShowToast; profile: Profile | null; setActiveTab?: (tab: ActiveTab) => void }) {
   const [section, setSection] = useState<AdminSection>(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
-    if (initialSection && ['presensi', 'kelola-user', 'data-akademik', 'kenakalan', 'pengumuman'].includes(initialSection)) return initialSection as AdminSection;
     if (['presensi', 'kelola-user', 'data-akademik', 'kenakalan', 'pengumuman'].includes(hashParts[1])) return hashParts[1] as AdminSection;
     return 'dashboard';
   });
 
   const [presensiTab, setPresensiTab] = useState<PresensiTab>('ustaz');
-  const [presensiUstazSubTab, setPresensiUstazSubTab] = useState<PresensiUstazSubTab>(() => {
-    if (initialSubTab === 'jadwal-ustaz') return 'jadwal-ustaz';
-    return 'presensi-ustaz';
-  });
   const [kelolaUserTab, setKelolaUserTab] = useState<KelolaUserTab>('users');
-  const [dataAkademikTab, setDataAkademikTab] = useState<DataAkademikTab>(() => {
-    if (initialSubTab === 'data-santri') return 'data-santri';
-    if (initialSubTab === 'jadwal-asatiz') return 'jadwal-asatiz';
-    if (initialSubTab === 'kelola-lembaga') return 'kelola-lembaga';
-    return 'siswa';
-  });
+  const [dataAkademikTab, setDataAkademikTab] = useState<DataAkademikTab>('siswa');
   const [kenakalanTab, setKenakalanTab] = useState<KenakalanTab>('ustaz');
 
   const [loading, setLoading] = useState(false);
-  const [saving] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -396,22 +380,42 @@ export default function AdminPage({ showToast, profile, initialSection, initialS
         </button>
       )}
 
-      {section === 'dashboard' && <AdminDashboard onViewChange={handleSectionChange} profile={profile} />}
-      {section === 'presensi' && <PresensiSection presensiTab={presensiTab} setPresensiTab={setPresensiTab} presensiUstazSubTab={presensiUstazSubTab} setPresensiUstazSubTab={setPresensiUstazSubTab} showToast={showToast} />}
+      {section === 'dashboard' && <AdminDashboard onViewChange={handleSectionChange} profile={profile} showToast={showToast} />}
+      {section === 'presensi' && <PresensiSection presensiTab={presensiTab} setPresensiTab={setPresensiTab} showToast={showToast} profile={profile} kelasList={kelasList} />}
       {section === 'kelola-user' && <KelolaUserSection kelolaUserTab={kelolaUserTab} setKelolaUserTab={setKelolaUserTab} showToast={showToast} profile={profile} users={users} tahunList={tahunList} semesterList={semesterList} kelasList={kelasList} mapelList={mapelList} ruanganList={ruanganList} loading={loading} saving={saving} showModal={showModal} setShowModal={setShowModal} editingId={editingId} setEditingId={setEditingId} search={search} setSearch={setSearch} page={page} setPage={setPage} userForm={userForm} setUserForm={setUserForm} tahunForm={tahunForm} setTahunForm={setTahunForm} semesterForm={semesterForm} setSemesterForm={setSemesterForm} kelasForm={kelasForm} setKelasForm={setKelasForm} mapelForm={mapelForm} setMapelForm={setMapelForm} ruanganForm={ruanganForm} setRuanganForm={setRuanganForm} resetPassId={resetPassId} setResetPassId={setResetPassId} newPassword={newPassword} setNewPassword={setNewPassword} isResetting={isResetting} setIsResetting={setIsResetting} fetchMasterData={fetchMasterData} />}
-      {section === 'data-akademik' && <DataAkademikSection dataAkademikTab={dataAkademikTab} setDataAkademikTab={setDataAkademikTab} showToast={showToast} profile={profile} />}
-      {section === 'kenakalan' && <KenakalanSection kenakalanTab={kenakalanTab} setKenakalanTab={setKenakalanTab} showToast={showToast} />}
+      {section === 'data-akademik' && <DataAkademikSection dataAkademikTab={dataAkademikTab} setDataAkademikTab={setDataAkademikTab} showToast={showToast} />}
+      {section === 'kenakalan' && <KenakalanSection kenakalanTab={kenakalanTab} setKenakalanTab={setKenakalanTab} showToast={showToast} users={users} kelasList={kelasList} />}
       {section === 'pengumuman' && <AdminPengumuman showToast={showToast} />}
     </div>
   );
 }
 
 // ================== PRESENSI SECTION ==================
-function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, setPresensiUstazSubTab, showToast }: { presensiTab: PresensiTab; setPresensiTab: (tab: PresensiTab) => void; presensiUstazSubTab: PresensiUstazSubTab; setPresensiUstazSubTab: (tab: PresensiUstazSubTab) => void; showToast: ShowToast }) {
+function PresensiSection({ presensiTab, setPresensiTab, showToast, profile, kelasList }: { presensiTab: PresensiTab; setPresensiTab: (tab: PresensiTab) => void; showToast: ShowToast; profile: Profile | null; kelasList: any[] }) {
+  const [ustazList, setUstazList] = useState<UstazPresensiList[]>([]);
   const [muridByKelas, setMuridByKelas] = useState<PresensiMuridByKelas[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { if (presensiTab === 'murid') fetchMuridByKelas(); }, [presensiTab]);
+  useEffect(() => { if (presensiTab === 'ustaz') fetchUstazPresensi(); else fetchMuridByKelas(); }, [presensiTab]);
+
+  const fetchUstazPresensi = async () => {
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: profiles } = await supabase.from('profiles').select('id, nama_lengkap, nama_panggilan, foto, nomor_whatsapp').in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap');
+      const { data: presensi } = await supabase.from('presensi_ustaz').select('guru_id, status, jam_server').eq('tanggal', today);
+      const presensiMap = new Map((presensi || []).map(p => [p.guru_id, p]));
+
+      setUstazList((profiles || []).map(p => {
+        const pres = presensiMap.get(p.id);
+        return { guru_id: p.id, nama_lengkap: p.nama_lengkap || '-', nama_panggilan: p.nama_panggilan || '-', foto: p.foto || '', nomor_whatsapp: p.nomor_whatsapp || '', sudah_presensi: !!pres, status_presensi: pres?.status || 'Belum Presensi', jam_presensi: pres?.jam_server || '' };
+      }));
+    } catch (err) {
+      showToast('Gagal memuat data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchMuridByKelas = async () => {
     setLoading(true);
@@ -424,6 +428,9 @@ function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, set
       setLoading(false);
     }
   };
+
+  const hadirCount = ustazList.filter(u => u.sudah_presensi).length;
+  const belumCount = ustazList.filter(u => !u.sudah_presensi).length;
 
   return (
     <div className="space-y-3">
@@ -441,25 +448,21 @@ function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, set
         </button>
       </div>
 
-      {presensiTab === 'ustaz' && (
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => setPresensiUstazSubTab('presensi-ustaz')} className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-[11px] font-semibold transition-all ${presensiUstazSubTab === 'presensi-ustaz' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
-            <CheckCircle className="w-3.5 h-3.5" /> Presensi Ustaz
-          </button>
-          <button onClick={() => setPresensiUstazSubTab('jadwal-ustaz')} className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-[11px] font-semibold transition-all ${presensiUstazSubTab === 'jadwal-ustaz' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
-            <Calendar className="w-3.5 h-3.5" /> Jadwal Hari Ini
-          </button>
-        </div>
-      )}
-
       {loading ? (
         <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
       ) : presensiTab === 'ustaz' ? (
-        presensiUstazSubTab === 'presensi-ustaz' ? (
-          <PresensiUstazDetailSubTab showToast={showToast} />
-        ) : (
-          <JadwalUstazHariIniSubTab showToast={showToast} />
-        )
+        <div className="space-y-2">
+          <div className="card p-3 grid grid-cols-3 gap-2 text-center">
+            <div><p className="text-lg font-bold text-emerald-600">{hadirCount}</p><p className="text-[9px] text-slate-500">Hadir</p></div>
+            <div><p className="text-lg font-bold text-rose-600">{belumCount}</p><p className="text-[9px] text-slate-500">Belum</p></div>
+            <div><p className="text-lg font-bold text-slate-800 dark:text-slate-100">{ustazList.length}</p><p className="text-[9px] text-slate-500">Total</p></div>
+          </div>
+          <div className="space-y-1">
+            {ustazList.map(ustaz => (
+              <UstazPresensiCard key={ustaz.guru_id} ustaz={ustaz} />
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="space-y-1">
           {muridByKelas.map(kelas => (
@@ -487,392 +490,28 @@ function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, set
   );
 }
 
-// ----- Presensi Ustaz Detail Sub-tab (4 expandable summary cards) -----
-type UstazDetailRow = {
-  guru_id: string;
-  nama_lengkap: string;
-  nama_panggilan: string;
-  foto?: string;
-  jam_presensi?: string;
-  status: 'Hadir' | 'Terlambat' | 'Belum Presensi' | 'Izin';
-  kelas?: string;
-  lembaga?: string;
-  lokasi?: string;
-  foto_presensi?: string;
-  telat_menit?: number;
-};
-
-function PresensiUstazDetailSubTab({ showToast }: { showToast: ShowToast }) {
-  const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<UstazDetailRow[]>([]);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
-  useEffect(() => { fetchData(); }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const dayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
-
-      // 1. profiles (ustaz/operator)
-      const { data: profiles } = await supabase
-        .from('profiles').select('id, nama_lengkap, nama_panggilan, foto')
-        .in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap');
-
-      // 2. presensi_guru for today (joined with profiles via user_id)
-      const { data: presensiGuru } = await supabase
-        .from('presensi_guru')
-        .select('id, user_id, tanggal, jam_masuk, lokasi, foto_url, telat_menit, lembaga_id')
-        .eq('tanggal', today);
-
-      // 3. jadwal_mengajar for today (who should have presensi)
-      const { data: jadwalToday } = await supabase
-        .from('jadwal_mengajar')
-        .select('id, user_id, kelas, pelajaran, jam_mulai, jam_selesai, lembaga_id, guru_pengganti_id')
-        .eq('hari', dayName);
-
-      // 4. izin_mengajar for today
-      const { data: izinToday } = await supabase
-        .from('izin_mengajar')
-        .select('id, user_id, nama_ustaz, jenis_izin, tanggal_mulai, tanggal_selesai, status, kelas, mata_pelajaran, guru_pengganti')
-        .eq('status', 'disetujui')
-        .lte('tanggal_mulai', today)
-        .gte('tanggal_selesai', today);
-
-      // 5. lembaga names
-      const { data: lembagaData } = await supabase.from('lembaga').select('id, nama_lembaga');
-      const lembagaMap = new Map((lembagaData || []).map(l => [l.id, l.nama_lembaga]));
-
-      // Build maps
-      const presensiMap = new Map((presensiGuru || []).map(p => [p.user_id, p]));
-      const izinMap = new Map((izinToday || []).map(i => [i.user_id, i]));
-      const jadwalByUser = new Map<string, any[]>();
-      (jadwalToday || []).forEach(j => {
-        const arr = jadwalByUser.get(j.user_id) || [];
-        arr.push(j);
-        jadwalByUser.set(j.user_id, arr);
-      });
-
-      // For each profile, determine status
-      const detailRows: UstazDetailRow[] = (profiles || []).map(p => {
-        const pres = presensiMap.get(p.id);
-        const izin = izinMap.get(p.id);
-        const jadwalList = jadwalByUser.get(p.id) || [];
-        const firstJadwal = jadwalList[0];
-
-        let status: UstazDetailRow['status'] = 'Belum Presensi';
-        let jam_presensi: string | undefined;
-        let telat_menit: number | undefined;
-
-        if (izin) {
-          status = 'Izin';
-        } else if (pres) {
-          jam_presensi = pres.jam_masuk || undefined;
-          // Determine Hadir vs Terlambat: compare presensi jam_masuk with jadwal jam_mulai (within 10 min = Hadir)
-          if (firstJadwal?.jam_mulai && pres.jam_masuk) {
-            const [jh, jm] = firstJadwal.jam_mulai.split(':').map(Number);
-            const [ph, pm] = pres.jam_masuk.split(':').map(Number);
-            const jadwalMin = jh * 60 + jm;
-            const presensiMin = ph * 60 + pm;
-            const diff = presensiMin - jadwalMin;
-            telat_menit = diff > 0 ? diff : 0;
-            status = diff > 10 ? 'Terlambat' : 'Hadir';
-          } else {
-            // No jadwal to compare; use telat_menit from DB if present
-            if (pres.telat_menit && pres.telat_menit > 10) {
-              status = 'Terlambat';
-              telat_menit = pres.telat_menit;
-            } else {
-              status = 'Hadir';
-            }
-          }
-        } else if (jadwalList.length > 0) {
-          status = 'Belum Presensi';
-        } else {
-          // No jadwal, no presensi, no izin -> skip (not expected today)
-          return null;
-        }
-
-        return {
-          guru_id: p.id,
-          nama_lengkap: p.nama_lengkap || '-',
-          nama_panggilan: p.nama_panggilan || '',
-          foto: p.foto || '',
-          jam_presensi,
-          status,
-          kelas: firstJadwal?.kelas || (izin?.kelas) || '-',
-          lembaga: firstJadwal?.lembaga_id ? (lembagaMap.get(firstJadwal.lembaga_id) || '-') : (pres?.lembaga_id ? (lembagaMap.get(pres.lembaga_id) || '-') : '-'),
-          lokasi: pres?.lokasi || '',
-          foto_presensi: pres?.foto_url || '',
-          telat_menit,
-        };
-      }).filter(Boolean) as UstazDetailRow[];
-
-      setRows(detailRows);
-    } catch (err: any) {
-      showToast('Gagal memuat detail presensi: ' + (err?.message || ''), 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const categories = [
-    { key: 'Hadir', label: 'Hadir', color: 'emerald', icon: CheckCircle },
-    { key: 'Terlambat', label: 'Terlambat', color: 'amber', icon: Clock },
-    { key: 'Belum Presensi', label: 'Belum Presensi', color: 'rose', icon: UserX },
-    { key: 'Izin', label: 'Izin', color: 'sky', icon: FileText },
-  ] as const;
-
-  const getCount = (key: string) => rows.filter(r => r.status === key).length;
-
-  const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-
-  if (loading) {
-    return <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>;
-  }
+function UstazPresensiCard({ ustaz }: { ustaz: UstazPresensiList }) {
+  const isHadir = ustaz.status_presensi === 'Hadir';
+  const isTerlambat = ustaz.status_presensi === 'Terlambat';
 
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        {categories.map(cat => {
-          const count = getCount(cat.key);
-          const list = rows.filter(r => r.status === cat.key);
-          const isOpen = !!expanded[cat.key];
-          const Icon = cat.icon;
-          const colorClasses: Record<string, string> = {
-            emerald: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800',
-            amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
-            rose: 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800',
-            sky: 'bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800',
-          };
-          const iconClasses: Record<string, string> = {
-            emerald: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
-            amber: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400',
-            rose: 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400',
-            sky: 'bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400',
-          };
-          return (
-            <div key={cat.key} className={`card p-0 overflow-hidden border ${colorClasses[cat.color]}`}>
-              <button onClick={() => toggle(cat.key)} className="w-full p-2.5 flex items-center gap-2 text-left">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconClasses[cat.color]}`}>
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{cat.label}</p>
-                  <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{count}</p>
-                </div>
-                {count > 0 && (
-                  isOpen ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                )}
-              </button>
-              {isOpen && count > 0 && (
-                <div className="px-2 pb-2 space-y-1">
-                  {list.map(r => <UstazDetailRowCard key={r.guru_id} row={r} />)}
-                </div>
-              )}
-            </div>
-          );
-        })}
+    <div className="card p-2.5 flex items-center gap-2.5">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isHadir ? 'bg-emerald-100 dark:bg-emerald-900/30' : isTerlambat ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-slate-100 dark:bg-slate-700'}`}>
+        {isHadir ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : isTerlambat ? <Clock className="w-4 h-4 text-amber-600" /> : <User className="w-4 h-4 text-slate-400" />}
       </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{ustaz.nama_lengkap}</p>
+        <p className="text-[9px] text-slate-500">
+          {ustaz.sudah_presensi ? new Date(ustaz.jam_presensi).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Belum presensi'}
+        </p>
+      </div>
+      <span className={`badge text-[9px] ${isHadir ? 'badge-success' : isTerlambat ? 'badge-warning' : 'badge-info'}`}>{ustaz.status_presensi}</span>
     </div>
   );
 }
-
-function UstazDetailRowCard({ row }: { row: UstazDetailRow }) {
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-700">
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-          {row.foto_presensi ? (
-            <img src={row.foto_presensi} alt={row.nama_lengkap} className="w-full h-full object-cover" />
-          ) : row.foto ? (
-            <img src={row.foto} alt={row.nama_lengkap} className="w-full h-full object-cover" />
-          ) : (
-            <User className="w-3.5 h-3.5 text-slate-400" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{row.nama_lengkap}</p>
-          <div className="flex flex-wrap items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400">
-            {row.jam_presensi && <span className="text-emerald-600 dark:text-emerald-400 font-medium">{row.jam_presensi.slice(0, 5)}</span>}
-            <span>•</span>
-            <span>{row.kelas}</span>
-            <span>•</span>
-            <span className="truncate">{row.lembaga}</span>
-          </div>
-          {row.lokasi && (
-            <div className="flex items-center gap-0.5 text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">
-              <MapPin className="w-2.5 h-2.5" />
-              <span className="truncate">{row.lokasi}</span>
-            </div>
-          )}
-          {row.telat_menit && row.telat_menit > 0 && (
-            <span className="text-[9px] text-amber-600 dark:text-amber-400">Terlambat {row.telat_menit} menit</span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ----- Jadwal Ustaz Hari Ini Sub-tab -----
-type JadwalUstazRow = {
-  id: string;
-  user_id: string;
-  nama_ustaz: string;
-  kelas: string;
-  pelajaran: string;
-  jam_mulai: string;
-  jam_selesai?: string;
-  ruangan?: string;
-  lembaga?: string;
-  guru_pengganti_id?: string;
-  nama_pengganti?: string;
-  is_izin: boolean;
-  status: 'Mengajar' | 'Izin' | 'Belum Presensi';
-};
-
-function JadwalUstazHariIniSubTab({ showToast }: { showToast: ShowToast }) {
-  const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<JadwalUstazRow[]>([]);
-
-  useEffect(() => { fetchData(); }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const dayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
-
-      const { data: jadwal } = await supabase
-        .from('jadwal_mengajar')
-        .select('id, user_id, kelas, pelajaran, jam_mulai, jam_selesai, ruangan, lembaga_id, guru_pengganti_id')
-        .eq('hari', dayName)
-        .order('jam_mulai');
-
-      if (!jadwal || jadwal.length === 0) {
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-
-      const userIds = [...new Set(jadwal.map(j => j.user_id).filter(Boolean))];
-      const penggantiIds = [...new Set(jadwal.map(j => j.guru_pengganti_id).filter(Boolean))];
-      const lembagaIds = [...new Set(jadwal.map(j => j.lembaga_id).filter(Boolean))];
-
-      const [profilesRes, penggantiRes, lembagaRes, presensiRes, izinRes] = await Promise.all([
-        supabase.from('profiles').select('id, nama_lengkap').in('id', userIds),
-        penggantiIds.length > 0
-          ? supabase.from('profiles').select('id, nama_lengkap').in('id', penggantiIds)
-          : Promise.resolve({ data: [], error: null }),
-        lembagaIds.length > 0
-          ? supabase.from('lembaga').select('id, nama_lembaga').in('id', lembagaIds)
-          : Promise.resolve({ data: [], error: null }),
-        supabase.from('presensi_guru').select('user_id, jam_masuk, telat_menit').eq('tanggal', today),
-        supabase.from('izin_mengajar')
-          .select('user_id, status, tanggal_mulai, tanggal_selesai')
-          .eq('status', 'disetujui')
-          .lte('tanggal_mulai', today)
-          .gte('tanggal_selesai', today),
-      ]);
-
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.nama_lengkap]));
-      const penggantiMap = new Map((penggantiRes.data || []).map(p => [p.id, p.nama_lengkap]));
-      const lembagaMap = new Map((lembagaRes.data || []).map(l => [l.id, l.nama_lembaga]));
-      const presensiSet = new Set((presensiRes.data || []).map(p => p.user_id));
-      const izinSet = new Set((izinRes.data || []).map(i => i.user_id));
-
-      const result: JadwalUstazRow[] = jadwal.map(j => {
-        const isIzin = izinSet.has(j.user_id);
-        const hasPresensi = presensiSet.has(j.user_id);
-        let status: JadwalUstazRow['status'] = 'Belum Presensi';
-        if (isIzin) status = 'Izin';
-        else if (hasPresensi) status = 'Mengajar';
-        return {
-          id: j.id,
-          user_id: j.user_id,
-          nama_ustaz: profileMap.get(j.user_id) || '-',
-          kelas: j.kelas || '-',
-          pelajaran: j.pelajaran || '-',
-          jam_mulai: j.jam_mulai || '-',
-          jam_selesai: j.jam_selesai,
-          ruangan: j.ruangan,
-          lembaga: j.lembaga_id ? (lembagaMap.get(j.lembaga_id) || '-') : '-',
-          guru_pengganti_id: j.guru_pengganti_id || undefined,
-          nama_pengganti: j.guru_pengganti_id ? (penggantiMap.get(j.guru_pengganti_id) || '-') : undefined,
-          is_izin: isIzin,
-          status,
-        };
-      });
-
-      setRows(result);
-    } catch (err: any) {
-      showToast('Gagal memuat jadwal ustaz: ' + (err?.message || ''), 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>;
-  }
-
-  if (rows.length === 0) {
-    return (
-      <div className="card p-4 text-center">
-        <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-        <p className="text-xs font-medium text-slate-800 dark:text-slate-100">Tidak ada jadwal mengajar hari ini</p>
-      </div>
-    );
-  }
-
-  const statusBadge = (status: JadwalUstazRow['status']) => {
-    if (status === 'Mengajar') return 'badge-success';
-    if (status === 'Izin') return 'badge-warning';
-    return 'badge-info';
-  };
-
-  return (
-    <div className="space-y-1">
-      {rows.map(r => (
-        <div key={r.id} className="card p-2.5">
-          <div className="flex items-start gap-2">
-            <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{r.nama_ustaz}</p>
-              <div className="flex flex-wrap items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                <span className="font-medium text-slate-700 dark:text-slate-300">{r.pelajaran}</span>
-                <span>•</span>
-                <span>{r.kelas}</span>
-                {r.lembaga && r.lembaga !== '-' && (<><span>•</span><span className="truncate">{r.lembaga}</span></>)}
-              </div>
-              <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                <Clock className="w-2.5 h-2.5" />
-                <span>{r.jam_mulai.slice(0, 5)}{r.jam_selesai ? ` - ${r.jam_selesai.slice(0, 5)}` : ''}</span>
-                {r.ruangan && (<><span>•</span><span>{r.ruangan}</span></>)}
-              </div>
-              {r.nama_pengganti && (
-                <div className="flex items-center gap-1 text-[10px] text-violet-600 dark:text-violet-400 mt-0.5">
-                  <User className="w-2.5 h-2.5" />
-                  <span>Pengganti: {r.nama_pengganti}</span>
-                </div>
-              )}
-            </div>
-            <span className={`badge text-[9px] ${statusBadge(r.status)}`}>{r.status}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// (legacy UstazPresensiCard removed — detail view now uses UstazDetailRowCard)
 
 // ================== KELOLA USER SECTION ==================
-function KelolaUserSection({ kelolaUserTab, setKelolaUserTab, showToast, users, tahunList, semesterList, kelasList, mapelList, ruanganList, search, setSearch, page, setPage, setShowModal, setEditingId, setUserForm, setTahunForm, setSemesterForm, setKelasForm, setMapelForm, setRuanganForm, fetchMasterData }: any) {
+function KelolaUserSection({ kelolaUserTab, setKelolaUserTab, showToast, profile, users, tahunList, semesterList, kelasList, mapelList, ruanganList, loading, saving, showModal, setShowModal, editingId, setEditingId, search, setSearch, page, setPage, userForm, setUserForm, tahunForm, setTahunForm, semesterForm, setSemesterForm, kelasForm, setKelasForm, mapelForm, setMapelForm, ruanganForm, setRuanganForm, resetPassId, setResetPassId, newPassword, setNewPassword, isResetting, setIsResetting, fetchMasterData }: any) {
   const masterTabs = [
     { id: 'users' as KelolaUserTab, label: 'User', count: users.length, icon: Users },
     { id: 'tahun' as KelolaUserTab, label: 'Tahun', count: tahunList.length, icon: Calendar },
@@ -949,7 +588,7 @@ function KelolaUserSection({ kelolaUserTab, setKelolaUserTab, showToast, users, 
             users: 'profiles', tahun: 'tahun_ajaran', semester: 'semester',
             kelas: 'kelas', mapel: 'mata_pelajaran', ruangan: 'ruangan'
           };
-          const { error } = await supabase.from(tableMap[kelolaUserTab as KelolaUserTab]).delete().eq('id', item.id);
+          const { error } = await supabase.from(tableMap[kelolaUserTab]).delete().eq('id', item.id);
           if (error) {
             showToast('Gagal menghapus: ' + error.message, 'error');
           } else {
@@ -994,728 +633,30 @@ function DataList({ tab, data, search, page, setPage, onEdit, onDelete }: any) {
 }
 
 // ================== DATA AKADEMIK SECTION ==================
-function DataAkademikSection({ dataAkademikTab, setDataAkademikTab, showToast, profile }: { dataAkademikTab: DataAkademikTab; setDataAkademikTab: (tab: DataAkademikTab) => void; showToast: ShowToast; profile: Profile | null }) {
-  const tabs = [
-    { id: 'siswa' as DataAkademikTab, label: 'Siswa', icon: GraduationCap, color: 'sky' },
-    { id: 'ustaz' as DataAkademikTab, label: 'Ustaz', icon: Users, color: 'emerald' },
-    { id: 'data-santri' as DataAkademikTab, label: 'Data Santri', icon: UsersRound, color: 'violet' },
-    { id: 'jadwal-asatiz' as DataAkademikTab, label: 'Jadwal Asatiz', icon: Calendar, color: 'amber' },
-    { id: 'kelola-lembaga' as DataAkademikTab, label: 'Kelola Lembaga', icon: Building2, color: 'rose' },
-  ];
-
-  const colorActive: Record<string, string> = {
-    sky: 'bg-sky-600 text-white border-sky-600',
-    emerald: 'bg-emerald-600 text-white border-emerald-600',
-    violet: 'bg-violet-600 text-white border-violet-600',
-    amber: 'bg-amber-600 text-white border-amber-600',
-    rose: 'bg-rose-600 text-white border-rose-600',
-  };
-  const colorIdle: Record<string, string> = {
-    sky: 'text-sky-600 dark:text-sky-400',
-    emerald: 'text-emerald-600 dark:text-emerald-400',
-    violet: 'text-violet-600 dark:text-violet-400',
-    amber: 'text-amber-600 dark:text-amber-400',
-    rose: 'text-rose-600 dark:text-rose-400',
-  };
-
+function DataAkademikSection({ dataAkademikTab, setDataAkademikTab, showToast }: { dataAkademikTab: DataAkademikTab; setDataAkademikTab: (tab: DataAkademikTab) => void; showToast: ShowToast }) {
   return (
     <div className="space-y-3">
       <div className="mb-3">
         <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Data Akademik</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Kelola siswa, ustaz, santri, jadwal, dan lembaga</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Kelola siswa dan ustaz</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5">
-        {tabs.map(t => {
-          const Icon = t.icon;
-          const isActive = dataAkademikTab === t.id;
-          return (
-            <button key={t.id} onClick={() => setDataAkademikTab(t.id)} className={`flex items-center gap-1.5 p-2.5 rounded-xl text-xs font-semibold transition-all border ${isActive ? colorActive[t.color] : `bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 ${colorIdle[t.color]}`}`}>
-              <Icon className="w-3.5 h-3.5" />
-              <span className="truncate">{t.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {dataAkademikTab === 'siswa' && <DataSiswaPage showToast={showToast} />}
-      {dataAkademikTab === 'ustaz' && <DataUstazPage showToast={showToast} />}
-      {dataAkademikTab === 'data-santri' && <DataSantriSubSection showToast={showToast} profile={profile} />}
-      {dataAkademikTab === 'jadwal-asatiz' && <JadwalAsatizSubSection showToast={showToast} profile={profile} />}
-      {dataAkademikTab === 'kelola-lembaga' && <KelolaLembagaSubSection showToast={showToast} profile={profile} />}
-    </div>
-  );
-}
-
-// ================== DATA SANTRI SUB-SECTION (CRUD for murid) ==================
-function DataSantriSubSection({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  const [list, setList] = useState<Murid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const { data: lembagaList } = useLembaga();
-
-  const [form, setForm] = useState({ nama: '', kelas: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, lembaga_id: '' });
-
-  const isAdmin = profile?.role === 'admin';
-
-  useEffect(() => { fetchList(); }, []);
-
-  const fetchList = async () => {
-    setLoading(true);
-    try {
-      let q = supabase.from('murid').select('*').order('nama', { ascending: true });
-      if (!isAdmin) {
-        q = q.eq('user_id', profile?.id || '');
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      setList((data || []) as Murid[]);
-    } catch (err: any) {
-      showToast('Gagal memuat data santri: ' + (err?.message || ''), 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setForm({ nama: '', kelas: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, lembaga_id: '' });
-    setEditingId(null);
-  };
-
-  const openAdd = () => { resetForm(); setShowModal(true); };
-
-  const openEdit = (m: Murid) => {
-    setEditingId(m.id);
-    setForm({
-      nama: m.nama || '',
-      kelas: m.kelas || '',
-      domisili: m.domisili || '',
-      alamat: m.alamat || '',
-      nomor_whatsapp: m.nomor_whatsapp || '',
-      status_aktif: m.status_aktif ?? true,
-      lembaga_id: m.lembaga_id || '',
-    });
-    setShowModal(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.nama || !form.kelas) {
-      showToast('Nama dan kelas wajib diisi', 'error');
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload: any = {
-        nama: form.nama,
-        kelas: form.kelas,
-        domisili: form.domisili || null,
-        alamat: form.alamat || null,
-        nomor_whatsapp: form.nomor_whatsapp || null,
-        status_aktif: form.status_aktif,
-        lembaga_id: form.lembaga_id || null,
-      };
-      if (editingId) {
-        // ustaz can only edit own
-        if (!isAdmin) {
-          const existing = list.find(m => m.id === editingId);
-          if (existing && existing.user_id !== profile?.id) {
-            showToast('Anda hanya dapat mengedit santri milik sendiri', 'error');
-            setSaving(false);
-            return;
-          }
-        }
-        const { error } = await supabase.from('murid').update(payload).eq('id', editingId);
-        if (error) throw error;
-        showToast('Santri diperbarui', 'success');
-      } else {
-        payload.user_id = profile?.id;
-        const { error } = await supabase.from('murid').insert(payload);
-        if (error) throw error;
-        showToast('Santri ditambahkan', 'success');
-      }
-      setShowModal(false);
-      resetForm();
-      fetchList();
-    } catch (err: any) {
-      showToast('Gagal menyimpan: ' + (err?.message || ''), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (m: Murid) => {
-    if (!confirm(`Yakin ingin menghapus santri "${m.nama}"?`)) return;
-    try {
-      const { error } = await supabase.from('murid').delete().eq('id', m.id);
-      if (error) throw error;
-      showToast('Santri dihapus', 'success');
-      fetchList();
-    } catch (err: any) {
-      showToast('Gagal menghapus: ' + (err?.message || ''), 'error');
-    }
-  };
-
-  const filtered = useMemo(() => {
-    if (!search) return list;
-    const q = search.toLowerCase();
-    return list.filter(m => [m.nama, m.kelas, m.domisili, m.alamat, m.nomor_whatsapp].filter(Boolean).join(' ').toLowerCase().includes(q));
-  }, [list, search]);
-
-  const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari santri..." className="input-field text-xs pl-8" />
-        </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3">
-          <Plus className="w-3.5 h-3.5" />
-          <span className="text-xs">Tambah</span>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => setDataAkademikTab('siswa')} className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${dataAkademikTab === 'siswa' ? 'bg-sky-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
+          <GraduationCap className="w-4 h-4" /> Siswa
+        </button>
+        <button onClick={() => setDataAkademikTab('ustaz')} className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${dataAkademikTab === 'ustaz' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
+          <Users className="w-4 h-4" /> Ustaz
         </button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" /></div>
-      ) : filtered.length === 0 ? (
-        <EmptyState title="Tidak ada data santri" icon={<UsersRound className="w-8 h-8 text-slate-300" />} />
-      ) : (
-        <div className="space-y-1">
-          {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(m => {
-            const lembagaName = (lembagaList || []).find(l => l.id === m.lembaga_id)?.nama_lembaga;
-            return (
-              <div key={m.id} className="card p-2.5 flex items-center gap-2.5 group">
-                <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <GraduationCap className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{m.nama}</p>
-                  <div className="flex flex-wrap items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400">
-                    <span className="badge badge-info text-[9px]">{m.kelas}</span>
-                    {lembagaName && <span className="truncate">{lembagaName}</span>}
-                    {m.status_aktif === false && <span className="text-rose-500">Non-aktif</span>}
-                  </div>
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={() => openEdit(m)} className="p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600"><Pencil className="w-3 h-3" /></button>
-                  <button onClick={() => handleDelete(m)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button>
-                </div>
-              </div>
-            );
-          })}
-          <Pagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} onPageChange={setPage} />
-        </div>
-      )}
-
-      {showModal && (
-        <Modal isOpen={true} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Edit Santri' : 'Tambah Santri'}>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Santri *</label>
-              <input type="text" value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} className="input-field text-xs" placeholder="Nama lengkap" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
-              <input type="text" value={form.kelas} onChange={e => setForm({ ...form, kelas: e.target.value })} className="input-field text-xs" placeholder="Kelas" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>
-              <SearchableSelect
-                value={form.lembaga_id}
-                onChange={v => setForm({ ...form, lembaga_id: v })}
-                options={lembagaOptions}
-                placeholder="Pilih lembaga"
-                icon={<Building2 className="w-3.5 h-3.5" />}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Domisili</label>
-              <input type="text" value={form.domisili} onChange={e => setForm({ ...form, domisili: e.target.value })} className="input-field text-xs" placeholder="Domisili" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Alamat</label>
-              <input type="text" value={form.alamat} onChange={e => setForm({ ...form, alamat: e.target.value })} className="input-field text-xs" placeholder="Alamat" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">No. WhatsApp</label>
-              <input type="text" value={form.nomor_whatsapp} onChange={e => setForm({ ...form, nomor_whatsapp: e.target.value })} className="input-field text-xs" placeholder="08xx" />
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.status_aktif} onChange={e => setForm({ ...form, status_aktif: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-              <span className="text-xs text-slate-600 dark:text-slate-300">Status Aktif</span>
-            </label>
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
-              <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">
-                {saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                Simpan
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ================== JADWAL ASATIZ SUB-SECTION (CRUD for jadwal_mengajar) ==================
-function JadwalAsatizSubSection({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  const [list, setList] = useState<JadwalMengajar[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const { data: lembagaList } = useLembaga();
-
-  const [ustazOptions, setUstazOptions] = useState<{ value: string; label: string }[]>([]);
-  const [form, setForm] = useState({
-    user_id: '',
-    hari: 'Senin',
-    jam_mulai: '07:00',
-    jam_selesai: '08:30',
-    kelas: '',
-    pelajaran: '',
-    ruangan: '',
-    lembaga_id: '',
-    guru_pengganti_id: '',
-    is_libur: false,
-  });
-
-  const isAdmin = profile?.role === 'admin';
-  const hariOptions = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
-
-  useEffect(() => { fetchList(); fetchUstaz(); }, []);
-
-  const fetchUstaz = async () => {
-    try {
-      const { data } = await supabase.from('profiles').select('id, nama_lengkap').in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap');
-      setUstazOptions((data || []).map(p => ({ value: p.id, label: p.nama_lengkap || '-' })));
-    } catch (err) {
-      // silent
-    }
-  };
-
-  const fetchList = async () => {
-    setLoading(true);
-    try {
-      let q = supabase.from('jadwal_mengajar').select('*').order('jam_mulai', { ascending: true });
-      if (!isAdmin) {
-        q = q.eq('user_id', profile?.id || '');
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      setList((data || []) as JadwalMengajar[]);
-    } catch (err: any) {
-      showToast('Gagal memuat jadwal: ' + (err?.message || ''), 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setForm({ user_id: '', hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:30', kelas: '', pelajaran: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false });
-    setEditingId(null);
-  };
-
-  const openAdd = () => {
-    resetForm();
-    if (!isAdmin && profile) setForm(f => ({ ...f, user_id: profile.id }));
-    setShowModal(true);
-  };
-
-  const openEdit = (j: JadwalMengajar) => {
-    setEditingId(j.id);
-    setForm({
-      user_id: j.user_id || '',
-      hari: j.hari || 'Senin',
-      jam_mulai: j.jam_mulai || '07:00',
-      jam_selesai: j.jam_selesai || '08:30',
-      kelas: j.kelas || '',
-      pelajaran: j.pelajaran || '',
-      ruangan: j.ruangan || '',
-      lembaga_id: j.lembaga_id || '',
-      guru_pengganti_id: j.guru_pengganti_id || '',
-      is_libur: j.is_libur ?? false,
-    });
-    setShowModal(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.user_id || !form.kelas || !form.pelajaran || !form.hari) {
-      showToast('Ustaz, kelas, pelajaran, dan hari wajib diisi', 'error');
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload: any = {
-        user_id: form.user_id,
-        hari: form.hari,
-        jam_mulai: form.jam_mulai,
-        jam_selesai: form.jam_selesai || null,
-        kelas: form.kelas,
-        pelajaran: form.pelajaran,
-        ruangan: form.ruangan || null,
-        lembaga_id: form.lembaga_id || null,
-        guru_pengganti_id: form.guru_pengganti_id || null,
-        is_libur: form.is_libur,
-      };
-      if (editingId) {
-        if (!isAdmin) {
-          const existing = list.find(j => j.id === editingId);
-          if (existing && existing.user_id !== profile?.id) {
-            showToast('Anda hanya dapat mengedit jadwal milik sendiri', 'error');
-            setSaving(false);
-            return;
-          }
-        }
-        const { error } = await supabase.from('jadwal_mengajar').update(payload).eq('id', editingId);
-        if (error) throw error;
-        showToast('Jadwal diperbarui', 'success');
-      } else {
-        const { error } = await supabase.from('jadwal_mengajar').insert(payload);
-        if (error) throw error;
-        showToast('Jadwal ditambahkan', 'success');
-      }
-      setShowModal(false);
-      resetForm();
-      fetchList();
-    } catch (err: any) {
-      showToast('Gagal menyimpan: ' + (err?.message || ''), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (j: JadwalMengajar) => {
-    if (!confirm('Yakin ingin menghapus jadwal ini?')) return;
-    try {
-      const { error } = await supabase.from('jadwal_mengajar').delete().eq('id', j.id);
-      if (error) throw error;
-      showToast('Jadwal dihapus', 'success');
-      fetchList();
-    } catch (err: any) {
-      showToast('Gagal menghapus: ' + (err?.message || ''), 'error');
-    }
-  };
-
-  const filtered = useMemo(() => {
-    if (!search) return list;
-    const q = search.toLowerCase();
-    return list.filter(j => [j.kelas, j.pelajaran, j.hari, j.ruangan].filter(Boolean).join(' ').toLowerCase().includes(q));
-  }, [list, search]);
-
-  const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari jadwal..." className="input-field text-xs pl-8" />
-        </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3">
-          <Plus className="w-3.5 h-3.5" />
-          <span className="text-xs">Tambah</span>
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /></div>
-      ) : filtered.length === 0 ? (
-        <EmptyState title="Tidak ada jadwal" icon={<Calendar className="w-8 h-8 text-slate-300" />} />
-      ) : (
-        <div className="space-y-1">
-          {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(j => {
-            const ustazName = ustazOptions.find(o => o.value === j.user_id)?.label || '-';
-            const penggantiName = j.guru_pengganti_id ? ustazOptions.find(o => o.value === j.guru_pengganti_id)?.label : undefined;
-            const lembagaName = (lembagaList || []).find(l => l.id === j.lembaga_id)?.nama_lembaga;
-            return (
-              <div key={j.id} className="card p-2.5 flex items-center gap-2.5 group">
-                <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{j.pelajaran} - {j.kelas}</p>
-                  <div className="flex flex-wrap items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400">
-                    <span className="badge badge-info text-[9px]">{j.hari}</span>
-                    <span>{j.jam_mulai?.slice(0, 5)}{j.jam_selesai ? `-${j.jam_selesai.slice(0, 5)}` : ''}</span>
-                    <span>•</span>
-                    <span className="truncate">{ustazName}</span>
-                    {lembagaName && (<><span>•</span><span className="truncate">{lembagaName}</span></>)}
-                    {j.is_libur && <span className="text-rose-500">Libur</span>}
-                    {penggantiName && <span className="text-violet-500">Pengganti: {penggantiName}</span>}
-                  </div>
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={() => openEdit(j)} className="p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600"><Pencil className="w-3 h-3" /></button>
-                  <button onClick={() => handleDelete(j)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button>
-                </div>
-              </div>
-            );
-          })}
-          <Pagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} onPageChange={setPage} />
-        </div>
-      )}
-
-      {showModal && (
-        <Modal isOpen={true} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Edit Jadwal Mengajar' : 'Tambah Jadwal Mengajar'}>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Ustaz *</label>
-              <SearchableSelect
-                value={form.user_id}
-                onChange={v => setForm({ ...form, user_id: v })}
-                options={ustazOptions}
-                placeholder="Pilih ustaz"
-                icon={<Users className="w-3.5 h-3.5" />}
-                disabled={!isAdmin}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Hari *</label>
-                <SearchableSelect
-                  value={form.hari}
-                  onChange={v => setForm({ ...form, hari: v })}
-                  options={hariOptions.map(h => ({ value: h, label: h }))}
-                  placeholder="Pilih hari"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>
-                <SearchableSelect
-                  value={form.lembaga_id}
-                  onChange={v => setForm({ ...form, lembaga_id: v })}
-                  options={lembagaOptions}
-                  placeholder="Pilih lembaga"
-                  icon={<Building2 className="w-3.5 h-3.5" />}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Mulai *</label>
-                <input type="time" value={form.jam_mulai} onChange={e => setForm({ ...form, jam_mulai: e.target.value })} className="input-field text-xs" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Selesai</label>
-                <input type="time" value={form.jam_selesai} onChange={e => setForm({ ...form, jam_selesai: e.target.value })} className="input-field text-xs" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
-                <input type="text" value={form.kelas} onChange={e => setForm({ ...form, kelas: e.target.value })} className="input-field text-xs" placeholder="Kelas" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Pelajaran *</label>
-                <input type="text" value={form.pelajaran} onChange={e => setForm({ ...form, pelajaran: e.target.value })} className="input-field text-xs" placeholder="Mata pelajaran" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Ruangan</label>
-              <input type="text" value={form.ruangan} onChange={e => setForm({ ...form, ruangan: e.target.value })} className="input-field text-xs" placeholder="Ruangan" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Guru Pengganti</label>
-              <SearchableSelect
-                value={form.guru_pengganti_id}
-                onChange={v => setForm({ ...form, guru_pengganti_id: v })}
-                options={ustazOptions}
-                placeholder="Pilih guru pengganti (opsional)"
-                icon={<User className="w-3.5 h-3.5" />}
-              />
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.is_libur} onChange={e => setForm({ ...form, is_libur: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-              <span className="text-xs text-slate-600 dark:text-slate-300">Libur</span>
-            </label>
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
-              <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">
-                {saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                Simpan
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ================== KELOLA LEMBAGA SUB-SECTION (CRUD for lembaga, admin only) ==================
-function KelolaLembagaSubSection({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  const { data: lembagaList, isLoading, refetch } = useLembaga();
-  const [saving, setSaving] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ nama_lembaga: '', alamat: '', telepon: '' });
-
-  const isAdmin = profile?.role === 'admin';
-
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-[30vh]">
-        <div className="text-center">
-          <Shield className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">Kelola Lembaga hanya untuk admin</p>
-        </div>
-      </div>
-    );
-  }
-
-  const resetForm = () => {
-    setForm({ nama_lembaga: '', alamat: '', telepon: '' });
-    setEditingId(null);
-  };
-
-  const openAdd = () => { resetForm(); setShowModal(true); };
-
-  const openEdit = (l: Lembaga) => {
-    setEditingId(l.id);
-    setForm({ nama_lembaga: l.nama_lembaga || '', alamat: l.alamat || '', telepon: l.telepon || '' });
-    setShowModal(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.nama_lembaga) {
-      showToast('Nama lembaga wajib diisi', 'error');
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload: any = {
-        nama_lembaga: form.nama_lembaga,
-        alamat: form.alamat || null,
-        telepon: form.telepon || null,
-      };
-      if (editingId) {
-        const { error } = await supabase.from('lembaga').update(payload).eq('id', editingId);
-        if (error) throw error;
-        showToast('Lembaga diperbarui', 'success');
-      } else {
-        payload.user_id = profile?.id;
-        const { error } = await supabase.from('lembaga').insert(payload);
-        if (error) throw error;
-        showToast('Lembaga ditambahkan', 'success');
-      }
-      setShowModal(false);
-      resetForm();
-      refetch();
-    } catch (err: any) {
-      showToast('Gagal menyimpan: ' + (err?.message || ''), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (l: Lembaga) => {
-    if (!confirm(`Yakin ingin menghapus lembaga "${l.nama_lembaga}"?`)) return;
-    try {
-      const { error } = await supabase.from('lembaga').delete().eq('id', l.id);
-      if (error) throw error;
-      showToast('Lembaga dihapus', 'success');
-      refetch();
-    } catch (err: any) {
-      showToast('Gagal menghapus: ' + (err?.message || ''), 'error');
-    }
-  };
-
-  const filtered = useMemo(() => {
-    const base = lembagaList || [];
-    if (!search) return base;
-    const q = search.toLowerCase();
-    return base.filter(l => [l.nama_lembaga, l.alamat, l.telepon].filter(Boolean).join(' ').toLowerCase().includes(q));
-  }, [lembagaList, search]);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari lembaga..." className="input-field text-xs pl-8" />
-        </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3">
-          <Plus className="w-3.5 h-3.5" />
-          <span className="text-xs">Tambah</span>
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" /></div>
-      ) : filtered.length === 0 ? (
-        <EmptyState title="Tidak ada lembaga" icon={<Building2 className="w-8 h-8 text-slate-300" />} />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {filtered.map(l => (
-            <div key={l.id} className="card p-3 group">
-              <div className="flex items-start gap-2.5">
-                <div className="w-9 h-9 bg-rose-100 dark:bg-rose-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-4.5 h-4.5 text-rose-600 dark:text-rose-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{l.nama_lembaga}</p>
-                  {l.alamat && (
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5 flex items-center gap-1">
-                      <MapPin className="w-2.5 h-2.5" /> {l.alamat}
-                    </p>
-                  )}
-                  {l.telepon && (
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                      <Phone className="w-2.5 h-2.5" /> {l.telepon}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={() => openEdit(l)} className="p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600"><Pencil className="w-3 h-3" /></button>
-                  <button onClick={() => handleDelete(l)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {showModal && (
-        <Modal isOpen={true} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Edit Lembaga' : 'Tambah Lembaga'}>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Lembaga *</label>
-              <input type="text" value={form.nama_lembaga} onChange={e => setForm({ ...form, nama_lembaga: e.target.value })} className="input-field text-xs" placeholder="Nama lembaga" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Alamat</label>
-              <textarea value={form.alamat} onChange={e => setForm({ ...form, alamat: e.target.value })} className="input-field text-xs" rows={2} placeholder="Alamat lengkap" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Telepon</label>
-              <input type="text" value={form.telepon} onChange={e => setForm({ ...form, telepon: e.target.value })} className="input-field text-xs" placeholder="08xx" />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
-              <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">
-                {saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                Simpan
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      {dataAkademikTab === 'siswa' ? <DataSiswaPage showToast={showToast} /> : <DataUstazPage showToast={showToast} />}
     </div>
   );
 }
 
 // ================== KENAKALAN SECTION ==================
-function KenakalanSection({ kenakalanTab, setKenakalanTab, showToast }: { kenakalanTab: KenakalanTab; setKenakalanTab: (tab: KenakalanTab) => void; showToast: ShowToast }) {
+function KenakalanSection({ kenakalanTab, setKenakalanTab, showToast, users, kelasList }: { kenakalanTab: KenakalanTab; setKenakalanTab: (tab: KenakalanTab) => void; showToast: ShowToast; users: Profile[]; kelasList: any[] }) {
   const [ustazKenakalan, setUstazKenakalan] = useState<KenakalanUstaz[]>([]);
   const [loading, setLoading] = useState(true);
 

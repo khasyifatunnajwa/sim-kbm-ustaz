@@ -4,8 +4,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
-import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga } from '../hooks/useLembaga';
 import type { Murid, Sikap, ShowToast, Profile } from '../types';
 import { getUstazScope } from '../lib/ustazData';
 
@@ -18,18 +16,15 @@ const SIKAP_FIELDS = [
 ] as const;
 
 export default function SikapPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  const { data: lembagaList = [] } = useLembaga();
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [sikapList, setSikapList] = useState<Sikap[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [filterLembaga, setFilterLembaga] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
   const [selectedMurid, setSelectedMurid] = useState<string>('');
   const [sikapForm, setSikapForm] = useState({
-    lembaga_id: '',
     tanggal: new Date().toISOString().split('T')[0],
     disiplin: 80,
     adab: 80,
@@ -39,18 +34,10 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
     catatan: '',
   });
 
-  const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
-    [lembagaList]
+  const kelasOptions = useMemo(
+    () => [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort(),
+    [muridList]
   );
-
-  // Kelas dropdown filters by selected lembaga
-  const kelasOptions = useMemo(() => {
-    const source = filterLembaga
-      ? muridList.filter(m => m.lembaga_id === filterLembaga)
-      : muridList;
-    return [...new Set(source.map(m => m.kelas).filter(Boolean))].sort();
-  }, [muridList, filterLembaga]);
 
   const muridFiltered = useMemo(
     () => muridList.filter(m => !filterKelas || m.kelas === filterKelas),
@@ -92,7 +79,6 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
     setSaving(true);
     const payload = {
       murid_id: selectedMurid,
-      lembaga_id: sikapForm.lembaga_id || null,
       tanggal: sikapForm.tanggal,
       disiplin: sikapForm.disiplin,
       adab: sikapForm.adab,
@@ -114,7 +100,6 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
   const openEdit = (s: Sikap) => {
     setEditingId(s.id);
     setSikapForm({
-      lembaga_id: (s as any).lembaga_id || '',
       tanggal: s.tanggal,
       disiplin: s.disiplin || 80,
       adab: s.adab || 80,
@@ -128,7 +113,6 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
   const resetForm = () => {
     setEditingId(null);
     setSikapForm({
-      lembaga_id: filterLembaga || '',
       tanggal: new Date().toISOString().split('T')[0],
       disiplin: 80, adab: 80, kerajinan: 80, kejujuran: 80, tanggung_jawab: 80,
       catatan: '',
@@ -165,17 +149,6 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Filter & Select */}
         <div className="space-y-4">
-          {/* Lembaga select (SearchableSelect) BEFORE Kelas */}
-          <div className="card p-4">
-            <SearchableSelect
-              value={filterLembaga}
-              onChange={(v) => { setFilterLembaga(v); setFilterKelas(''); setSelectedMurid(''); }}
-              options={lembagaOptions}
-              placeholder="Semua Lembaga"
-              label="Pilih Lembaga"
-            />
-          </div>
-
           <div className="card p-4">
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pilih Kelas</label>
             <select
@@ -220,17 +193,6 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
                   Penilaian Sikap: <span className="text-emerald-600">{selectedMuridData?.nama}</span>
                 </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Lembaga in form state */}
-                  <div>
-                    <SearchableSelect
-                      value={sikapForm.lembaga_id}
-                      onChange={(v) => setSikapForm(p => ({ ...p, lembaga_id: v }))}
-                      options={lembagaOptions}
-                      placeholder="Pilih Lembaga"
-                      label="Lembaga"
-                    />
-                  </div>
-
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tanggal</label>
                     <input

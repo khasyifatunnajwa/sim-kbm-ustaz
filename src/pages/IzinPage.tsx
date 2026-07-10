@@ -1,13 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Plus, Trash2, Send, FileText, Calendar, Clock, User, BookOpen, Users, Share2,
+  Plus, Trash2, Send, FileText, Calendar, Clock, User, BookOpen, Users,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga } from '../hooks/useLembaga';
 import { shareWA } from '../lib/pdf';
 import type { IzinMengajar, Profile, ShowToast } from '../types';
 
@@ -19,7 +17,6 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function IzinPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  const { data: lembagaList = [] } = useLembaga();
   const [list, setList] = useState<IzinMengajar[]>([]);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [mapelList, setMapelList] = useState<string[]>([]);
@@ -33,9 +30,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
   });
 
   const today = new Date().toISOString().split('T')[0];
-  // Form state now includes lembaga_id
   const [form, setForm] = useState({
-    lembaga_id: '',
     jenis_izin: 'Sakit' as string,
     jenis_lainnya: '',
     lama_izin: 'hari_ini' as 'hari_ini' | 'beberapa_hari',
@@ -46,38 +41,6 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     guru_pengganti: '',
     catatan: '',
   });
-
-  // Lembaga options for SearchableSelect
-  const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
-    [lembagaList]
-  );
-
-  // Kelas dropdown filters by selected lembaga
-  const kelasFiltered = useMemo(() => {
-    if (!form.lembaga_id) return kelasList;
-    // Query murid by lembaga_id to get classes for that lembaga
-    // kelasList is the full scope; we additionally filter via murid if possible.
-    // Since kelasList comes from scope, we filter client-side by murid lembaga_id when available.
-    return kelasList; // fallback: show all; refined below via async fetch
-  }, [kelasList, form.lembaga_id]);
-
-  // Refetch kelas options when lembaga changes (query murid by lembaga_id to get classes)
-  useEffect(() => {
-    if (!form.lembaga_id) return;
-    (async () => {
-      const { data } = await supabase
-        .from('murid')
-        .select('kelas')
-        .eq('status_aktif', true)
-        .eq('lembaga_id', form.lembaga_id);
-      if (data) {
-        const kelasSet = new Set<string>();
-        (data as any[]).forEach((m) => { if (m.kelas) kelasSet.add(m.kelas); });
-        setKelasList(Array.from(kelasSet).sort());
-      }
-    })();
-  }, [form.lembaga_id]);
 
   // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
   useEffect(() => {
@@ -129,14 +92,13 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
   // 4. MENDORONG HASH SAAT BUKA MODAL
   const openAdd = () => {
     setForm({
-      lembaga_id: lembagaList[0]?.id ?? '',
       jenis_izin: 'Sakit',
       jenis_lainnya: '',
       lama_izin: 'hari_ini',
       tanggal_mulai: today,
       tanggal_selesai: '',
       mata_pelajaran: mapelList[0] || '',
-      kelas: '',
+      kelas: kelasList[0] || '',
       guru_pengganti: '',
       catatan: '',
     });
@@ -146,8 +108,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
 
   const getJenisLabel = () => form.jenis_izin === 'Lainnya' ? (form.jenis_lainnya || 'Lainnya') : form.jenis_izin;
 
-  // ===== SHARE BUTTON: Save + Share WA + Update presensi =====
-  const handleShare = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.mata_pelajaran || !form.kelas) {
       showToast('Mata pelajaran dan kelas wajib diisi', 'error');
@@ -157,11 +118,8 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       showToast('Jelaskan jenis izin pada kolom Lainnya', 'error');
       return;
     }
-
     const namaUstaz = profile?.nama_panggilan || profile?.nama_lengkap || 'Ustaz';
     setSaving(true);
-
-    // a. Save the izin data to izin_mengajar table including lembaga_id
     const payload = {
       nama_ustaz: namaUstaz,
       jenis_izin: getJenisLabel(),
@@ -173,39 +131,12 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       guru_pengganti: form.guru_pengganti || null,
       catatan: form.catatan || null,
       status: 'diajukan',
-      lembaga_id: form.lembaga_id || null,
-      user_id: profile?.id ?? null,
     };
-    const { error: izinError } = await supabase.from('izin_mengajar').insert(payload);
-    if (izinError) {
-      setSaving(false);
-      showToast(izinError.message, 'error');
-      return;
-    }
-
-    // c. Update the presensi status to "Izin" (insert into presensi_guru with keterangan = izin reason)
-    try {
-      const keterangan = form.catatan || getJenisLabel();
-      await supabase.from('presensi_guru').insert({
-        user_id: profile?.id ?? null,
-        lembaga_id: form.lembaga_id || null,
-        tanggal: form.tanggal_mulai,
-        status: 'Izin',
-        keterangan,
-        mata_pelajaran: form.mata_pelajaran,
-        kelas: form.kelas,
-      });
-    } catch (err) {
-      // presensi update is best-effort; don't block the flow
-    }
-
-    // b. Call the existing shareWA function with the izin details
-    shareWA(buildWAMessage(form));
-
+    const { error } = await supabase.from('izin_mengajar').insert(payload);
     setSaving(false);
-    // d. Show a success toast
-    showToast('Izin disimpan, presensi diperbarui, dan dibagikan via WhatsApp!', 'success');
-
+    if (error) { showToast(error.message, 'error'); return; }
+    showToast('Izin berhasil diajukan!', 'success');
+    
     // PERUBAHAN: Gunakan penutup modal yang membersihkan URL
     handleCloseModal();
     fetchList();
@@ -253,6 +184,18 @@ Demikian permohonan izin ini saya sampaikan. Besar harapan saya kiranya Bapak/Ib
 Atas perhatian, kebijaksanaan, dan pengertiannya saya ucapkan _Jazākumullāhu Khairan Katsīrā_.
 
 Wassalamu'alaikum warahmatullahi wabarakatuh.`;
+  };
+
+  const handleShareWA = () => {
+    if (!form.mata_pelajaran || !form.kelas) {
+      showToast('Lengkapi mata pelajaran dan kelas sebelum share', 'error');
+      return;
+    }
+    if (form.jenis_izin === 'Lainnya' && !form.jenis_lainnya.trim()) {
+      showToast('Jelaskan jenis izin pada kolom Lainnya', 'error');
+      return;
+    }
+    shareWA(buildWAMessage(form));
   };
 
   const handleShareExisting = (izin: IzinMengajar) => {
@@ -341,18 +284,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
         title="Ajukan Izin Mengajar"
         size="md"
       >
-        <form onSubmit={handleShare} className="space-y-4">
-          {/* Lembaga select (SearchableSelect) at the top of the form */}
-          <div className="relative">
-            <SearchableSelect
-              value={form.lembaga_id}
-              onChange={(v) => setForm(p => ({ ...p, lembaga_id: v, kelas: '' }))}
-              options={lembagaOptions}
-              placeholder="Pilih Lembaga"
-              label="Lembaga"
-            />
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Nama otomatis */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Ustaz</label>
@@ -446,7 +378,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
               <select value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" required>
                 <option value="">Pilih</option>
-                {kelasFiltered.map(k => <option key={k} value={k}>{k}</option>)}
+                {kelasList.map(k => <option key={k} value={k}>{k}</option>)}
               </select>
             </div>
           </div>
@@ -463,17 +395,14 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
             <textarea value={form.catatan} onChange={e => setForm(p => ({ ...p, catatan: e.target.value }))} className="input-field text-sm resize-none" rows={2} placeholder="Tulis alasan izin..." />
           </div>
 
-          {/* Tombol: Simpan removed, replaced with Share button */}
+          {/* Tombol */}
           <div className="flex gap-2 pt-2">
             {/* PERUBAHAN: Gunakan fungsi penutup modal khusus */}
             <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">Batal</button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 text-sm flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Share2 className="w-4 h-4" /> {saving ? 'Memproses...' : 'Share'}
+            <button type="button" onClick={handleShareWA} className="flex-1 text-sm flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95">
+              <Send className="w-4 h-4" /> Share WA
             </button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Menyimpan...' : 'Simpan'}</button>
           </div>
         </form>
       </Modal>

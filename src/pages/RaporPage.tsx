@@ -5,15 +5,12 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
-import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga } from '../hooks/useLembaga';
 import { generateRaporPDF, shareWA } from '../lib/pdf';
 import type { Murid, Nilai, Absensi, CatatanPerilaku, CapaianHafalan, Sikap, ShowToast } from '../types';
 
 export default function RaporPage({ showToast }: { showToast: ShowToast }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
-  const [selectedLembagaId, setSelectedLembagaId] = useState('');
   const [selectedKelas, setSelectedKelas] = useState('');
   const [selectedMuridId, setSelectedMuridId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,8 +22,6 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
   const [perilakuList, setPerilakuList] = useState<CatatanPerilaku[]>([]);
   const [capaianList, setCapaianList] = useState<CapaianHafalan[]>([]);
   const [sikapList, setSikapList] = useState<Sikap[]>([]);
-
-  const { data: lembagaList = [] } = useLembaga();
 
   useEffect(() => {
     fetchMurid();
@@ -45,32 +40,9 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
     setLoading(false);
   };
 
-  // Filter kelas based on selected lembaga
-  const kelasFiltered = useMemo(() => {
-    if (!selectedLembagaId) return kelasOptions;
-    const kelasSet = new Set<string>();
-    muridList
-      .filter(m => m.lembaga_id === selectedLembagaId)
-      .forEach(m => { if (m.kelas) kelasSet.add(m.kelas); });
-    return Array.from(kelasSet).sort();
-  }, [kelasOptions, muridList, selectedLembagaId]);
-
-  // When lembaga changes, reset kelas to first available class in that lembaga
-  useEffect(() => {
-    if (selectedLembagaId) {
-      if (kelasFiltered.length && !kelasFiltered.includes(selectedKelas)) {
-        setSelectedKelas(kelasFiltered[0]);
-        setSelectedMuridId('');
-      }
-    }
-  }, [selectedLembagaId, kelasFiltered]);
-
   const muridFiltered = useMemo(
-    () => muridList.filter(m =>
-      (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
-      (!selectedKelas || m.kelas === selectedKelas)
-    ),
-    [muridList, selectedLembagaId, selectedKelas]
+    () => muridList.filter(m => !selectedKelas || m.kelas === selectedKelas),
+    [muridList, selectedKelas]
   );
 
   const selectedMurid = muridList.find(m => m.id === selectedMuridId);
@@ -211,29 +183,18 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
         <p className="section-subtitle">Rekap nilai, kehadiran, sikap, dan capaian hafalan</p>
       </div>
 
-      {/* Filter Lembaga & Kelas */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <div className="sm:w-56 flex-shrink-0">
-          <SearchableSelect
-            label="Lembaga"
-            value={selectedLembagaId}
-            onChange={(v) => { setSelectedLembagaId(v); setSelectedMuridId(''); }}
-            options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
-            placeholder="Semua Lembaga"
-          />
+      {/* Filter Kelas */}
+      {kelasOptions.length > 0 && (
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {kelasOptions.map(k => (
+            <button key={k} onClick={() => { setSelectedKelas(k); setSelectedMuridId(''); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
+            >
+              {k}
+            </button>
+          ))}
         </div>
-        {kelasFiltered.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 flex-1">
-            {kelasFiltered.map(k => (
-              <button key={k} onClick={() => { setSelectedKelas(k); setSelectedMuridId(''); }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
-              >
-                {k}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">

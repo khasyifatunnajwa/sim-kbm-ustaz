@@ -6,25 +6,12 @@ import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga } from '../hooks/useLembaga';
 import type { Murid, Profile, ShowToast } from '../types';
 
 export default function MuridPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const { data: lembagaList = [] } = useLembaga();
-  const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
-    [lembagaList]
-  );
-  const lembagaNameById = useMemo(() => {
-    const m: Record<string, string> = {};
-    lembagaList.forEach(l => { m[l.id] = l.nama_lembaga; });
-    return m;
-  }, [lembagaList]);
   
   const [showModal, setShowModal] = useState(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
@@ -47,7 +34,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     alamat: '',
     nomor_whatsapp: '',
     status_aktif: true,
-    lembaga_id: '',
   });
 
   const [kelasList, setKelasList] = useState<string[]>([]);
@@ -148,7 +134,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       alamat: '',
       nomor_whatsapp: '',
       status_aktif: true,
-      lembaga_id: '',
     });
   };
 
@@ -161,7 +146,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       alamat: murid.alamat || '',
       nomor_whatsapp: murid.nomor_whatsapp || '',
       status_aktif: murid.status_aktif !== undefined ? murid.status_aktif : true,
-      lembaga_id: murid.lembaga_id || '',
     });
     setShowModal(true);
     window.history.pushState(null, '', '#murid/form');
@@ -176,20 +160,17 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
     setSaving(true);
     try {
-      const payload = {
-        nama: form.nama,
-        kelas: form.kelas,
-        domisili: form.domisili,
-        alamat: form.alamat,
-        nomor_whatsapp: form.nomor_whatsapp,
-        status_aktif: form.status_aktif,
-        lembaga_id: form.lembaga_id || null,
-      };
-
       if (editingId) {
         const { error } = await supabase
           .from('murid')
-          .update(payload)
+          .update({
+            nama: form.nama,
+            kelas: form.kelas,
+            domisili: form.domisili,
+            alamat: form.alamat,
+            nomor_whatsapp: form.nomor_whatsapp,
+            status_aktif: form.status_aktif,
+          })
           .eq('id', editingId);
 
         if (error) throw error;
@@ -197,7 +178,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       } else {
         const { error } = await supabase
           .from('murid')
-          .insert([payload]);
+          .insert([form]);
 
         if (error) throw error;
         showToast('Santri baru berhasil ditambahkan', 'success');
@@ -302,9 +283,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filteredMuridList.map((murid: any) => {
-            const lembagaNama = murid.lembaga_id ? lembagaNameById[murid.lembaga_id] : undefined;
-            return (
+          {filteredMuridList.map((murid: any) => (
             <div key={murid.id} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-all group relative">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -321,11 +300,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                     )}
                   </div>
                   <p className="text-[11px] font-semibold text-emerald-600 mt-1">Kelas {murid.kelas}</p>
-                  {lembagaNama && (
-                    <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-sky-50 text-sky-700 border border-sky-100">
-                      {lembagaNama}
-                    </span>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
@@ -368,8 +342,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                 )}
               </div>
             </div>
-            );
-          })}
+          ))}
         </div>
       )}
 
@@ -389,16 +362,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
               onChange={e => setForm(p => ({ ...p, nama: e.target.value }))}
               className="w-full p-2 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               placeholder="Masukkan nama lengkap..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Lembaga</label>
-            <SearchableSelect
-              value={form.lembaga_id}
-              onChange={v => setForm(p => ({ ...p, lembaga_id: v }))}
-              options={lembagaOptions}
-              placeholder="Pilih Lembaga"
             />
           </div>
 

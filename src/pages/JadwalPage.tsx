@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, Pencil, CalendarDays, MapPin, Clock, BookOpen,
-  Bell, Megaphone, Timer, AlertTriangle,
+  Bell, Megaphone, Timer,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga } from '../hooks/useLembaga';
 import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, Profile, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
@@ -30,17 +28,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const { data: lembagaList = [] } = useLembaga();
-  const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
-    [lembagaList]
-  );
-  const lembagaNameById = useMemo(() => {
-    const m: Record<string, string> = {};
-    lembagaList.forEach(l => { m[l.id] = l.nama_lembaga; });
-    return m;
-  }, [lembagaList]);
   
   // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
   const [showModal, setShowModal] = useState(() => {
@@ -54,7 +41,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   const [form, setForm] = useState({
     hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00',
     kelas: '', pelajaran: '', ruangan: '', catatan: '',
-    lembaga_id: '',
   });
 
   const todayHari = getTodayHari();
@@ -160,7 +146,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   // 4. MENDORONG HASH SAAT BUKA MODAL TAMBAH
   const openAdd = () => {
     setEditingId(null);
-    setForm({ hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00', kelas: '', pelajaran: '', ruangan: '', catatan: '', lembaga_id: '' });
+    setForm({ hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00', kelas: '', pelajaran: '', ruangan: '', catatan: '' });
     setShowModal(true);
     window.history.pushState(null, '', '#jadwal/form');
   };
@@ -171,7 +157,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     setForm({
       hari: j.hari, jam_mulai: j.jam_mulai.slice(0, 5), jam_selesai: j.jam_selesai.slice(0, 5),
       kelas: j.kelas, pelajaran: j.pelajaran, ruangan: j.ruangan ?? '', catatan: j.catatan ?? '',
-      lembaga_id: (j as any).lembaga_id ?? '',
     });
     setShowModal(true);
     window.history.pushState(null, '', '#jadwal/form');
@@ -185,7 +170,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
       hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai,
       kelas: form.kelas, pelajaran: form.pelajaran,
       ruangan: form.ruangan || null, catatan: form.catatan || null,
-      lembaga_id: form.lembaga_id || null,
     };
     const { error } = editingId
       ? await supabase.from('jadwal_mengajar').update(payload).eq('id', editingId)
@@ -366,23 +350,12 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
                   {isToday && <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">Hari Ini</span>}
                 </div>
                 <div className="divide-y divide-slate-50">
-                  {items.map(j => {
-                    const isJumatLibur = j.hari === 'Jumat';
-                    const lembagaNama = (j as any).lembaga_id ? lembagaNameById[(j as any).lembaga_id] : undefined;
-                    return (
+                  {items.map(j => (
                     <div key={j.id} className="px-4 py-3 flex items-center gap-3 group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="font-semibold text-slate-800 text-sm">{j.pelajaran}</span>
                           <span className="badge badge-success text-[10px]">{j.kelas}</span>
-                          {lembagaNama && (
-                            <span className="badge bg-sky-50 text-sky-700 border border-sky-100 text-[10px]">{lembagaNama}</span>
-                          )}
-                          {isJumatLibur && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                              <AlertTriangle className="w-2.5 h-2.5" /> Hari Jumat adalah hari libur
-                            </span>
-                          )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{j.jam_mulai.slice(0, 5)} – {j.jam_selesai.slice(0, 5)} WIB</span>
@@ -399,8 +372,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
                         </button>
                       </div>
                     </div>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             );
@@ -411,15 +383,6 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
       {/* Modal Tambah/Edit Jadwal */}
       <Modal isOpen={showModal} onClose={handleCloseModal} title={editingId ? 'Edit Jadwal' : 'Tambah Jadwal'} size="sm">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Lembaga</label>
-            <SearchableSelect
-              value={form.lembaga_id}
-              onChange={v => setForm(p => ({ ...p, lembaga_id: v }))}
-              options={lembagaOptions}
-              placeholder="Pilih Lembaga"
-            />
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Hari</label>

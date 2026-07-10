@@ -4,11 +4,10 @@ import {
   BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
   CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
   Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X,
-  AlertCircle, StickyNote,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SkeletonCard } from '../components/Skeleton';
-import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab, CatatanGuru } from '../types';
+import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab } from '../types';
 
 interface DashboardPageProps {
   showToast: ShowToast;
@@ -20,7 +19,6 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
   const [now, setNow] = useState(new Date());
   const [currentSlide, setCurrentSlide] = useState(0);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
-  const [presensiBannerDismissed, setPresensiBannerDismissed] = useState(false);
 
   const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const todayHari = namaHari[new Date().getDay()];
@@ -149,39 +147,6 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
         stats.total++;
       });
       return stats;
-    },
-    staleTime: 60 * 1000,
-  });
-
-  // Presensi Guru check — whether the current user has done presensi today
-  const { data: presensiToday } = useQuery({
-    queryKey: ['dashboard-presensi-guru', todayDate, userId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('presensi_guru')
-        .select('id')
-        .eq('tanggal', todayDate)
-        .eq('user_id', userId)
-        .limit(1);
-      return data ?? [];
-    },
-    enabled: !!userId,
-    staleTime: 60 * 1000,
-  });
-  const hasPresensiToday = (presensiToday?.length ?? 0) > 0;
-
-  // Catatan Guru notifications
-  const { data: catatanGuruList = [] } = useQuery<CatatanGuru[]>({
-    queryKey: ['dashboard-catatan-guru'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('catatan_guru')
-        .select('*')
-        .eq('is_active', true)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(3);
-      return (data ?? []) as CatatanGuru[];
     },
     staleTime: 60 * 1000,
   });
@@ -351,35 +316,6 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
           </div>
         </div>
       </div>
-
-      {/* Presensi Reminder Banner */}
-      {ongoingClass && !hasPresensiToday && !presensiBannerDismissed && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/70 dark:border-amber-700/40 rounded-2xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="icon-box-sm bg-amber-100 text-amber-600 flex-shrink-0">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                Silakan melakukan Presensi Kehadiran.
-              </p>
-            </div>
-            <button
-              onClick={() => handleNav('presensi')}
-              className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800/40 hover:bg-amber-200 dark:hover:bg-amber-700/50 rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
-            >
-              Presensi
-            </button>
-            <button
-              onClick={() => setPresensiBannerDismissed(true)}
-              className="p-1 rounded-lg text-amber-400 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-800/40 transition-colors flex-shrink-0"
-              aria-label="Tutup pengingat presensi"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -599,35 +535,6 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
           </div>
         )}
       </div>
-
-      {/* Catatan Guru */}
-      {catatanGuruList.length > 0 && (
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 bg-yellow-50 rounded-lg flex items-center justify-center">
-              <StickyNote className="w-4 h-4 text-yellow-600" />
-            </div>
-            <h3 className="font-bold text-slate-700 text-sm">Catatan Guru</h3>
-          </div>
-          <div className="space-y-2">
-            {catatanGuruList.map(c => (
-              <div key={c.id} className="bg-slate-50 rounded-xl p-3">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-xs font-bold text-slate-700 truncate">{c.judul}</span>
-                  {c.tanggal_waktu && (
-                    <span className="text-[10px] text-slate-400 flex-shrink-0">
-                      {new Date(c.tanggal_waktu).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  )}
-                </div>
-                {c.isi && (
-                  <p className="text-[11px] text-slate-500 line-clamp-2">{c.isi}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Pengumuman */}
       {pengumumanList.length > 0 && (

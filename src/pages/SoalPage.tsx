@@ -1,19 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   FileQuestion, Plus, Trash2, Pencil, FileText, Share2, Search, X,
-  Type, Hash, ListOrdered,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { BankSoal, Kelas, MataPelajaran, ShowToast, Profile } from '../types';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
-import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga } from '../hooks/useLembaga';
 import { jsPDF } from 'jspdf';
 import { shareWA } from '../lib/pdf';
 
 export default function SoalPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  const { data: lembagaList = [] } = useLembaga();
   const [soalList, setSoalList] = useState<BankSoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,15 +24,9 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Form state now includes lembaga_id
-  const [form, setForm] = useState({ lembaga_id: '', pelajaran: '', kelas: '', batasan: '', isi_soal: '' });
+  const [form, setForm] = useState({ pelajaran: '', kelas: '', batasan: '', isi_soal: '' });
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
-
-  // Word-like soal editor state
-  const [autoNumber, setAutoNumber] = useState(true);
-  const [fontSize, setFontSize] = useState(16);
-  const soalTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
   useEffect(() => {
@@ -93,23 +83,10 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
     return [...filtered].sort((a, b) => a.kelas.localeCompare(b.kelas, 'id', { numeric: true }));
   }, [soalList, search]);
 
-  // Lembaga options for SearchableSelect
-  const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
-    [lembagaList]
-  );
-
-  // Kelas dropdown filtered by selected lembaga
-  const kelasFiltered = useMemo(() => {
-    if (!form.lembaga_id) return kelasList;
-    return kelasList.filter(k => (k as any).lembaga_id === form.lembaga_id);
-  }, [kelasList, form.lembaga_id]);
-
   // 4. MENDORONG HASH SAAT BUKA MODAL TAMBAH
   const openAdd = () => {
     setEditingId(null);
-    setForm({ lembaga_id: lembagaList[0]?.id ?? '', pelajaran: '', kelas: '', batasan: '', isi_soal: '' });
-    setAutoNumber(true);
+    setForm({ pelajaran: '', kelas: '', batasan: '', isi_soal: '' });
     setShowModal(true);
     window.history.pushState(null, '', '#soal/form');
   };
@@ -117,7 +94,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
   // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (s: BankSoal) => {
     setEditingId(s.id);
-    setForm({ lembaga_id: (s as any).lembaga_id || '', pelajaran: s.pelajaran, kelas: s.kelas, batasan: s.batasan ?? '', isi_soal: s.isi_soal });
+    setForm({ pelajaran: s.pelajaran, kelas: s.kelas, batasan: s.batasan ?? '', isi_soal: s.isi_soal });
     setShowModal(true);
     window.history.pushState(null, '', '#soal/form');
   };
@@ -126,9 +103,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
     e.preventDefault();
     if (!form.pelajaran || !form.kelas || !form.isi_soal) { showToast('Lengkapi field wajib', 'error'); return; }
     setSaving(true);
-    // Include lembaga_id in the payload
     const payload = {
-      lembaga_id: form.lembaga_id || null,
       pelajaran: form.pelajaran, kelas: form.kelas,
       batasan: form.batasan || null, isi_soal: form.isi_soal,
     };
@@ -173,56 +148,6 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
   const shareSoalWA = (soal: BankSoal) => {
     const text = `*SOAL UJIAN*\n\nMata Pelajaran: ${soal.pelajaran}\nKelas: ${soal.kelas}\nBatasan: ${soal.batasan || '-'}\n\n*Soal:*\n${soal.isi_soal}`;
     shareWA(text);
-  };
-
-  // ===== WORD-LIKE SOAL EDITOR =====
-  // Count existing numbered questions in the content
-  const countNumbers = (text: string): number => {
-    const matches = text.match(/^\s*\d+\.\s/gm);
-    return matches ? matches.length : 0;
-  };
-
-  // Handle key down in the soal textarea for auto-numbering
-  const handleSoalKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!autoNumber) return;
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const textarea = e.currentTarget;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const content = form.isi_soal;
-      const nextNumber = countNumbers(content) + 1;
-      // Insert "\n{nextNumber}. \n.....\n" at cursor position
-      const insert = `\n${nextNumber}. \n.....\n  `;
-      const newContent = content.slice(0, start) + insert + content.slice(end);
-      setForm(p => ({ ...p, isi_soal: newContent }));
-      // Move cursor after the inserted block (after "  " indent)
-      requestAnimationFrame(() => {
-        if (soalTextareaRef.current) {
-          const pos = start + insert.length;
-          soalTextareaRef.current.selectionStart = pos;
-          soalTextareaRef.current.selectionEnd = pos;
-        }
-      });
-    }
-  };
-
-  // "Tambah Soal" button: append a new numbered question with dotted lines
-  const handleTambahSoal = () => {
-    const nextNumber = countNumbers(form.isi_soal) + 1;
-    const prefix = form.isi_soal && !form.isi_soal.endsWith('\n') ? '\n' : '';
-    const newBlock = `${prefix}${nextNumber}. \n.....\n  `;
-    setForm(p => ({ ...p, isi_soal: p.isi_soal + newBlock }));
-    // Focus textarea and move cursor to end
-    requestAnimationFrame(() => {
-      if (soalTextareaRef.current) {
-        const ta = soalTextareaRef.current;
-        ta.focus();
-        const pos = ta.value.length;
-        ta.selectionStart = pos;
-        ta.selectionEnd = pos;
-      }
-    });
   };
 
   return (
@@ -310,98 +235,30 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
       {/* Modal Buat/Edit Soal */}
       <Modal isOpen={showModal} onClose={handleCloseModal} title={editingId ? 'Edit Soal' : 'Buat Soal Baru'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 1. Lembaga (SearchableSelect) */}
-          <div className="relative">
-            <SearchableSelect
-              value={form.lembaga_id}
-              onChange={(v) => setForm(p => ({ ...p, lembaga_id: v, kelas: '' }))}
-              options={lembagaOptions}
-              placeholder="Pilih Lembaga"
-              label="Lembaga"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran *</label>
+              <select className="input-field text-sm" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} required>
+                <option value="">Pilih Pelajaran</option>
+                {mapelList.map(m => <option key={m.id} value={m.nama_mapel}>{m.nama_mapel}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
+              <select className="input-field text-sm" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} required>
+                <option value="">Pilih Kelas</option>
+                {kelasList.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
+              </select>
+            </div>
           </div>
-
-          {/* 2. Kelas */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-            <select className="input-field text-sm" value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} required>
-              <option value="">Pilih Kelas</option>
-              {kelasFiltered.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
-            </select>
-          </div>
-
-          {/* 3. Mata Pelajaran */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran *</label>
-            <select className="input-field text-sm" value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} required>
-              <option value="">Pilih Pelajaran</option>
-              {mapelList.map(m => <option key={m.id} value={m.nama_mapel}>{m.nama_mapel}</option>)}
-            </select>
-          </div>
-
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Batasan Materi (opsional)</label>
             <input type="text" className="input-field text-sm" placeholder="Bab 1-3" value={form.batasan} onChange={e => setForm(p => ({ ...p, batasan: e.target.value }))} />
           </div>
-
-          {/* ===== WORD-LIKE SOAL EDITOR ===== */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Isi Soal *</label>
-
-            {/* Toolbar */}
-            <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 rounded-t-xl border-2 border-b-0 border-slate-200 border-dashed">
-              {/* Font size indicator */}
-              <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
-                <Type className="w-3.5 h-3.5" />
-                <span>{fontSize}px</span>
-                <div className="flex flex-col ml-1">
-                  <button type="button" onClick={() => setFontSize(s => Math.min(24, s + 1))} className="text-slate-400 hover:text-emerald-600 leading-none text-[10px]">▲</button>
-                  <button type="button" onClick={() => setFontSize(s => Math.max(12, s - 1))} className="text-slate-400 hover:text-emerald-600 leading-none text-[10px]">▼</button>
-                </div>
-              </div>
-
-              {/* Auto-number toggle */}
-              <button
-                type="button"
-                onClick={() => setAutoNumber(a => !a)}
-                className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors ${autoNumber ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200'}`}
-                title="Auto-numbering: tekan Enter untuk menambah nomor otomatis"
-              >
-                <Hash className="w-3.5 h-3.5" />
-                <span>Auto-No</span>
-              </button>
-
-              {/* Tambah Soal button */}
-              <button
-                type="button"
-                onClick={handleTambahSoal}
-                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-sky-600 text-white border border-sky-600 hover:bg-sky-700 transition-colors ml-auto"
-                title="Tambah soal bernomor baru"
-              >
-                <ListOrdered className="w-3.5 h-3.5" />
-                <span>Tambah Soal</span>
-              </button>
-            </div>
-
-            {/* Large document-like textarea */}
-            <textarea
-              ref={soalTextareaRef}
-              rows={14}
-              className="w-full min-h-[400px] p-6 text-base leading-loose font-serif bg-slate-50 border-2 border-dashed border-slate-200 rounded-b-xl resize-y outline-none focus:border-emerald-400 transition-colors text-slate-800"
-              style={{ fontSize: `${fontSize}px` }}
-              placeholder={`1. \n.....\n2. \n.....\n3. \n.....`}
-              value={form.isi_soal}
-              onChange={e => setForm(p => ({ ...p, isi_soal: e.target.value }))}
-              onKeyDown={handleSoalKeyDown}
-              required
-            />
-            <p className="text-[10px] text-slate-400 mt-1.5 italic">
-              {autoNumber
-                ? 'Mode auto-numbering aktif. Tekan Enter untuk menambah nomor soal otomatis dengan garis titik.'
-                : 'Mode auto-numbering nonaktif. Aktifkan untuk penomoran otomatis saat menekan Enter.'}
-            </p>
+            <textarea rows={6} className="input-field text-sm resize-none" placeholder="Tulis soal di sini..." value={form.isi_soal} onChange={e => setForm(p => ({ ...p, isi_soal: e.target.value }))} required />
           </div>
-
           <div className="flex gap-2 pt-1 border-t border-slate-100 mt-2">
             {/* PERUBAHAN: Gunakan fungsi handleCloseModal */}
             <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm py-2.5">Batal</button>

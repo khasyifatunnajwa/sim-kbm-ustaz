@@ -2,12 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Camera, MapPin, CheckCircle, AlertCircle, Clock, Loader2,
   CameraOff, Crosshair, X, Image as ImageIcon, Calendar, BookOpen,
-  ClipboardCheck,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import EmptyState from '../components/EmptyState';
-import type { Profile, ShowToast, JadwalMengajar, PresensiUstaz, ActiveTab } from '../types';
+import type { Profile, ShowToast, JadwalMengajar, PresensiUstaz } from '../types';
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
@@ -166,7 +165,7 @@ async function addWatermark(
   });
 }
 
-export default function PresensiPage({ showToast, profile, setActiveTab }: { showToast: ShowToast; profile: Profile | null; setActiveTab: (tab: ActiveTab) => void }) {
+export default function PresensiPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [jadwalList, setJadwalList] = useState<JadwalMengajar[]>([]);
   const [todayPresensi, setTodayPresensi] = useState<PresensiUstaz[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,10 +180,6 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
   const [selectedJadwal, setSelectedJadwal] = useState<JadwalMengajar | null>(null);
   const [serverTime, setServerTime] = useState<string>('');
   const [serverDate, setServerDate] = useState('');
-
-  // State untuk notifikasi & tombol Absen Kelas setelah presensi berhasil
-  const [successJadwal, setSuccessJadwal] = useState<JadwalMengajar | null>(null);
-  const [lateMinutes, setLateMinutes] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -422,24 +417,7 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
 
       setTodayPresensi((newPresensi ?? []) as PresensiUstaz[]);
 
-      // --- Hitung keterlambatan berdasarkan jam_masuk (jam_mulai jadwal) ---
-      // Bandingkan waktu server saat presensi dikirim dengan jam_mulai jadwal.
-      // Toleransi tepat waktu: 10 menit dari jam masuk.
-      const jamMasukMinutes = timeToMinutes(selectedJadwal.jam_mulai);
-      const submitMinutes = timeToMinutes(serverTimeData.server_hour);
-      const lateThreshold = 10; // menit toleransi
-      const diffMinutes = submitMinutes - jamMasukMinutes;
-
-      if (diffMinutes > lateThreshold) {
-        setLateMinutes(diffMinutes);
-        showToast(`Anda terlambat ${diffMinutes} menit dari jam masuk.`, 'info');
-      } else {
-        setLateMinutes(0);
-        showToast('Terima kasih telah melakukan presensi dan datang tepat waktu.', 'success');
-      }
-
-      // Simpan jadwal yang baru dipresensi untuk menampilkan tombol "Absen Kelas"
-      setSuccessJadwal(selectedJadwal);
+      showToast(`Presensi berhasil! Status: ${status}`, 'success');
 
       if (capturedUrl) URL.revokeObjectURL(capturedUrl);
       setCapturedPhoto(null);
@@ -501,36 +479,6 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
           Lakukan presensi dengan foto kelas dan GPS. Foto akan otomatis dihapus setelah 24 jam.
         </p>
       </div>
-
-      {/* Notifikasi & Tombol Absen Kelas setelah presensi berhasil */}
-      {successJadwal && (
-        <div className="card p-4 bg-emerald-50 border border-emerald-200">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <CheckCircle className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-emerald-800">Presensi Berhasil</p>
-              <p className="text-xs text-emerald-700 mt-1">
-                {lateMinutes !== null && lateMinutes > 0
-                  ? `Anda terlambat ${lateMinutes} menit dari jam masuk.`
-                  : 'Terima kasih telah melakukan presensi dan datang tepat waktu.'}
-              </p>
-              <button
-                onClick={() => {
-                  setActiveTab('absensi');
-                  setSuccessJadwal(null);
-                  setLateMinutes(null);
-                }}
-                className="btn-primary text-xs px-4 py-2 mt-3 flex items-center gap-1.5"
-              >
-                <ClipboardCheck className="w-4 h-4" />
-                Absen Kelas {successJadwal.kelas}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Today's Schedule */}
       <div>

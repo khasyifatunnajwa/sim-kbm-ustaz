@@ -394,7 +394,7 @@ export default function App() {
           });
 
           const hash = window.location.hash.replace('#', '').split('/')[0];
-          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'presensi', 'presensi-admin', 'admin-presensi-ustaz', 'admin-presensi-murid', 'admin-jadwal-ustaz', 'admin-data-santri', 'admin-jadwal-asatiz', 'admin-kelola-lembaga'];
+          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'presensi', 'presensi-admin'];
           if (hash && validTabs.includes(hash)) {
             setActiveTab(hash as ActiveTab);
           } else {
@@ -504,14 +504,9 @@ export default function App() {
         {activeTab === 'izin' && <IzinPage showToast={showToast} profile={profile} />}
         {activeTab === 'rapor' && <RaporPage showToast={showToast} />}
         {activeTab === 'admin' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
-        {activeTab === 'admin-presensi-ustaz' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="presensi" />}
-        {activeTab === 'admin-jadwal-ustaz' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="presensi" initialSubTab="jadwal-ustaz" />}
-        {activeTab === 'admin-data-santri' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-akademik" initialSubTab="data-santri" />}
-        {activeTab === 'admin-jadwal-asatiz' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-akademik" initialSubTab="jadwal-asatiz" />}
-        {activeTab === 'admin-kelola-lembaga' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-akademik" initialSubTab="kelola-lembaga" />}
         {activeTab === 'pengumuman' && <AdminPengumumanPage showToast={showToast} />}
         {activeTab === 'profil' && <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />}
-        {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
+        {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} />}
         {activeTab === 'presensi-admin' && <PresensiAdminPage showToast={showToast} profile={profile} />}
       </Suspense>
     );
