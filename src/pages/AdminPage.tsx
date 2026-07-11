@@ -6,7 +6,8 @@ import {
   ChevronRight, LayoutDashboard, AlertTriangle,
   UsersRound, UserX, School, MessageCircleWarning,
   ArrowLeft, Phone, MapPin, Download, Upload, Lock,
-  ChevronDown, ChevronUp, Target, NotebookPen, BookCopy, History, Activity, Mic
+  ChevronDown, ChevronUp, Target, NotebookPen, BookCopy, History, Activity, Mic,
+  Palette, Type, Sun, Moon, Monitor, RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -14,6 +15,7 @@ import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { useThemeContext } from '../contexts/ThemeContext';
 import type {
   Profile, ShowToast, TahunAjaran, Semester, MataPelajaran, UserRole, KelompokMapel, Ruangan, ActiveTab,
   KelasKosong,
@@ -35,7 +37,7 @@ type PresensiUstazSubTab = 'presensi-ustaz' | 'jadwal-ustaz';
 type PenilaianTab = 'harian' | 'ulangan' | 'ujian-tulis' | 'ujian-lisan' | 'hafalan' | 'baca-kitab' | 'sikap' | 'rapor' | 'lainnya';
 type PengumumanTab = 'pengumuman' | 'agenda' | 'event' | 'notifikasi';
 type LaporanTab = 'presensi' | 'nilai' | 'kbm' | 'jadwal' | 'guru-pengganti';
-type StatistikTab = 'kehadiran-ustaz' | 'kehadiran-murid' | 'kbm' | 'nilai' | 'top-guru' | 'top-kelas';
+type StatistikTab = 'kehadiran-ustaz' | 'kehadiran-murid' | 'kbm' | 'nilai' | 'top-guru' | 'top-kelas' | 'top-murid';
 type PengaturanTab = 'identitas' | 'tahun-semester' | 'jam' | 'hari-libur' | 'tema' | 'backup';
 type AuditTab = 'riwayat-login' | 'aktivitas' | 'perubahan' | 'error' | 'ekspor' | 'impor';
 type KenakalanTab = 'ustaz' | 'murid';
@@ -2678,9 +2680,414 @@ function PenilaianSection({ penilaianTab, setPenilaianTab, showToast, profile }:
           );
         })}
       </div>
-      <div className="card p-4">
-        <EmptyState title={`${tabs.find(t => t.id === penilaianTab)?.label || ''} - akan segera tersedia`} icon={<BarChart3 className="w-8 h-8 text-slate-300" />} />
+      {penilaianTab === 'harian' && <NilaiCrudTab showToast={showToast} profile={profile} jenisUjian="Harian" label="Nilai Harian" />}
+      {penilaianTab === 'ulangan' && <NilaiCrudTab showToast={showToast} profile={profile} jenisUjian="Ulangan" label="Ulangan" />}
+      {penilaianTab === 'ujian-tulis' && <NilaiCrudTab showToast={showToast} profile={profile} jenisUjian="Ujian Tulis" label="Ujian Tulis" />}
+      {penilaianTab === 'ujian-lisan' && <NilaiCrudTab showToast={showToast} profile={profile} jenisUjian="Ujian Lisan" label="Ujian Lisan" />}
+      {penilaianTab === 'baca-kitab' && <NilaiCrudTab showToast={showToast} profile={profile} jenisUjian="Baca Kitab" label="Baca Kitab" />}
+      {penilaianTab === 'hafalan' && <HafalanTab showToast={showToast} profile={profile} />}
+      {penilaianTab === 'sikap' && <SikapTab showToast={showToast} profile={profile} />}
+      {penilaianTab === 'rapor' && <RaporTab showToast={showToast} profile={profile} />}
+      {penilaianTab === 'lainnya' && <NilaiCrudTab showToast={showToast} profile={profile} jenisUjian="Lainnya" label="Penilaian Lainnya" />}
+    </div>
+  );
+}
+
+// ================== NILAI CRUD TAB (for harian, ulangan, ujian-tulis, ujian-lisan, baca-kitab, lainnya) ==================
+function NilaiCrudTab({ showToast, profile, jenisUjian, label }: { showToast: any; profile: any; jenisUjian: string; label: string }) {
+  const [list, setList] = useState<any[]>([]);
+  const [muridList, setMuridList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [form, setForm] = useState({ murid_id: '', pelajaran: '', skor: '', tanggal: '' });
+
+  useEffect(() => { fetchList(); fetchMurid(); }, []);
+
+  const fetchMurid = async () => {
+    try {
+      const { data } = await supabase.from('murid').select('id, nama, nis').order('nama');
+      setMuridList(data || []);
+    } catch { /* silent */ }
+  };
+
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from('nilai').select('*').eq('jenis_ujian', jenisUjian).order('tanggal', { ascending: false });
+      if (error) throw error;
+      setList(data || []);
+    } catch (err: any) { showToast('Gagal memuat data: ' + (err?.message || ''), 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const resetForm = () => { setForm({ murid_id: '', pelajaran: '', skor: '', tanggal: '' }); setEditingId(null); };
+
+  const openEdit = (item: any) => {
+    setEditingId(item.id);
+    setForm({ murid_id: item.murid_id || '', pelajaran: item.pelajaran || '', skor: String(item.skor ?? ''), tanggal: item.tanggal || '' });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.murid_id || !form.pelajaran || !form.skor) { showToast('Murid, pelajaran, dan skor wajib diisi', 'error'); return; }
+    setSaving(true);
+    try {
+      const payload: any = { murid_id: form.murid_id, pelajaran: form.pelajaran, jenis_ujian: jenisUjian, skor: parseFloat(form.skor), tanggal: form.tanggal || null, user_id: profile?.id };
+      if (editingId) {
+        const { error } = await supabase.from('nilai').update(payload).eq('id', editingId);
+        if (error) throw error;
+        showToast('Nilai diperbarui', 'success');
+      } else {
+        const { error } = await supabase.from('nilai').insert(payload);
+        if (error) throw error;
+        showToast('Nilai ditambahkan', 'success');
+      }
+      setShowModal(false); resetForm(); fetchList();
+    } catch (err: any) { showToast('Gagal menyimpan: ' + (err?.message || ''), 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (item: any) => {
+    if (!confirm('Hapus nilai ini?')) return;
+    try {
+      const { error } = await supabase.from('nilai').delete().eq('id', item.id);
+      if (error) throw error;
+      showToast('Nilai dihapus', 'success'); fetchList();
+    } catch (err: any) { showToast('Gagal menghapus: ' + (err?.message || ''), 'error'); }
+  };
+
+  const filtered = useMemo(() => {
+    if (!search) return list;
+    const q = search.toLowerCase();
+    return list.filter(n => {
+      const muridNama = muridList.find(m => m.id === n.murid_id)?.nama || '';
+      return [muridNama, n.pelajaran, n.jenis_ujian].filter(Boolean).join(' ').toLowerCase().includes(q);
+    });
+  }, [list, search, muridList]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cari ${label.toLowerCase()}...`} className="input-field text-xs pl-8" />
+        </div>
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3">
+          <Plus className="w-3.5 h-3.5" /><span className="text-xs">Tambah</span>
+        </button>
       </div>
+      {loading ? (
+        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <EmptyState title={`Tidak ada ${label.toLowerCase()}`} icon={<BarChart3 className="w-8 h-8 text-slate-300" />} />
+      ) : (
+        <div className="space-y-1">
+          {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(n => {
+            const murid = muridList.find(m => m.id === n.murid_id);
+            return (
+              <div key={n.id} className="card p-2.5 flex items-center gap-2.5 group">
+                <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{murid?.nama || '-'} - {n.pelajaran || '-'}</p>
+                  <div className="flex items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-sky-600 dark:text-sky-400">{n.skor}</span>
+                    {n.tanggal && <span>• {new Date(n.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>}
+                    {murid?.nis && <span>• NIS: {murid.nis}</span>}
+                  </div>
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                  <button onClick={() => openEdit(n)} className="p-1.5 rounded hover:bg-sky-50 dark:hover:bg-sky-900/20 text-slate-400 hover:text-sky-600"><Pencil className="w-3 h-3" /></button>
+                  <button onClick={() => handleDelete(n)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button>
+                </div>
+              </div>
+            );
+          })}
+          <Pagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} onPageChange={setPage} />
+        </div>
+      )}
+      {showModal && (
+        <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? `Edit ${label}` : `Tambah ${label}`}>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Murid *</label>
+              <select className="input-field text-xs" value={form.murid_id} onChange={e => setForm({ ...form, murid_id: e.target.value })}>
+                <option value="">Pilih murid...</option>
+                {muridList.map(m => <option key={m.id} value={m.id}>{m.nama} {m.nis ? `(${m.nis})` : ''}</option>)}
+              </select>
+            </div>
+            <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Mata Pelajaran *</label><input type="text" value={form.pelajaran} onChange={e => setForm({ ...form, pelajaran: e.target.value })} className="input-field text-xs" placeholder="Fiqih" /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Skor *</label><input type="number" step="0.1" value={form.skor} onChange={e => setForm({ ...form, skor: e.target.value })} className="input-field text-xs" placeholder="85" /></div>
+              <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tanggal</label><input type="date" value={form.tanggal} onChange={e => setForm({ ...form, tanggal: e.target.value })} className="input-field text-xs" /></div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
+              <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">
+                {saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Simpan
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ================== HAFALAN TAB (capaian_hafalan table) ==================
+function HafalanTab({ showToast, profile }: any) {
+  const [list, setList] = useState<any[]>([]);
+  const [muridList, setMuridList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [form, setForm] = useState({ murid_id: '', capaian: '', tanggal: '' });
+
+  useEffect(() => { fetchList(); fetchMurid(); }, []);
+
+  const fetchMurid = async () => {
+    try { const { data } = await supabase.from('murid').select('id, nama, nis').order('nama'); setMuridList(data || []); } catch { /* silent */ }
+  };
+
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from('capaian_hafalan').select('*').order('tanggal', { ascending: false });
+      if (error) throw error;
+      setList(data || []);
+    } catch (err: any) { showToast('Gagal memuat data: ' + (err?.message || ''), 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const resetForm = () => { setForm({ murid_id: '', capaian: '', tanggal: '' }); setEditingId(null); };
+
+  const openEdit = (item: any) => { setEditingId(item.id); setForm({ murid_id: item.murid_id || '', capaian: item.capaian || '', tanggal: item.tanggal || '' }); setShowModal(true); };
+
+  const handleSave = async () => {
+    if (!form.murid_id || !form.capaian) { showToast('Murid dan capaian wajib diisi', 'error'); return; }
+    setSaving(true);
+    try {
+      const payload: any = { murid_id: form.murid_id, capaian: form.capaian, tanggal: form.tanggal || null, user_id: profile?.id };
+      if (editingId) {
+        const { error } = await supabase.from('capaian_hafalan').update(payload).eq('id', editingId);
+        if (error) throw error; showToast('Hafalan diperbarui', 'success');
+      } else {
+        const { error } = await supabase.from('capaian_hafalan').insert(payload);
+        if (error) throw error; showToast('Hafalan ditambahkan', 'success');
+      }
+      setShowModal(false); resetForm(); fetchList();
+    } catch (err: any) { showToast('Gagal: ' + (err?.message || ''), 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (item: any) => {
+    if (!confirm('Hapus data hafalan ini?')) return;
+    try { const { error } = await supabase.from('capaian_hafalan').delete().eq('id', item.id); if (error) throw error; showToast('Data dihapus', 'success'); fetchList(); }
+    catch (err: any) { showToast('Gagal: ' + (err?.message || ''), 'error'); }
+  };
+
+  const filtered = useMemo(() => {
+    if (!search) return list;
+    const q = search.toLowerCase();
+    return list.filter(n => { const m = muridList.find(x => x.id === n.murid_id)?.nama || ''; return [m, n.capaian].join(' ').toLowerCase().includes(q); });
+  }, [list, search, muridList]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" /><input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari hafalan..." className="input-field text-xs pl-8" /></div>
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3"><Plus className="w-3.5 h-3.5" /><span className="text-xs">Tambah</span></button>
+      </div>
+      {loading ? (<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (<EmptyState title="Tidak ada data hafalan" icon={<BookCopy className="w-8 h-8 text-slate-300" />} />
+      ) : (<div className="space-y-1">
+        {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(n => { const m = muridList.find(x => x.id === n.murid_id); return (
+          <div key={n.id} className="card p-2.5 flex items-center gap-2.5 group">
+            <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center flex-shrink-0"><BookCopy className="w-4 h-4 text-violet-600 dark:text-violet-400" /></div>
+            <div className="flex-1 min-w-0"><p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{m?.nama || '-'}</p><div className="flex items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400"><span className="truncate">{n.capaian}</span>{n.tanggal && <span>• {new Date(n.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>}</div></div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100"><button onClick={() => openEdit(n)} className="p-1.5 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 text-slate-400 hover:text-violet-600"><Pencil className="w-3 h-3" /></button><button onClick={() => handleDelete(n)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button></div>
+          </div>); })}
+        <Pagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} onPageChange={setPage} />
+      </div>)}
+      {showModal && (<Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Edit Hafalan' : 'Tambah Hafalan'}>
+        <div className="space-y-3">
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Murid *</label><select className="input-field text-xs" value={form.murid_id} onChange={e => setForm({ ...form, murid_id: e.target.value })}><option value="">Pilih murid...</option>{muridList.map(m => <option key={m.id} value={m.id}>{m.nama}</option>)}</select></div>
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Capaian *</label><input type="text" value={form.capaian} onChange={e => setForm({ ...form, capaian: e.target.value })} className="input-field text-xs" placeholder="Juz 30" /></div>
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tanggal</label><input type="date" value={form.tanggal} onChange={e => setForm({ ...form, tanggal: e.target.value })} className="input-field text-xs" /></div>
+          <div className="flex gap-2 pt-2"><button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button><button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">{saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Simpan</button></div>
+        </div>
+      </Modal>)}
+    </div>
+  );
+}
+
+// ================== SIKAP TAB (sikap table) ==================
+function SikapTab({ showToast, profile }: any) {
+  const [list, setList] = useState<any[]>([]);
+  const [muridList, setMuridList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [form, setForm] = useState({ murid_id: '', tanggal: '', disiplin: '', adab: '', kerajinan: '', kejujuran: '', tanggung_jawab: '', catatan: '' });
+
+  useEffect(() => { fetchList(); fetchMurid(); }, []);
+
+  const fetchMurid = async () => { try { const { data } = await supabase.from('murid').select('id, nama').order('nama'); setMuridList(data || []); } catch {} };
+
+  const fetchList = async () => {
+    setLoading(true);
+    try { const { data, error } = await supabase.from('sikap').select('*').order('tanggal', { ascending: false }); if (error) throw error; setList(data || []); }
+    catch (err: any) { showToast('Gagal memuat data: ' + (err?.message || ''), 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const resetForm = () => { setForm({ murid_id: '', tanggal: '', disiplin: '', adab: '', kerajinan: '', kejujuran: '', tanggung_jawab: '', catatan: '' }); setEditingId(null); };
+
+  const openEdit = (item: any) => { setEditingId(item.id); setForm({ murid_id: item.murid_id || '', tanggal: item.tanggal || '', disiplin: String(item.disiplin ?? ''), adab: String(item.adab ?? ''), kerajinan: String(item.kerajinan ?? ''), kejujuran: String(item.kejujuran ?? ''), tanggung_jawab: String(item.tanggung_jawab ?? ''), catatan: item.catatan || '' }); setShowModal(true); };
+
+  const handleSave = async () => {
+    if (!form.murid_id) { showToast('Murid wajib diisi', 'error'); return; }
+    setSaving(true);
+    try {
+      const payload: any = { murid_id: form.murid_id, tanggal: form.tanggal || null, disiplin: form.disiplin ? parseFloat(form.disiplin) : null, adab: form.adab ? parseFloat(form.adab) : null, kerajinan: form.kerajinan ? parseFloat(form.kerajinan) : null, kejujuran: form.kejujuran ? parseFloat(form.kejujuran) : null, tanggung_jawab: form.tanggung_jawab ? parseFloat(form.tanggung_jawab) : null, catatan: form.catatan || null, user_id: profile?.id };
+      if (editingId) { const { error } = await supabase.from('sikap').update(payload).eq('id', editingId); if (error) throw error; showToast('Sikap diperbarui', 'success'); }
+      else { const { error } = await supabase.from('sikap').insert(payload); if (error) throw error; showToast('Sikap ditambahkan', 'success'); }
+      setShowModal(false); resetForm(); fetchList();
+    } catch (err: any) { showToast('Gagal: ' + (err?.message || ''), 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (item: any) => { if (!confirm('Hapus data sikap ini?')) return; try { const { error } = await supabase.from('sikap').delete().eq('id', item.id); if (error) throw error; showToast('Data dihapus', 'success'); fetchList(); } catch (err: any) { showToast('Gagal: ' + (err?.message || ''), 'error'); } };
+
+  const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(n => { const m = muridList.find(x => x.id === n.murid_id)?.nama || ''; return m.toLowerCase().includes(q); }); }, [list, search, muridList]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" /><input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari sikap..." className="input-field text-xs pl-8" /></div>
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3"><Plus className="w-3.5 h-3.5" /><span className="text-xs">Tambah</span></button>
+      </div>
+      {loading ? (<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (<EmptyState title="Tidak ada data sikap" icon={<CheckCircle className="w-8 h-8 text-slate-300" />} />
+      ) : (<div className="space-y-1">
+        {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(n => { const m = muridList.find(x => x.id === n.murid_id); return (
+          <div key={n.id} className="card p-2.5 flex items-center gap-2.5 group">
+            <div className="w-8 h-8 bg-rose-100 dark:bg-rose-900/30 rounded-lg flex items-center justify-center flex-shrink-0"><CheckCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" /></div>
+            <div className="flex-1 min-w-0"><p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{m?.nama || '-'}</p><div className="flex items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400">{n.tanggal && <span>{new Date(n.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>}<span>D:{n.disiplin ?? '-'} A:{n.adab ?? '-'} K:{n.kerajinan ?? '-'}</span></div></div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100"><button onClick={() => openEdit(n)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Pencil className="w-3 h-3" /></button><button onClick={() => handleDelete(n)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button></div>
+          </div>); })}
+        <Pagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} onPageChange={setPage} />
+      </div>)}
+      {showModal && (<Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Edit Sikap' : 'Tambah Sikap'}>
+        <div className="space-y-3">
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Murid *</label><select className="input-field text-xs" value={form.murid_id} onChange={e => setForm({ ...form, murid_id: e.target.value })}><option value="">Pilih murid...</option>{muridList.map(m => <option key={m.id} value={m.id}>{m.nama}</option>)}</select></div>
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tanggal</label><input type="date" value={form.tanggal} onChange={e => setForm({ ...form, tanggal: e.target.value })} className="input-field text-xs" /></div>
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Disiplin</label><input type="number" min="0" max="100" value={form.disiplin} onChange={e => setForm({ ...form, disiplin: e.target.value })} className="input-field text-xs" placeholder="80" /></div>
+            <div><label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Adab</label><input type="number" min="0" max="100" value={form.adab} onChange={e => setForm({ ...form, adab: e.target.value })} className="input-field text-xs" placeholder="80" /></div>
+            <div><label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Kerajinan</label><input type="number" min="0" max="100" value={form.kerajinan} onChange={e => setForm({ ...form, kerajinan: e.target.value })} className="input-field text-xs" placeholder="80" /></div>
+            <div><label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Kejujuran</label><input type="number" min="0" max="100" value={form.kejujuran} onChange={e => setForm({ ...form, kejujuran: e.target.value })} className="input-field text-xs" placeholder="80" /></div>
+            <div><label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Tanggung Jawab</label><input type="number" min="0" max="100" value={form.tanggung_jawab} onChange={e => setForm({ ...form, tanggung_jawab: e.target.value })} className="input-field text-xs" placeholder="80" /></div>
+          </div>
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Catatan</label><textarea value={form.catatan} onChange={e => setForm({ ...form, catatan: e.target.value })} className="input-field text-xs" rows={2} placeholder="Catatan tambahan" /></div>
+          <div className="flex gap-2 pt-2"><button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button><button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">{saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Simpan</button></div>
+        </div>
+      </Modal>)}
+    </div>
+  );
+}
+
+// ================== RAPOR TAB (rapor_final table) ==================
+function RaporTab({ showToast, profile }: any) {
+  const [list, setList] = useState<any[]>([]);
+  const [muridList, setMuridList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [form, setForm] = useState({ murid_id: '', nilai_akhir: '', predikat: '', deskripsi: '' });
+
+  useEffect(() => { fetchList(); fetchMurid(); }, []);
+
+  const fetchMurid = async () => { try { const { data } = await supabase.from('murid').select('id, nama').order('nama'); setMuridList(data || []); } catch {} };
+
+  const fetchList = async () => {
+    setLoading(true);
+    try { const { data, error } = await supabase.from('rapor_final').select('*').order('created_at', { ascending: false }); if (error) throw error; setList(data || []); }
+    catch (err: any) { showToast('Gagal memuat data: ' + (err?.message || ''), 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const resetForm = () => { setForm({ murid_id: '', nilai_akhir: '', predikat: '', deskripsi: '' }); setEditingId(null); };
+
+  const openEdit = (item: any) => { setEditingId(item.id); setForm({ murid_id: item.murid_id || '', nilai_akhir: String(item.nilai_akhir ?? ''), predikat: item.predikat || '', deskripsi: item.deskripsi || '' }); setShowModal(true); };
+
+  const handleSave = async () => {
+    if (!form.murid_id || !form.nilai_akhir) { showToast('Murid dan nilai akhir wajib diisi', 'error'); return; }
+    setSaving(true);
+    try {
+      const payload: any = { murid_id: form.murid_id, nilai_akhir: parseFloat(form.nilai_akhir), predikat: form.predikat || null, deskripsi: form.deskripsi || null, user_id: profile?.id };
+      if (editingId) { const { error } = await supabase.from('rapor_final').update(payload).eq('id', editingId); if (error) throw error; showToast('Rapor diperbarui', 'success'); }
+      else { const { error } = await supabase.from('rapor_final').insert(payload); if (error) throw error; showToast('Rapor ditambahkan', 'success'); }
+      setShowModal(false); resetForm(); fetchList();
+    } catch (err: any) { showToast('Gagal: ' + (err?.message || ''), 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (item: any) => { if (!confirm('Hapus rapor ini?')) return; try { const { error } = await supabase.from('rapor_final').delete().eq('id', item.id); if (error) throw error; showToast('Rapor dihapus', 'success'); fetchList(); } catch (err: any) { showToast('Gagal: ' + (err?.message || ''), 'error'); } };
+
+  const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(n => { const m = muridList.find(x => x.id === n.murid_id)?.nama || ''; return [m, n.predikat].join(' ').toLowerCase().includes(q); }); }, [list, search, muridList]);
+
+  const predikatColor = (p: string) => {
+    if (!p) return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+    if (p.startsWith('A')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    if (p.startsWith('B')) return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
+    if (p.startsWith('C')) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    if (p.startsWith('D')) return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+    return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" /><input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari rapor..." className="input-field text-xs pl-8" /></div>
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3"><Plus className="w-3.5 h-3.5" /><span className="text-xs">Tambah</span></button>
+      </div>
+      {loading ? (<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (<EmptyState title="Tidak ada rapor" icon={<BookOpen className="w-8 h-8 text-slate-300" />} />
+      ) : (<div className="space-y-1">
+        {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(n => { const m = muridList.find(x => x.id === n.murid_id); return (
+          <div key={n.id} className="card p-2.5 flex items-center gap-2.5 group">
+            <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0"><BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /></div>
+            <div className="flex-1 min-w-0"><p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{m?.nama || '-'}</p><div className="flex items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400"><span className="font-semibold text-emerald-600 dark:text-emerald-400">{n.nilai_akhir}</span>{n.predikat && <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium ${predikatColor(n.predikat)}`}>{n.predikat}</span>}{n.deskripsi && <span className="truncate">• {n.deskripsi}</span>}</div></div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100"><button onClick={() => openEdit(n)} className="p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600"><Pencil className="w-3 h-3" /></button><button onClick={() => handleDelete(n)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button></div>
+          </div>); })}
+        <Pagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} onPageChange={setPage} />
+      </div>)}
+      {showModal && (<Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Edit Rapor' : 'Tambah Rapor'}>
+        <div className="space-y-3">
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Murid *</label><select className="input-field text-xs" value={form.murid_id} onChange={e => setForm({ ...form, murid_id: e.target.value })}><option value="">Pilih murid...</option>{muridList.map(m => <option key={m.id} value={m.id}>{m.nama}</option>)}</select></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nilai Akhir *</label><input type="number" step="0.1" value={form.nilai_akhir} onChange={e => setForm({ ...form, nilai_akhir: e.target.value })} className="input-field text-xs" placeholder="85" /></div>
+            <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Predikat</label><select className="input-field text-xs" value={form.predikat} onChange={e => setForm({ ...form, predikat: e.target.value })}><option value="">Pilih...</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
+          </div>
+          <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Deskripsi</label><textarea value={form.deskripsi} onChange={e => setForm({ ...form, deskripsi: e.target.value })} className="input-field text-xs" rows={2} placeholder="Deskripsi rapor" /></div>
+          <div className="flex gap-2 pt-2"><button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button><button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">{saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Simpan</button></div>
+        </div>
+      </Modal>)}
     </div>
   );
 }
@@ -2763,12 +3170,13 @@ function StatistikSection({ statistikTab, setStatistikTab, showToast }: any) {
     { id: 'nilai' as StatistikTab, label: 'Nilai', icon: BarChart3, color: 'violet' },
     { id: 'top-guru' as StatistikTab, label: 'Top Guru', icon: CheckCircle, color: 'rose' },
     { id: 'top-kelas' as StatistikTab, label: 'Top Kelas', icon: School, color: 'emerald' },
+    { id: 'top-murid' as StatistikTab, label: 'Top Murid', icon: GraduationCap, color: 'amber' },
   ];
 
   return (
     <div className="space-y-3">
       <SectionHeader title="Statistik" subtitle="Grafik dan analitik data" />
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-3 md:grid-cols-7 gap-1.5">
         {tabs.map(t => {
           const Icon = t.icon;
           return (
@@ -2778,18 +3186,97 @@ function StatistikSection({ statistikTab, setStatistikTab, showToast }: any) {
           );
         })}
       </div>
-      <div className="card p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <BarChart3 className="w-4 h-4 text-slate-500" />
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{tabs.find(t => t.id === statistikTab)?.label || ''}</h3>
+      {statistikTab === 'top-murid' ? (
+        <TopMuridContent showToast={showToast} />
+      ) : (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 className="w-4 h-4 text-slate-500" />
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{tabs.find(t => t.id === statistikTab)?.label || ''}</h3>
+          </div>
+          <div className="flex gap-2 mb-4">
+            {['Hari', 'Minggu', 'Bulan', 'Semester', 'Tahun'].map(f => (
+              <button key={f} className="btn-secondary text-[10px] py-1 px-2.5">{f}</button>
+            ))}
+          </div>
+          <EmptyState title="Grafik akan segera tersedia" icon={<BarChart3 className="w-8 h-8 text-slate-300" />} />
         </div>
-        <div className="flex gap-2 mb-4">
-          {['Hari', 'Minggu', 'Bulan', 'Semester', 'Tahun'].map(f => (
-            <button key={f} className="btn-secondary text-[10px] py-1 px-2.5">{f}</button>
+      )}
+    </div>
+  );
+}
+
+// ================== TOP MURID CONTENT ==================
+function TopMuridContent({ showToast }: any) {
+  const [topMurid, setTopMurid] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { fetchTopMurid(); }, []);
+
+  const fetchTopMurid = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('nilai')
+        .select('murid_id, skor, pelajaran, jenis_ujian');
+      if (error) throw error;
+      const muridIds = [...new Set((data || []).map(n => n.murid_id).filter(Boolean))];
+      if (muridIds.length === 0) { setTopMurid([]); return; }
+      const { data: muridData } = await supabase.from('murid').select('id, nama, nis, kelas_id').in('id', muridIds);
+      const muridMap = new Map((muridData || []).map(m => [m.id, m]));
+      const avgMap = new Map<string, { total: number; count: number }>();
+      (data || []).forEach(n => {
+        if (!n.murid_id || n.skor == null) return;
+        const cur = avgMap.get(n.murid_id) || { total: 0, count: 0 };
+        cur.total += parseFloat(n.skor); cur.count++;
+        avgMap.set(n.murid_id, cur);
+      });
+      const ranked = Array.from(avgMap.entries()).map(([id, v]) => ({
+        ...muridMap.get(id),
+        rata_rata: v.count > 0 ? (v.total / v.count) : 0,
+        jumlah_nilai: v.count,
+      })).sort((a, b) => b.rata_rata - a.rata_rata).slice(0, 10);
+      setTopMurid(ranked);
+    } catch (err: any) { showToast('Gagal memuat data: ' + (err?.message || ''), 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const medalColor = (i: number) => {
+    if (i === 0) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300 dark:border-amber-700';
+    if (i === 1) return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600';
+    if (i === 2) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-300 dark:border-orange-700';
+    return 'bg-sky-50 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400 border-sky-200 dark:border-sky-800';
+  };
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <GraduationCap className="w-4 h-4 text-amber-500" />
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Top Murid - Peringkat Berdasarkan Rata-rata Nilai</h3>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : topMurid.length === 0 ? (
+        <EmptyState title="Belum ada data nilai" icon={<GraduationCap className="w-8 h-8 text-slate-300" />} />
+      ) : (
+        <div className="space-y-2">
+          {topMurid.map((m, i) => (
+            <div key={m.id || i} className={`flex items-center gap-3 p-3 rounded-xl border-2 ${medalColor(i)}`}>
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-slate-800 font-bold text-sm flex-shrink-0">
+                {i + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{m.nama || '-'}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">{m.nis ? `NIS: ${m.nis}` : ''} • {m.jumlah_nilai} nilai</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{m.rata_rata.toFixed(1)}</p>
+                <p className="text-[9px] text-slate-500 dark:text-slate-400">rata-rata</p>
+              </div>
+            </div>
           ))}
         </div>
-        <EmptyState title="Grafik akan segera tersedia" icon={<BarChart3 className="w-8 h-8 text-slate-300" />} />
-      </div>
+      )}
     </div>
   );
 }
@@ -2818,6 +3305,7 @@ function PengaturanSection({ pengaturanTab, setPengaturanTab, showToast, profile
           );
         })}
       </div>
+      {pengaturanTab === 'tema' && <TemaPengaturanContent showToast={showToast} />}
       {pengaturanTab === 'backup' && (
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -2863,13 +3351,83 @@ function AuditSection({ auditTab, setAuditTab, showToast }: any) {
           );
         })}
       </div>
-      <div className="card p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Search className="w-3.5 h-3.5 text-slate-400" />
-          <input type="text" placeholder="Cari aktivitas berdasarkan nama, tanggal, atau menu..." className="input-field text-xs" />
-        </div>
-        <EmptyState title={`${tabs.find(t => t.id === auditTab)?.label || ''} - akan segera tersedia`} icon={<History className="w-8 h-8 text-slate-300" />} />
+      <AuditContent tab={auditTab} showToast={showToast} />
+    </div>
+  );
+}
+
+function AuditContent({ tab, showToast }: any) {
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { fetchList(); }, [tab]);
+
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      if (tab === 'riwayat-login') {
+        const { data, error } = await supabase.from('profiles').select('id, nama_lengkap, email, role, created_at, updated_at, is_active, status').order('updated_at', { ascending: false });
+        if (error) throw error;
+        setList((data || []).map((p: any) => ({ ...p, timestamp: p.updated_at || p.created_at, aksi: p.is_active ? 'Login' : 'Nonaktif' })));
+      } else if (tab === 'aktivitas') {
+        const { data, error } = await supabase.from('jurnal_kbm').select('id, user_id, kelas, mata_pelajaran, tanggal, created_at, kegiatan').order('created_at', { ascending: false }).limit(50);
+        if (error) throw error;
+        setList((data || []).map((j: any) => ({ ...j, timestamp: j.created_at, aksi: 'Membuat jurnal', detail: `${j.kegiatan || j.mata_pelajaran || ''} - ${j.kelas || ''}` })));
+      } else if (tab === 'perubahan') {
+        const tables = ['kelas', 'mata_pelajaran', 'ruangan', 'tahun_ajaran', 'semester'];
+        const results = await Promise.all(tables.map(t => supabase.from(t).select('*').order('updated_at', { ascending: false }).limit(10)));
+        const all: any[] = [];
+        results.forEach((r, i) => { if (r.data) r.data.forEach((row: any) => all.push({ ...row, table_name: tables[i], timestamp: row.updated_at || row.created_at, aksi: 'Perubahan data' })); });
+        all.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+        setList(all.slice(0, 50));
+      } else if (tab === 'error') {
+        setList([]);
+      } else if (tab === 'ekspor' || tab === 'impor') {
+        setList([]);
+      }
+    } catch (err: any) { showToast('Gagal memuat data: ' + (err?.message || ''), 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const filtered = useMemo(() => {
+    if (!search) return list;
+    const q = search.toLowerCase();
+    return list.filter((item: any) => [item.nama_lengkap, item.email, item.aksi, item.detail, item.table_name].filter(Boolean).join(' ').toLowerCase().includes(q));
+  }, [list, search]);
+
+  const formatDate = (ts: string) => ts ? new Date(ts).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Search className="w-3.5 h-3.5 text-slate-400" />
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari aktivitas berdasarkan nama, tanggal, atau menu..." className="input-field text-xs" />
       </div>
+      {loading ? (
+        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <EmptyState title="Tidak ada data audit" icon={<History className="w-8 h-8 text-slate-300" />} />
+      ) : (
+        <div className="space-y-1">
+          {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((item: any, i: number) => (
+            <div key={item.id || i} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+              <div className="w-7 h-7 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">
+                  {item.nama_lengkap || item.email || item.table_name || 'Sistem'} - <span className="text-slate-500 dark:text-slate-400">{item.aksi || '-'}</span>
+                </p>
+                {item.detail && <p className="text-[10px] text-slate-400 truncate">{item.detail}</p>}
+                <p className="text-[9px] text-slate-400">{formatDate(item.timestamp)}</p>
+              </div>
+            </div>
+          ))}
+          <Pagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} onPageChange={setPage} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2959,6 +3517,110 @@ function DataAkademikSection({ dataAkademikTab, setDataAkademikTab, showToast, p
       {dataAkademikTab === 'data-santri' && <DataSantriSubSection showToast={showToast} profile={profile} />}
       {dataAkademikTab === 'jadwal-asatiz' && <JadwalAsatizSubSection showToast={showToast} profile={profile} />}
       {dataAkademikTab === 'kelola-lembaga' && <KelolaLembagaSubSection showToast={showToast} profile={profile} />}
+    </div>
+  );
+}
+
+// ================== TEMA PENGATURAN CONTENT ==================
+function TemaPengaturanContent({ showToast }: any) {
+  const { theme, setTheme, isDark } = useThemeContext();
+  const [textSize, setTextSize] = useState<number>(() => {
+    const stored = localStorage.getItem('app-text-size');
+    return stored ? parseInt(stored) : 100;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('app-text-size', String(textSize));
+    document.documentElement.style.fontSize = `${textSize}%`;
+  }, [textSize]);
+
+  const themeOptions = [
+    { value: 'light' as const, label: 'Terang', icon: Sun, color: 'amber' },
+    { value: 'dark' as const, label: 'Gelap', icon: Moon, color: 'slate' },
+    { value: 'system' as const, label: 'Sistem', icon: Monitor, color: 'sky' },
+  ];
+
+  const sizeLabels: Record<number, string> = { 85: 'Kecil', 90: 'Kecil', 95: 'Sedang', 100: 'Normal', 105: 'Besar', 110: 'Besar', 115: 'Besar', 120: 'Besar' };
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Palette className="w-4 h-4 text-violet-500" />
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Pengaturan Tema</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {themeOptions.map(opt => {
+            const Icon = opt.icon;
+            const isActive = theme === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => { setTheme(opt.value); showToast(`Tema diubah ke ${opt.label}`, 'success'); }}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${isActive ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300'}`}
+              >
+                <Icon className={`w-6 h-6 ${isActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
+                <span className={`text-xs font-semibold ${isActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-300'}`}>{opt.label}</span>
+                {isActive && <div className="w-2 h-2 rounded-full bg-violet-500" />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-400">
+          <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-slate-600' : 'bg-amber-400'}`} />
+          <span>Tema aktif: {isDark ? 'Gelap' : 'Terang'}</span>
+        </div>
+      </div>
+
+      <div className="card p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Type className="w-4 h-4 text-sky-500" />
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Ukuran Teks</h3>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400">Kecil</span>
+            <span className="font-bold text-sky-600 dark:text-sky-400">{sizeLabels[textSize] || 'Normal'} ({textSize}%)</span>
+            <span className="text-slate-500 dark:text-slate-400">Besar</span>
+          </div>
+          <input
+            type="range"
+            min={85}
+            max={120}
+            step={5}
+            value={textSize}
+            onChange={e => setTextSize(parseInt(e.target.value))}
+            className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-sky-500"
+          />
+          <div className="flex justify-between gap-2">
+            {[
+              { val: 85, label: 'Kecil' },
+              { val: 95, label: 'Sedang' },
+              { val: 100, label: 'Normal' },
+              { val: 110, label: 'Besar' },
+              { val: 120, label: 'XL' },
+            ].map(s => (
+              <button
+                key={s.val}
+                onClick={() => setTextSize(s.val)}
+                className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${textSize === s.val ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+            <p className="text-xs text-slate-600 dark:text-slate-300">Pratinjau teks dengan ukuran saat ini</p>
+            <p className="text-[10px] text-slate-400 mt-1">Ini adalah contoh teks yang akan ditampilkan dengan ukuran {textSize}% di seluruh aplikasi.</p>
+          </div>
+          <button
+            onClick={() => { setTextSize(100); showToast('Ukuran teks direset ke normal', 'success'); }}
+            className="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 mx-auto"
+          >
+            <RotateCcw className="w-3 h-3" /> Reset ke Normal
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
