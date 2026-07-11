@@ -7,8 +7,9 @@ import DashboardPage from './pages/DashboardPage'
 import SettingsPage from './pages/SettingsPage'
 import BottomNav from './components/BottomNav'
 import { Loader2 } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-function ProtectedLayout({ children }: { children: React.ReactNode }) {
+function ProtectedLayout({ children }: { children: ReactNode }) {
   useExitConfirmation()
   return (
     <>

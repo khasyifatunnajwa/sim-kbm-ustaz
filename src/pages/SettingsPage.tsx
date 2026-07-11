@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useSettings, type ThemeMode, type FontSize } from '../context/SettingsContext'
 import { useAuth } from '../context/AuthContext'
 import {
   Sun, Moon, Monitor, Type, Bell, BellOff, RefreshCw, Download,
   Trash2, Wifi, WifiOff, CheckCircle2, Smartphone, Database,
-  AlertTriangle
+  AlertTriangle, LogOut,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 export default function SettingsPage() {
   const {
@@ -24,7 +25,7 @@ export default function SettingsPage() {
   }
 
   const handleClearCache = async () => {
-    if (!confirm('Hapus semua data cache dan penyimpanan lokal? Aplikasi akan dimuat ulang.')) return
+    if (!window.confirm('Hapus semua data cache dan penyimpanan lokal? Aplikasi akan dimuat ulang.')) return
     setClearing(true)
     try {
       await clearCache()
@@ -47,21 +48,28 @@ export default function SettingsPage() {
     setUpdating(false)
   }
 
-  const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
+  const handleSignOut = () => {
+    if (window.confirm('Yakin ingin keluar dari akun?')) {
+      signOut()
+    }
+  }
+
+  const themeOptions: { value: ThemeMode; label: string; icon: LucideIcon }[] = [
     { value: 'light', label: 'Terang', icon: Sun },
     { value: 'dark', label: 'Gelap', icon: Moon },
     { value: 'system', label: 'Sistem', icon: Monitor },
   ]
 
-  const fontOptions: { value: FontSize; label: string; sample: string }[] = [
-    { value: 'small', label: 'Kecil', sample: 'Aa' },
-    { value: 'medium', label: 'Sedang', sample: 'Aa' },
-    { value: 'large', label: 'Besar', sample: 'Aa' },
+  const fontOptions: { value: FontSize; label: string }[] = [
+    { value: 'small', label: 'Kecil' },
+    { value: 'medium', label: 'Sedang' },
+    { value: 'large', label: 'Besar' },
   ]
+
+  const fontIconSize = fontSize === 'small' ? 14 : fontSize === 'large' ? 22 : 18
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 pb-20">
-      {/* Header */}
       <div className="bg-teal-700 dark:bg-slate-800 text-white px-4 py-6 sticky top-0 z-10 shadow-lg">
         <h1 className="text-xl font-bold">Pengaturan</h1>
         <p className="text-teal-100 text-sm mt-1">
@@ -112,7 +120,7 @@ export default function SettingsPage() {
                           : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                       }`}
                     >
-                      <Type size={opt.value === 'small' ? 14 : opt.value === 'large' ? 22 : 18} />
+                      <Type size={fontIconSize} />
                       <span className="text-sm font-medium">{opt.label}</span>
                     </button>
                   )
@@ -131,6 +139,10 @@ export default function SettingsPage() {
             value={notificationsEnabled}
             onChange={async (v) => {
               if (v) {
+                if (!('Notification' in window)) {
+                  showToast('Browser tidak mendukung notifikasi')
+                  return
+                }
                 const perm = await Notification.requestPermission()
                 if (perm !== 'granted') {
                   showToast('Izin notifikasi ditolak')
@@ -197,18 +209,16 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400">
               <CheckCircle2 size={20} className="text-green-500" />
               <div className="text-sm">
-                {('serviceWorker' in navigator) ? 'PWA aktif' : 'PWA tidak didukung'}
+                {'serviceWorker' in navigator ? 'PWA aktif' : 'PWA tidak didukung'}
               </div>
             </div>
           </div>
         </Section>
 
         {/* Akun */}
-        <Section title="Akun" icon={AlertTriangle}>
+        <Section title="Akun" icon={LogOut}>
           <button
-            onClick={() => {
-              if (confirm('Yakin ingin keluar dari akun?')) signOut()
-            }}
+            onClick={handleSignOut}
             className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
           >
             <AlertTriangle size={20} />
@@ -230,7 +240,7 @@ export default function SettingsPage() {
   )
 }
 
-function Section({ title, icon: Icon, children }: { title: string; icon: typeof Sun; children: React.ReactNode }) {
+function Section({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-slate-700">
@@ -245,7 +255,11 @@ function Section({ title, icon: Icon, children }: { title: string; icon: typeof 
 function ToggleRow({
   icon: Icon, label, description, value, onChange,
 }: {
-  icon: typeof Bell; label: string; description: string; value: boolean; onChange: (v: boolean) => void
+  icon: LucideIcon
+  label: string
+  description: string
+  value: boolean
+  onChange: (v: boolean) => void
 }) {
   return (
     <div className="flex items-center gap-3 p-2">

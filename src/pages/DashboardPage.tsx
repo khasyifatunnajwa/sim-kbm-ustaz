@@ -1,23 +1,29 @@
 import { useAuth } from '../context/AuthContext'
-import { useSettings } from '../context/SettingsContext'
 import { Calendar, Users, BookOpen, ClipboardList, FileText, Settings as SettingsIcon, Bell, Megaphone, BookMarked } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
+
+interface MenuItem {
+  to: string
+  label: string
+  icon: LucideIcon
+  color: string
+}
 
 export default function DashboardPage() {
   const { profile } = useAuth()
-  const { theme } = useSettings()
   const isAdmin = profile?.role === 'admin'
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { to: '/jadwal', label: 'Jadwal', icon: Calendar, color: 'bg-blue-500' },
     { to: '/murid', label: 'Murid', icon: Users, color: 'bg-green-500' },
-    { to: '/kelas', label: 'Kelas', icon: BookOpen, color: 'bg-purple-500' },
+    { to: '/kelas', label: 'Kelas', icon: BookOpen, color: 'bg-emerald-500' },
     { to: '/penilaian', label: 'Penilaian', icon: ClipboardList, color: 'bg-orange-500' },
     { to: '/raport', label: 'Raport', icon: FileText, color: 'bg-pink-500' },
-    { to: '/materi', label: 'Materi', icon: BookMarked, color: 'bg-indigo-500' },
+    { to: '/materi', label: 'Materi', icon: BookMarked, color: 'bg-cyan-500' },
     { to: '/pengumuman', label: 'Pengumuman', icon: Megaphone, color: 'bg-yellow-500' },
     { to: '/notifikasi', label: 'Notifikasi', icon: Bell, color: 'bg-red-500' },
-    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: SettingsIcon, color: 'bg-slate-600' }] : []),
+    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: SettingsIcon, color: 'bg-slate-600' } as MenuItem] : []),
     { to: '/pengaturan', label: 'Pengaturan', icon: SettingsIcon, color: 'bg-teal-600' },
   ]
 

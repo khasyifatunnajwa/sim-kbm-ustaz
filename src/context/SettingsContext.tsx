@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export type FontSize = 'small' | 'medium' | 'large'
@@ -38,31 +38,52 @@ interface StoredSettings {
 function loadSettings(): StoredSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return {
+        theme: parsed.theme ?? 'system',
+        fontSize: parsed.fontSize ?? 'medium',
+        notificationsEnabled: parsed.notificationsEnabled ?? false,
+        backgroundSync: parsed.backgroundSync ?? true,
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
   return { theme: 'system', fontSize: 'medium', notificationsEnabled: false, backgroundSync: true }
 }
 
 function saveSettings(s: StoredSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
+  } catch {
+    // ignore
+  }
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<StoredSettings>(loadSettings)
   const [canInstall, setCanInstall] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   // Apply theme
   useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const applyTheme = () => {
-      const isDark = settings.theme === 'dark' || (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      const isDark =
+        settings.theme === 'dark' ||
+        (settings.theme === 'system' && mq.matches)
       document.documentElement.classList.toggle('dark', isDark)
       const meta = document.querySelector('meta[name="theme-color"]')
       if (meta) meta.setAttribute('content', isDark ? '#0f172a' : '#0f766e')
     }
     applyTheme()
     if (settings.theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)')
       mq.addEventListener('change', applyTheme)
       return () => mq.removeEventListener('change', applyTheme)
     }
@@ -77,7 +98,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e)
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
       setCanInstall(true)
     }
     window.addEventListener('beforeinstallprompt', handler)
@@ -93,23 +114,42 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const clearCache = useCallback(async () => {
+    // Clear Cache API
     if ('caches' in window) {
-      const keys = await caches.keys()
-      await Promise.all(keys.map(k => caches.delete(k)))
+      try {
+        const keys = await caches.keys()
+        await Promise.all(keys.map(k => caches.delete(k)))
+      } catch {
+        // ignore
+      }
     }
-    if (indexedDB.databases) {
-      const dbs = await indexedDB.databases()
-      dbs.forEach(db => { if (db.name) indexedDB.deleteDatabase(db.name) })
+    // Clear IndexedDB databases one by one (not all browsers support indexedDB.databases)
+    try {
+      if (indexedDB.databases) {
+        const dbs = await indexedDB.databases()
+        dbs.forEach(db => {
+          if (db.name) indexedDB.deleteDatabase(db.name)
+        })
+      }
+    } catch {
+      // ignore
     }
+    // Clear stale exit confirm state
     localStorage.removeItem('siak_exit_confirm')
+    sessionStorage.removeItem('siak_exit_confirm')
+    // Clear sessionStorage
     sessionStorage.clear()
   }, [])
 
   const checkForUpdate = useCallback(async () => {
     if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration()
-      if (reg) {
-        await reg.update()
+      try {
+        const reg = await navigator.serviceWorker.getRegistration()
+        if (reg) {
+          await reg.update()
+        }
+      } catch {
+        // ignore
       }
     }
   }, [])

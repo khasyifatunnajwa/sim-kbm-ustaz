@@ -10,7 +10,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Clear stale exit confirm state on mount
+  // Clear stale exit confirm state on mount — fixes the bug where
+  // the exit popup appeared on login after previously exiting
   clearExitConfirmState()
 
   const handleSubmit = async (e: React.FormEvent) => {

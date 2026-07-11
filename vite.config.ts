@@ -11,11 +11,11 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         cleanupOutdatedCaches: true,
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg'],
       manifest: {
         name: 'SIAK Hafizh',
         short_name: 'SIAK',
-        description: 'Sistem Informasi Akademik Hafizh - Manajemen Penilaian & Raport',
+        description: 'Sistem Informasi Akademik Hafizh',
         theme_color: '#0f766e',
         background_color: '#0f766e',
         display: 'standalone',

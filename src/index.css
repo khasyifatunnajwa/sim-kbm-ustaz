@@ -20,21 +20,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
 
-/* Modal scrollable */
 .modal-scroll {
   max-height: 85vh;
   overflow-y: auto;
-  overscroll-behainvior: contain;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Animations */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -42,5 +39,4 @@ body {
 .animate-slideUp { animation: slideUp 0.3s ease-out; }
 .animate-scaleIn { animation: scaleIn 0.2s ease-out; }
 
-/* Toast */
 .toast-enter { animation: slideUp 0.3s ease-out; }
