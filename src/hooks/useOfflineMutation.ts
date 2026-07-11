@@ -66,7 +66,7 @@ export function useOfflineMutation<TData = unknown, TVariables = unknown>(
       }
       return result.data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: TData | null, variables: TVariables) => {
       if (options?.invalidateKeys) {
         options.invalidateKeys.forEach(key => {
           queryClient.invalidateQueries({ queryKey: key });
@@ -74,9 +74,9 @@ export function useOfflineMutation<TData = unknown, TVariables = unknown>(
       }
       options?.onSuccess?.(data as TData, variables);
     },
-    onError: (error, variables) => {
+    onError: (error: Error, variables: TVariables) => {
       if (isOnline()) {
-        options?.onError?.((error as Error).message, variables);
+        options?.onError?.(error.message, variables);
       }
     },
     networkMode: 'offlineFirst',
