@@ -29,7 +29,7 @@ function timeToMinutes(time: string): number {
 
 async function getServerTime(): Promise<{ server_time: string; server_date: string; server_hour: string; timestamp: number }> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/server-time`, {
-    headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || supabase.supabaseKey}` },
+    headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || (supabase as any).supabaseKey}` },
   });
   if (!res.ok) throw new Error('Gagal mengambil waktu server');
   return res.json();
@@ -362,10 +362,10 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
         akurasi: gpsData.accuracy,
       };
 
-      const watermarkedBlob = await addWatermark(capturedPhoto, watermarkInfo);
+      const watermarkedBlob = await addWatermark(capturedPhoto as File, watermarkInfo);
 
       const compressedBlob = await compressImage(
-        new File([watermarkedBlob], 'presensi.jpg', { type: 'image/jpeg' }),
+        new File([watermarkedBlob], 'presensi.jpg', { type: 'image/jpeg' }) as File,
         1280,
         0.55
       );
@@ -379,15 +379,10 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('presensi-ustaz')
-        .upload(filePath, compressedBlob, {
+        .upload(filePath, compressedBlob as File, {
           contentType: 'image/jpeg',
           upsert: false,
-          onUploadProgress: (ev) => {
-            if (ev.total > 0) {
-              setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
-            }
-          },
-        });
+                  });
 
       if (uploadError) throw uploadError;
 

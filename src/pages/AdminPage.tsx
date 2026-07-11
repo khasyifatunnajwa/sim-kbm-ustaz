@@ -17,7 +17,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type {
-  Profile, ShowToast, TahunAjaran, Semester, MataPelajaran, UserRole, KelompokMapel, Ruangan, ActiveTab,
+  Profile, ShowToast, TahunAjaran, Semester, MataPelajaran, UserRole, KelompokMapel, Ruangan, ActiveTab, DataAkademikTab,
   KelasKosong,
   KenakalanUstaz,
   PresensiMuridByKelas,
@@ -726,7 +726,7 @@ function PresensiSection({ presensiTab, setPresensiTab, presensiUstazSubTab, set
     }
   };
 
-  const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
+  const lembagaOptions = useMemo(() => (lembagaList || []).map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
   return (
     <div className="space-y-3">
@@ -902,7 +902,7 @@ function PresensiUstazDetailSubTab({ showToast }: { showToast: ShowToast }) {
 
       // 5. lembaga names
       const { data: lembagaData } = await supabase.from('lembaga').select('id, nama_lembaga');
-      const lembagaMap = new Map((lembagaData || []).map(l => [l.id, l.nama_lembaga]));
+      const lembagaMap = new Map((lembagaData || []).map((l: any) => [l.id, l.nama_lembaga]));
 
       // Build maps
       const presensiMap = new Map((presensiGuru || []).map(p => [p.user_id, p]));
@@ -1139,7 +1139,7 @@ function JadwalUstazHariIniSubTab({ showToast }: { showToast: ShowToast }) {
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.nama_lengkap]));
       const penggantiMap = new Map((penggantiRes.data || []).map(p => [p.id, p.nama_lengkap]));
-      const lembagaMap = new Map((lembagaRes.data || []).map(l => [l.id, l.nama_lembaga]));
+      const lembagaMap = new Map((lembagaRes.data || []).map((l: any) => [l.id, l.nama_lembaga]));
       const presensiSet = new Set((presensiRes.data || []).map(p => p.user_id));
       const izinSet = new Set((izinRes.data || []).map(i => i.user_id));
 
@@ -2150,7 +2150,7 @@ function JadwalMengajarTab({ showToast, profile }: any) {
     return list.filter(j => [j.kelas, j.pelajaran, j.hari, j.ruangan].filter(Boolean).join(' ').toLowerCase().includes(q));
   }, [list, search]);
 
-  const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
+  const lembagaOptions = useMemo(() => (lembagaList || []).map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
   return (
     <div className="space-y-3">
@@ -2178,7 +2178,7 @@ function JadwalMengajarTab({ showToast, profile }: any) {
         <div className="space-y-1">
           {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(j => {
             const ustazName = ustazOptions.find(o => o.value === j.user_id)?.label || '-';
-            const lembagaName = (lembagaList || []).find(l => l.id === j.lembaga_id)?.nama_lembaga;
+            const lembagaName = (lembagaList || []).find((l: Lembaga) => l.id === j.lembaga_id)?.nama_lembaga;
             return (
               <div key={j.id} className="card p-2.5 flex items-center gap-2.5 group">
                 <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -3743,7 +3743,7 @@ function DataSantriSubSection({ showToast, profile }: { showToast: ShowToast; pr
     return list.filter(m => [m.nama, m.kelas, m.domisili, m.alamat, m.nomor_whatsapp].filter(Boolean).join(' ').toLowerCase().includes(q));
   }, [list, search]);
 
-  const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
+  const lembagaOptions = useMemo(() => (lembagaList || []).map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
   return (
     <div className="space-y-3">
@@ -3989,7 +3989,7 @@ function JadwalAsatizSubSection({ showToast, profile }: { showToast: ShowToast; 
     return list.filter(j => [j.kelas, j.pelajaran, j.hari, j.ruangan].filter(Boolean).join(' ').toLowerCase().includes(q));
   }, [list, search]);
 
-  const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
+  const lembagaOptions = useMemo(() => (lembagaList || []).map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
   return (
     <div className="space-y-3">
@@ -4013,7 +4013,7 @@ function JadwalAsatizSubSection({ showToast, profile }: { showToast: ShowToast; 
           {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(j => {
             const ustazName = ustazOptions.find(o => o.value === j.user_id)?.label || '-';
             const penggantiName = j.guru_pengganti_id ? ustazOptions.find(o => o.value === j.guru_pengganti_id)?.label : undefined;
-            const lembagaName = (lembagaList || []).find(l => l.id === j.lembaga_id)?.nama_lembaga;
+            const lembagaName = (lembagaList || []).find((l: Lembaga) => l.id === j.lembaga_id)?.nama_lembaga;
             return (
               <div key={j.id} className="card p-2.5 flex items-center gap-2.5 group">
                 <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -4212,7 +4212,7 @@ function KelolaLembagaSubSection({ showToast, profile }: { showToast: ShowToast;
     const base = lembagaList || [];
     if (!search) return base;
     const q = search.toLowerCase();
-    return base.filter(l => [l.nama_lembaga, l.alamat, l.telepon].filter(Boolean).join(' ').toLowerCase().includes(q));
+    return base.filter((l: Lembaga) => [l.nama_lembaga, l.alamat, l.telepon].filter(Boolean).join(' ').toLowerCase().includes(q));
   }, [lembagaList, search]);
 
   return (
@@ -4234,7 +4234,7 @@ function KelolaLembagaSubSection({ showToast, profile }: { showToast: ShowToast;
         <EmptyState title="Tidak ada lembaga" icon={<Building2 className="w-8 h-8 text-slate-300" />} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {filtered.map(l => (
+          {filtered.map((l: Lembaga) => (
             <div key={l.id} className="card p-3 group">
               <div className="flex items-start gap-2.5">
                 <div className="w-9 h-9 bg-rose-100 dark:bg-rose-900/30 rounded-lg flex items-center justify-center flex-shrink-0">

@@ -4,7 +4,7 @@ import {
   Type, Hash, ListOrdered,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { BankSoal, Kelas, MataPelajaran, ShowToast, Profile } from '../types';
+import type { BankSoal, Kelas, MataPelajaran, ShowToast, Profile, Lembaga } from '../types';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
@@ -95,7 +95,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
 
   // Lembaga options for SearchableSelect
   const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
+    () => lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
   );
 

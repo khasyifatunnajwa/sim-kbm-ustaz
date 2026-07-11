@@ -9,7 +9,7 @@ import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { generatePDF, shareWA } from '../lib/pdf';
-import type { Murid, Penilaian, DetailNilai, Profile, ShowToast } from '../types';
+import type { Murid, Penilaian, DetailNilai, Profile, ShowToast, Lembaga } from '../types';
 
 type Tab = 'input' | 'riwayat' | 'rapor';
 type JenisUjian = 'Ulangan' | 'Ujian Tulis' | 'Ujian Lisan' | 'Baca Kitab' | 'Tugas' | 'Hafalan' | 'Praktik' | 'Lainnya';
@@ -263,7 +263,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
 
   // Lembaga options for SearchableSelect
   const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
+    () => lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
   );
 

@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
-import type { Murid, Profile, ShowToast } from '../types';
+import type { Murid, Profile, ShowToast, Lembaga } from '../types';
 
 export default function MuridPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
@@ -17,12 +17,12 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
   const { data: lembagaList = [] } = useLembaga();
   const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
+    () => lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
   );
   const lembagaNameById = useMemo(() => {
     const m: Record<string, string> = {};
-    lembagaList.forEach(l => { m[l.id] = l.nama_lembaga; });
+    lembagaList.forEach((l: Lembaga) => { m[l.id] = l.nama_lembaga; });
     return m;
   }, [lembagaList]);
   

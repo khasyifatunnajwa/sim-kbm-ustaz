@@ -9,7 +9,7 @@ import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { shareWA } from '../lib/pdf';
-import type { IzinMengajar, Profile, ShowToast } from '../types';
+import type { IzinMengajar, Profile, ShowToast, Lembaga } from '../types';
 
 const JENIS_IZIN = ['Sakit', 'Bepergian', 'Tugas Pesantren', 'Lainnya'] as const;
 const STATUS_STYLE: Record<string, string> = {
@@ -49,7 +49,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
 
   // Lembaga options for SearchableSelect
   const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
+    () => lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
   );
 

@@ -439,13 +439,25 @@ export type ActiveTab =
   | 'admin-presensi'
   | 'admin-kelola-user'
   | 'admin-data-akademik'
+  | 'admin-data-master'
+  | 'admin-jadwal'
+  | 'admin-akademik'
+  | 'admin-penilaian'
+  | 'admin-pengumuman'
+  | 'admin-laporan'
+  | 'admin-statistik'
+  | 'admin-pengaturan'
+  | 'admin-audit'
   | 'admin-kenakalan'
   | 'admin-presensi-ustaz'
   | 'admin-presensi-murid'
   | 'admin-jadwal-ustaz'
   | 'admin-data-santri'
   | 'admin-jadwal-asatiz'
-  | 'admin-kelola-lembaga';
+  | 'admin-kelola-lembaga'
+  | 'pengaturan';
+
+export type DataAkademikTab = 'siswa' | 'ustaz' | 'data-santri' | 'jadwal-asatiz' | 'kelola-lembaga';
 
 export type ShowToast = (message: string, type?: 'success' | 'error' | 'info') => void;
 

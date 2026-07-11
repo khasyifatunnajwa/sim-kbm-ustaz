@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga, useLembagaKelas } from '../hooks/useLembaga';
-import type { JurnalKBM, Profile, ShowToast } from '../types';
+import type { JurnalKBM, Profile, ShowToast, Lembaga } from '../types';
 
 type FilterTab = 'semua' | 'hari_ini' | 'minggu_ini';
 
@@ -21,7 +21,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
 
   const { data: lembagaList = [] } = useLembaga();
   const lembagaOptions = useMemo(
-    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
+    () => lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
   );
   
@@ -363,7 +363,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
               required
             >
               <option value="">Pilih Kelas</option>
-              {formKelasOptions.map(k => (
+              {formKelasOptions.map((k: string) => (
                 <option key={k} value={k}>{k}</option>
               ))}
             </select>
