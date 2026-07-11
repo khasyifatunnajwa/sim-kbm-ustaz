@@ -394,7 +394,7 @@ export default function App() {
           });
 
           const hash = window.location.hash.replace('#', '').split('/')[0];
-          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'presensi', 'presensi-admin', 'admin-presensi-ustaz', 'admin-presensi-murid', 'admin-jadwal-ustaz', 'admin-data-santri', 'admin-jadwal-asatiz', 'admin-kelola-lembaga'];
+          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'presensi', 'presensi-admin', 'admin-kelola-user', 'admin-data-master', 'admin-jadwal', 'admin-akademik', 'admin-presensi', 'admin-penilaian', 'admin-pengumuman', 'admin-laporan', 'admin-statistik', 'admin-pengaturan', 'admin-audit'];
           if (hash && validTabs.includes(hash)) {
             setActiveTab(hash as ActiveTab);
           } else {
@@ -504,11 +504,17 @@ export default function App() {
         {activeTab === 'izin' && <IzinPage showToast={showToast} profile={profile} />}
         {activeTab === 'rapor' && <RaporPage showToast={showToast} />}
         {activeTab === 'admin' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
-        {activeTab === 'admin-presensi-ustaz' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="presensi" />}
-        {activeTab === 'admin-jadwal-ustaz' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="presensi" initialSubTab="jadwal-ustaz" />}
-        {activeTab === 'admin-data-santri' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-akademik" initialSubTab="data-santri" />}
-        {activeTab === 'admin-jadwal-asatiz' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-akademik" initialSubTab="jadwal-asatiz" />}
-        {activeTab === 'admin-kelola-lembaga' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-akademik" initialSubTab="kelola-lembaga" />}
+        {activeTab === 'admin-kelola-user' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="kelola-user" />}
+        {activeTab === 'admin-data-master' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-master" />}
+        {activeTab === 'admin-jadwal' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="jadwal" />}
+        {activeTab === 'admin-akademik' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="akademik" />}
+        {activeTab === 'admin-presensi' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="presensi" />}
+        {activeTab === 'admin-penilaian' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="penilaian" />}
+        {activeTab === 'admin-pengumuman' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="pengumuman" />}
+        {activeTab === 'admin-laporan' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="laporan" />}
+        {activeTab === 'admin-statistik' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="statistik" />}
+        {activeTab === 'admin-pengaturan' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="pengaturan" />}
+        {activeTab === 'admin-audit' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="audit" />}
         {activeTab === 'pengumuman' && <AdminPengumumanPage showToast={showToast} />}
         {activeTab === 'profil' && <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />}
         {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}

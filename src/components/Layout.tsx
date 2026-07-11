@@ -2,7 +2,7 @@ import {
   CalendarDays, ClipboardCheck, BookOpen, BarChart3, Users,
   LogOut, Menu, X, User, ChevronRight, ChevronDown, Heart,
   FileQuestion, Home, FileText, Shield, Download, GraduationCap,
-  Camera, Megaphone, LayoutDashboard, Building2,
+  Camera, Megaphone, LayoutDashboard, Building2, Database, Settings, History,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -63,12 +63,17 @@ const navGroups: NavGroup[] = [
     collapsible: true,
     items: [
       { id: 'admin', icon: Shield, label: 'Panel Admin', adminOnly: true },
-      { id: 'admin-presensi-ustaz', icon: ClipboardCheck, label: 'Presensi Ustaz', adminOnly: true },
-      { id: 'admin-jadwal-ustaz', icon: CalendarDays, label: 'Jadwal Ustaz', adminOnly: true },
-      { id: 'admin-data-santri', icon: Users, label: 'Data Santri', adminOnly: true },
-      { id: 'admin-jadwal-asatiz', icon: BookOpen, label: 'Jadwal Asatiz', adminOnly: true },
-      { id: 'admin-kelola-lembaga', icon: Building2, label: 'Kelola Lembaga', adminOnly: true },
-      { id: 'pengumuman', icon: Megaphone, label: 'Pengumuman', adminOnly: true },
+      { id: 'admin-kelola-user', icon: Users, label: 'Kelola User', adminOnly: true },
+      { id: 'admin-data-master', icon: Database, label: 'Data Master', adminOnly: true },
+      { id: 'admin-jadwal', icon: CalendarDays, label: 'Jadwal', adminOnly: true },
+      { id: 'admin-akademik', icon: BookOpen, label: 'Akademik', adminOnly: true },
+      { id: 'admin-presensi', icon: ClipboardCheck, label: 'Presensi', adminOnly: true },
+      { id: 'admin-penilaian', icon: BarChart3, label: 'Penilaian', adminOnly: true },
+      { id: 'admin-pengumuman', icon: Megaphone, label: 'Pengumuman', adminOnly: true },
+      { id: 'admin-laporan', icon: FileText, label: 'Laporan', adminOnly: true },
+      { id: 'admin-statistik', icon: BarChart3, label: 'Statistik', adminOnly: true },
+      { id: 'admin-pengaturan', icon: Settings, label: 'Pengaturan', adminOnly: true },
+      { id: 'admin-audit', icon: History, label: 'Audit', adminOnly: true },
       { id: 'presensi-admin', icon: LayoutDashboard, label: 'Presensi Admin', adminOnly: true },
     ],
   },
