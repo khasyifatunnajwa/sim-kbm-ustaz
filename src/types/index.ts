@@ -11,7 +11,6 @@ export type JenisPenilaian = 'Ulangan' | 'Ujian Tulis' | 'Ujian Lisan' | 'Tugas'
 export type KategoriCatatan = 'Umum' | 'Acara' | 'Undangan' | 'Agenda';
 export type StatusCatatan = 'Belum Selesai' | 'Selesai';
 export type PrioritasPengumuman = 'Normal' | 'Penting' | 'Sangat Penting';
-export type StatusWA = 'pending' | 'sent' | 'failed';
 export type StatusPresensi = 'Hadir' | 'Terlambat' | 'Belum Presensi';
 
 export interface Lembaga {
@@ -334,16 +333,7 @@ export interface Notifikasi {
   created_at: string;
 }
 
-export interface LogAktivitas {
-  id: string;
-  user_id?: string;
-  aktivitas: string;
-  nama_tabel?: string;
-  data_id?: string;
-  ip_address?: string;
-  device?: string;
-  created_at: string;
-}
+
 
 // ============ LAIN-LAIN ============
 
@@ -425,25 +415,7 @@ export interface RaporFinal {
   updated_at: string;
 }
 
-export interface WAQueue {
-  id: string;
-  user_id: string;
-  tujuan_nomor: string;
-  pesan: string;
-  status: StatusWA;
-  jenis?: string;
-  created_at: string;
-  sent_at?: string;
-}
 
-export interface LogPerubahanNilai {
-  id: string;
-  detail_nilai_id?: string;
-  nilai_lama?: number;
-  nilai_baru?: number;
-  diubah_oleh?: string;
-  waktu_ubah: string;
-}
 
 // ============ APP TYPES ============
 
@@ -613,29 +585,7 @@ export interface KbmHarian {
 
 // ============ NEW TABLES FOR V2.0 UPDATE ============
 
-export interface PengaturanTampilan {
-  id: string;
-  user_id: string;
-  tema: 'light' | 'dark' | 'system';
-  created_at: string;
-  updated_at: string;
-}
 
-export interface PresensiMurid {
-  id: string;
-  murid_id: string;
-  jadwal_id?: string;
-  kelas_id?: string;
-  user_id: string;
-  tanggal: string;
-  status: 'Hadir' | 'Sakit' | 'Izin' | 'Alfa';
-  keterangan?: string;
-  jam_input: string;
-  created_at: string;
-  updated_at: string;
-  murid?: Murid;
-  kelas?: Kelas;
-}
 
 export interface GuruPengganti {
   id: string;
@@ -655,43 +605,7 @@ export interface GuruPengganti {
   guru_pengganti?: Profile;
 }
 
-export interface PeringatanUstaz {
-  id: string;
-  guru_id: string;
-  jumlah_tidak_hadir: number;
-  tanggal_mulai?: string;
-  tanggal_selesai?: string;
-  kelas_list?: string[];
-  status_wa: 'pending' | 'sent' | 'failed';
-  tanggal_kirim?: string;
-  created_at: string;
-  updated_at: string;
-  guru?: Profile;
-}
 
-export interface PeringatanMurid {
-  id: string;
-  murid_id: string;
-  jumlah_alfa: number;
-  minggu_ke?: number;
-  tahun?: number;
-  wali_kelas_id?: string;
-  status_wa: 'pending' | 'sent' | 'failed';
-  tanggal_kirim?: string;
-  created_at: string;
-  updated_at: string;
-  murid?: Murid;
-  wali_kelas?: Profile;
-}
-
-export interface RiwayatPelanggaran {
-  id: string;
-  tipe: 'ustaz' | 'murid';
-  referensi_id: string;
-  tanggal: string;
-  keterangan?: string;
-  created_at: string;
-}
 
 // Admin View Types
 export interface DashboardPresensiUstaz {
@@ -723,6 +637,8 @@ export interface PresensiMuridByKelas {
   alfa: number;
   persentase: number;
 }
+
+
 
 export interface UstazPresensiList {
   guru_id: string;

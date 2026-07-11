@@ -245,7 +245,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
   if (showSkeleton) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SkeletonCard count={1} className="h-32" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map(i => (
@@ -258,7 +258,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Broadcast Pengumuman Banner Carousel */}
       <BroadcastBanner
         list={broadcastList}
@@ -270,14 +270,14 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
       {/* Greeting Header with Marquee */}
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
-        <div className="p-5 pb-3">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden">
+        <div className="p-3.5 pb-2.5">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center overflow-hidden">
               <img src="/icon/512x512.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
-              <p className="text-emerald-100 text-sm">
+              <p className="font-bold text-base">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
+              <p className="text-emerald-100 text-xs">
                 {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
@@ -285,19 +285,19 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
           {/* Ongoing or Next Class */}
           {ongoingClass ? (
-            <div className="bg-white/15 rounded-2xl p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 bg-emerald-300 rounded-full animate-pulse" />
-                <span className="text-xs font-bold text-emerald-100 uppercase">Sedang Berlangsung</span>
+            <div className="bg-white/15 rounded-lg p-3 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse" />
+                <span className="text-[10px] font-bold text-emerald-100 uppercase">Sedang Berlangsung</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <BookOpen className="w-5 h-5 text-emerald-100" />
-                <span className="font-bold">{ongoingClass.pelajaran}</span>
-                <span className="badge bg-white/20 text-white text-xs">{ongoingClass.kelas}</span>
+                <BookOpen className="w-4 h-4 text-emerald-100" />
+                <span className="font-bold text-sm">{ongoingClass.pelajaran}</span>
+                <span className="badge bg-white/20 text-white text-[10px]">{ongoingClass.kelas}</span>
               </div>
-              <div className="flex items-center gap-3 mt-2 text-sm text-emerald-100">
+              <div className="flex items-center gap-3 mt-1.5 text-xs text-emerald-100">
                 <span className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
+                  <Clock className="w-3.5 h-3.5" />
                   {ongoingClass.jam_mulai} - {ongoingClass.jam_selesai}
                 </span>
                 {ongoingClass.ruangan && (
@@ -306,22 +306,22 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
               </div>
             </div>
           ) : nextClass ? (
-            <div className="bg-white/15 rounded-2xl p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <CalendarDays className="w-4 h-4 text-emerald-100" />
-                <span className="text-xs font-bold text-emerald-100">Jadwal Berikutnya</span>
+            <div className="bg-white/15 rounded-lg p-3 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <CalendarDays className="w-3.5 h-3.5 text-emerald-100" />
+                <span className="text-[10px] font-bold text-emerald-100">Jadwal Berikutnya</span>
               </div>
-              <div className="flex items-center gap-2 flex-wrap mb-3">
-                <BookOpen className="w-5 h-5 text-emerald-100" />
-                <span className="font-bold">{nextClass.pelajaran}</span>
-                <span className="badge bg-white/20 text-white text-xs">{nextClass.kelas}</span>
-                <span className="text-sm text-emerald-100 ml-auto">{nextClass.jam_mulai} - {nextClass.jam_selesai}</span>
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <BookOpen className="w-4 h-4 text-emerald-100" />
+                <span className="font-bold text-sm">{nextClass.pelajaran}</span>
+                <span className="badge bg-white/20 text-white text-[10px]">{nextClass.kelas}</span>
+                <span className="text-xs text-emerald-100 ml-auto">{nextClass.jam_mulai} - {nextClass.jam_selesai}</span>
               </div>
               {countdown && (
-                <div className="flex items-center gap-2 bg-emerald-800/40 rounded-xl px-3 py-2">
-                  <Timer className="w-4 h-4 text-emerald-200" />
-                  <span className="text-xs font-semibold text-emerald-100">Masuk dalam:</span>
-                  <div className="flex items-center gap-1.5 ml-auto font-mono text-sm">
+                <div className="flex items-center gap-2 bg-emerald-800/40 rounded-lg px-2.5 py-1.5">
+                  <Timer className="w-3.5 h-3.5 text-emerald-200" />
+                  <span className="text-[10px] font-semibold text-emerald-100">Masuk dalam:</span>
+                  <div className="flex items-center gap-1 ml-auto font-mono text-xs">
                     <span className="bg-white/20 rounded px-2 py-0.5 font-bold">{String(countdown.hours).padStart(2, '0')}</span>
                     <span className="text-emerald-200">:</span>
                     <span className="bg-white/20 rounded px-2 py-0.5 font-bold">{String(countdown.minutes).padStart(2, '0')}</span>
@@ -332,20 +332,20 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
               )}
             </div>
           ) : (
-            <div className="bg-white/15 rounded-2xl p-4 backdrop-blur-sm">
-              <p className="text-sm text-emerald-100">Tidak ada jadwal mengajar hari ini.</p>
+            <div className="bg-white/15 rounded-lg p-3 backdrop-blur-sm">
+              <p className="text-xs text-emerald-100">Tidak ada jadwal mengajar hari ini.</p>
             </div>
           )}
         </div>
 
         {/* Running Text Marquee */}
-        <div className="bg-emerald-800/50 border-t border-white/10 py-2.5 overflow-hidden">
-          <div className="flex items-center gap-2 px-4">
-            <Sparkles className="w-4 h-4 text-amber-300 flex-shrink-0 animate-pulse" />
+        <div className="bg-emerald-800/50 border-t border-white/10 py-1.5 overflow-hidden">
+          <div className="flex items-center gap-2 px-3">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 flex-shrink-0 animate-pulse" />
             <div className="flex-1 overflow-hidden relative">
               <div className="flex whitespace-nowrap animate-marquee">
-                <span className="text-sm text-emerald-50 font-medium px-4">{marqueeText}</span>
-                <span className="text-sm text-emerald-50 font-medium px-4">{marqueeText}</span>
+                <span className="text-xs text-emerald-50 font-medium px-4">{marqueeText}</span>
+                <span className="text-xs text-emerald-50 font-medium px-4">{marqueeText}</span>
               </div>
             </div>
           </div>
@@ -354,19 +354,19 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
       {/* Presensi Reminder Banner */}
       {ongoingClass && !hasPresensiToday && !presensiBannerDismissed && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/70 dark:border-amber-700/40 rounded-2xl p-4">
-          <div className="flex items-center gap-3">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/70 dark:border-amber-700/40 rounded-xl p-3">
+          <div className="flex items-center gap-2.5">
             <div className="icon-box-sm bg-amber-100 text-amber-600 flex-shrink-0">
-              <AlertCircle className="w-5 h-5" />
+              <AlertCircle className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
                 Silakan melakukan Presensi Kehadiran.
               </p>
             </div>
             <button
               onClick={() => handleNav('presensi')}
-              className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800/40 hover:bg-amber-200 dark:hover:bg-amber-700/50 rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
+              className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800/40 hover:bg-amber-200 dark:hover:bg-amber-700/50 rounded-lg px-2.5 py-1 transition-colors flex-shrink-0"
             >
               Presensi
             </button>
@@ -375,59 +375,59 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
               className="p-1 rounded-lg text-amber-400 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-800/40 transition-colors flex-shrink-0"
               aria-label="Tutup pengingat presensi"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       )}
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-sky-600" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <div className="card p-3 card-hover cursor-pointer" onClick={() => handleNav('murid')}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-sky-50 rounded-lg flex items-center justify-center">
+              <Users className="w-4 h-4 text-sky-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-800">{muridCount}</p>
-              <p className="text-xs text-slate-500">Total Santri</p>
+              <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{muridCount}</p>
+              <p className="text-[11px] text-slate-500">Total Santri</p>
             </div>
           </div>
         </div>
 
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-emerald-600" />
+        <div className="card p-3 card-hover cursor-pointer" onClick={() => handleNav('absensi')}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-800">{absensiStats.total > 0 ?
+              <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{absensiStats.total > 0 ?
                 Math.round((absensiStats.hadir / absensiStats.total) * 100) : 0}%</p>
-              <p className="text-xs text-slate-500">Kehadiran Hari Ini</p>
+              <p className="text-[11px] text-slate-500">Kehadiran Hari Ini</p>
             </div>
           </div>
         </div>
 
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-              <CalendarDays className="w-5 h-5 text-amber-600" />
+        <div className="card p-3 card-hover cursor-pointer" onClick={() => handleNav('jadwal')}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+              <CalendarDays className="w-4 h-4 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-800">{jadwalCount}</p>
-              <p className="text-xs text-slate-500">Total Jadwal</p>
+              <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{jadwalCount}</p>
+              <p className="text-[11px] text-slate-500">Total Jadwal</p>
             </div>
           </div>
         </div>
 
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center">
-              <FileText className="w-5 h-5 text-violet-600" />
+        <div className="card p-3 card-hover cursor-pointer" onClick={() => handleNav('jurnal')}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-violet-50 rounded-lg flex items-center justify-center">
+              <FileText className="w-4 h-4 text-violet-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-800">{jurnalCount}</p>
-              <p className="text-xs text-slate-500">Jurnal KBM</p>
+              <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{jurnalCount}</p>
+              <p className="text-[11px] text-slate-500">Jurnal KBM</p>
             </div>
           </div>
         </div>
@@ -435,29 +435,29 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
       {/* Quick Actions */}
       {setActiveTab && (
-        <div className="card p-4">
-          <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-            <Sparkles className="w-4 h-4 text-emerald-500" />
+        <div className="card p-3">
+          <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
             Aksi Cepat
           </h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {[
-              { tab: 'jurnal' as ActiveTab, icon: FileText, label: 'Jurnal', color: 'bg-violet-50 text-violet-600' },
-              { tab: 'absensi' as ActiveTab, icon: CheckCircle, label: 'Absensi', color: 'bg-emerald-50 text-emerald-600' },
-              { tab: 'nilai' as ActiveTab, icon: GraduationCap, label: 'Nilai', color: 'bg-sky-50 text-sky-600' },
-              { tab: 'catatan' as ActiveTab, icon: BookMarked, label: 'Catatan', color: 'bg-amber-50 text-amber-600' },
+              { tab: 'jurnal' as ActiveTab, icon: FileText, label: 'Jurnal', color: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400' },
+              { tab: 'absensi' as ActiveTab, icon: CheckCircle, label: 'Absensi', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' },
+              { tab: 'nilai' as ActiveTab, icon: GraduationCap, label: 'Nilai', color: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' },
+              { tab: 'catatan' as ActiveTab, icon: BookMarked, label: 'Catatan', color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
             ].map(a => {
               const Icon = a.icon;
               return (
                 <button
                   key={a.tab}
                   onClick={() => handleNav(a.tab)}
-                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-slate-50 transition-colors active:scale-95"
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors active:scale-95"
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.color}`}>
-                    <Icon className="w-5 h-5" />
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${a.color}`}>
+                    <Icon className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-600">{a.label}</span>
+                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">{a.label}</span>
                 </button>
               );
             })}
@@ -467,20 +467,20 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
       {/* Absensi Stats */}
       {absensiStats.total > 0 && (
-        <div className="card p-4">
-          <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-            <TrendingUp className="w-4 h-4" />
+        <div className="card p-3">
+          <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
+            <TrendingUp className="w-3.5 h-3.5" />
             Statistik Kehadiran Hari Ini
           </h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {[
-              { label: 'Hadir', val: absensiStats.hadir, color: 'bg-emerald-50 text-emerald-700' },
-              { label: 'Izin', val: absensiStats.izin, color: 'bg-amber-50 text-amber-700' },
-              { label: 'Sakit', val: absensiStats.sakit, color: 'bg-sky-50 text-sky-700' },
-              { label: 'Alpha', val: absensiStats.alpha, color: 'bg-rose-50 text-rose-700' },
+              { label: 'Hadir', val: absensiStats.hadir, color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+              { label: 'Izin', val: absensiStats.izin, color: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+              { label: 'Sakit', val: absensiStats.sakit, color: 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
+              { label: 'Alpha', val: absensiStats.alpha, color: 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
             ].map(s => (
-              <div key={s.label} className={`rounded-xl p-2 text-center ${s.color}`}>
-                <p className="text-lg font-bold">{s.val}</p>
+              <div key={s.label} className={`rounded-lg p-2 text-center ${s.color}`}>
+                <p className="text-base font-bold">{s.val}</p>
                 <p className="text-[10px] font-semibold">{s.label}</p>
               </div>
             ))}
@@ -537,31 +537,31 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
       </div>
 
       {/* Jurnal Terakhir + Agenda */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Jurnal Terakhir */}
         {jurnalList.length > 0 && (
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-violet-50 rounded-lg flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-violet-600" />
+          <div className="card p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-6 h-6 bg-violet-50 dark:bg-violet-900/30 rounded-md flex items-center justify-center">
+                  <FileText className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
                 </div>
-                <h3 className="font-bold text-slate-700 text-sm">Jurnal Terakhir</h3>
+                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs">Jurnal Terakhir</h3>
               </div>
               {setActiveTab && (
-                <button onClick={() => handleNav('jurnal')} className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all">
+                <button onClick={() => handleNav('jurnal')} className="text-[11px] text-emerald-600 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all">
                   Lihat <ChevronRight className="w-3 h-3" />
                 </button>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {jurnalList.map(j => (
-                <div key={j.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50">
-                  <div className="w-9 h-9 bg-violet-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-violet-500" />
+                <div key={j.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-700/30">
+                  <div className="w-7 h-7 bg-violet-50 dark:bg-violet-900/30 rounded-md flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 truncate">{j.materi || j.pelajaran || 'Jurnal KBM'}</p>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{j.materi || j.pelajaran || 'Jurnal KBM'}</p>
                     <p className="text-[10px] text-slate-400">
                       {new Date(j.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                       {j.kelas && ` • ${j.kelas}`}
@@ -575,22 +575,22 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
         {/* Agenda */}
         {agendaList.length > 0 && (
-          <div className="card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
-                <Bell className="w-4 h-4 text-amber-600" />
+          <div className="card p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className="w-6 h-6 bg-amber-50 dark:bg-amber-900/30 rounded-md flex items-center justify-center">
+                <Bell className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               </div>
-              <h3 className="font-bold text-slate-700 text-sm">Agenda Mendatang</h3>
+              <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs">Agenda Mendatang</h3>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {agendaList.map(a => (
-                <div key={a.id} className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-amber-50 rounded-xl flex flex-col items-center justify-center">
-                    <span className="text-sm font-bold text-amber-700">{new Date(a.tanggal).getDate()}</span>
-                    <span className="text-[8px] text-amber-500">{new Date(a.tanggal).toLocaleString('id-ID', { month: 'short' })}</span>
+                <div key={a.id} className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-amber-50 dark:bg-amber-900/30 rounded-lg flex flex-col items-center justify-center">
+                    <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{new Date(a.tanggal).getDate()}</span>
+                    <span className="text-[8px] text-amber-500 dark:text-amber-500">{new Date(a.tanggal).toLocaleString('id-ID', { month: 'short' })}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 truncate">{a.judul}</p>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{a.judul}</p>
                     <span className="badge badge-warning text-[9px]">{a.jenis}</span>
                   </div>
                 </div>
@@ -602,18 +602,18 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
       {/* Catatan Guru */}
       {catatanGuruList.length > 0 && (
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 bg-yellow-50 rounded-lg flex items-center justify-center">
-              <StickyNote className="w-4 h-4 text-yellow-600" />
+        <div className="card p-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="w-6 h-6 bg-yellow-50 dark:bg-yellow-900/30 rounded-md flex items-center justify-center">
+              <StickyNote className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400" />
             </div>
-            <h3 className="font-bold text-slate-700 text-sm">Catatan Guru</h3>
+            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs">Catatan Guru</h3>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {catatanGuruList.map(c => (
-              <div key={c.id} className="bg-slate-50 rounded-xl p-3">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-xs font-bold text-slate-700 truncate">{c.judul}</span>
+              <div key={c.id} className="bg-slate-50 dark:bg-slate-700/30 rounded-lg p-2.5">
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{c.judul}</span>
                   {c.tanggal_waktu && (
                     <span className="text-[10px] text-slate-400 flex-shrink-0">
                       {new Date(c.tanggal_waktu).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -621,7 +621,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
                   )}
                 </div>
                 {c.isi && (
-                  <p className="text-[11px] text-slate-500 line-clamp-2">{c.isi}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">{c.isi}</p>
                 )}
               </div>
             ))}
@@ -631,21 +631,21 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
       {/* Pengumuman */}
       {pengumumanList.length > 0 && (
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 bg-sky-50 rounded-lg flex items-center justify-center">
-              <Megaphone className="w-4 h-4 text-sky-600" />
+        <div className="card p-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="w-6 h-6 bg-sky-50 dark:bg-sky-900/30 rounded-md flex items-center justify-center">
+              <Megaphone className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             </div>
-            <h3 className="font-bold text-slate-700 text-sm">Pengumuman</h3>
+            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs">Pengumuman</h3>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {pengumumanList.map(p => (
-              <div key={p.id} className="bg-slate-50 rounded-xl p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-slate-700">{p.judul}</span>
+              <div key={p.id} className="bg-slate-50 dark:bg-slate-700/30 rounded-lg p-2.5">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{p.judul}</span>
                   {p.kategori && <span className="badge badge-info text-[9px]">{p.kategori}</span>}
                 </div>
-                <p className="text-[11px] text-slate-500 line-clamp-2">{p.isi}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">{p.isi}</p>
               </div>
             ))}
           </div>
@@ -691,29 +691,29 @@ function BroadcastBanner({
   };
 
   return (
-    <div className={`relative bg-gradient-to-r ${style.bg} border-2 ${style.border} rounded-2xl overflow-hidden shadow-sm`}>
+    <div className={`relative bg-gradient-to-r ${style.bg} border-2 ${style.border} rounded-xl overflow-hidden shadow-sm`}>
       {isDarurat && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500 animate-pulse" />
       )}
-      <div className="p-4 flex items-start gap-3">
-        <div className={`w-10 h-10 ${style.iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+      <div className="p-3 flex items-start gap-2.5">
+        <div className={`w-8 h-8 ${style.iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
           {isDarurat ? (
-            <AlertTriangle className={`w-5 h-5 ${style.icon} animate-pulse`} />
+            <AlertTriangle className={`w-4 h-4 ${style.icon} animate-pulse`} />
           ) : (
-            <Megaphone className={`w-5 h-5 ${style.icon}`} />
+            <Megaphone className={`w-4 h-4 ${style.icon}`} />
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-bold text-slate-800 text-sm">{current.judul}</span>
+          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+            <span className="font-bold text-slate-800 text-xs">{current.judul}</span>
             {current.jenis && <span className={`badge text-[9px] ${style.icon} bg-white/60`}>{current.jenis}</span>}
             {current.prioritas === 'Darurat' && <span className="badge text-[9px] bg-rose-600 text-white">Darurat</span>}
             {current.prioritas === 'Penting' && <span className="badge text-[9px] bg-amber-500 text-white">Penting</span>}
           </div>
-          <p className="text-xs text-slate-700 line-clamp-2 leading-relaxed">{current.isi}</p>
+          <p className="text-[11px] text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">{current.isi}</p>
         </div>
         <button onClick={dismiss} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white/40 transition-colors flex-shrink-0">
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
