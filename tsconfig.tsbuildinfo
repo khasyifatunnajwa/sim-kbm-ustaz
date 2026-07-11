@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/BottomNav.tsx","./src/context/AuthContext.tsx","./src/context/SettingsContext.tsx","./src/hooks/useExitConfirmation.ts","./src/lib/supabase.ts","./src/pages/DashboardPage.tsx","./src/pages/LoginPage.tsx","./src/pages/SettingsPage.tsx"],"version":"5.9.3"}
