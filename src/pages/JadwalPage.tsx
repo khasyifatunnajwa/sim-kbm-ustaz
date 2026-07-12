@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
-import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, Profile, ShowToast, Lembaga } from '../types';
+import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, Profile, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 const HARI_NON_JUMAT = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Sabtu', 'Ahad'];
@@ -35,12 +35,12 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
 
   const { data: lembagaList = [] } = useLembaga();
   const lembagaOptions = useMemo(
-    () => lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })),
+    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
   );
   const lembagaNameById = useMemo(() => {
     const m: Record<string, string> = {};
-    lembagaList.forEach((l: Lembaga) => { m[l.id] = l.nama_lembaga; });
+    lembagaList.forEach(l => { m[l.id] = l.nama_lembaga; });
     return m;
   }, [lembagaList]);
   

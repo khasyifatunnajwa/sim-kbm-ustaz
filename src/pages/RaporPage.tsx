@@ -8,7 +8,7 @@ import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { generateRaporPDF, shareWA } from '../lib/pdf';
-import type { Murid, Nilai, Absensi, CatatanPerilaku, CapaianHafalan, Sikap, ShowToast, Lembaga } from '../types';
+import type { Murid, Nilai, Absensi, CatatanPerilaku, CapaianHafalan, Sikap, ShowToast } from '../types';
 
 export default function RaporPage({ showToast }: { showToast: ShowToast }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
@@ -218,7 +218,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
             label="Lembaga"
             value={selectedLembagaId}
             onChange={(v) => { setSelectedLembagaId(v); setSelectedMuridId(''); }}
-            options={lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga }))}
+            options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
             placeholder="Semua Lembaga"
           />
         </div>

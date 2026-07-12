@@ -1,8 +1,25 @@
 import {
-  CalendarDays, ClipboardCheck, BookOpen, BarChart3, Users,
-  LogOut, Menu, X, User, ChevronRight, ChevronDown, Heart,
-  FileQuestion, Home, FileText, Shield, Download, GraduationCap,
-  Camera, Megaphone, LayoutDashboard, Building2, Database, Settings, History,
+  CalendarDays,
+  ClipboardCheck,
+  BookOpen,
+  BarChart3,
+  Users,
+  LogOut,
+  Menu,
+  X,
+  User,
+  ChevronRight,
+  Heart,
+  FileQuestion,
+  Home,
+  FileText,
+  Shield,
+  Download,
+  GraduationCap,
+  Camera,
+  Megaphone,
+  LayoutDashboard,
+  Building2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,17 +34,9 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-interface NavItem {
-  id: ActiveTab;
-  icon: React.ElementType;
-  label: string;
-  adminOnly?: boolean;
-}
-
 interface NavGroup {
   label: string;
-  items: NavItem[];
-  collapsible?: boolean;
+  items: { id: ActiveTab; icon: React.ElementType; label: string; adminOnly?: boolean }[];
 }
 
 const navGroups: NavGroup[] = [
@@ -60,33 +69,27 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'Administrasi',
-    collapsible: true,
     items: [
-      { id: 'admin', icon: Shield, label: 'Panel Admin', adminOnly: true },
-      { id: 'admin-kelola-user', icon: Users, label: 'Kelola User', adminOnly: true },
-      { id: 'admin-data-master', icon: Database, label: 'Data Master', adminOnly: true },
-      { id: 'admin-jadwal', icon: CalendarDays, label: 'Jadwal', adminOnly: true },
-      { id: 'admin-akademik', icon: BookOpen, label: 'Akademik', adminOnly: true },
-      { id: 'admin-presensi', icon: ClipboardCheck, label: 'Presensi', adminOnly: true },
-      { id: 'admin-penilaian', icon: BarChart3, label: 'Penilaian', adminOnly: true },
-      { id: 'admin-pengumuman', icon: Megaphone, label: 'Pengumuman', adminOnly: true },
-      { id: 'admin-laporan', icon: FileText, label: 'Laporan', adminOnly: true },
-      { id: 'admin-statistik', icon: BarChart3, label: 'Statistik', adminOnly: true },
-      { id: 'admin-pengaturan', icon: Settings, label: 'Pengaturan', adminOnly: true },
-      { id: 'admin-audit', icon: History, label: 'Audit', adminOnly: true },
-      { id: 'presensi-admin', icon: LayoutDashboard, label: 'Presensi Admin', adminOnly: true },
+      { id: 'admin',                icon: Shield,           label: 'Panel Admin',       adminOnly: true },
+      { id: 'admin-presensi-ustaz', icon: ClipboardCheck,   label: 'Presensi Ustaz',    adminOnly: true },
+      { id: 'admin-jadwal-ustaz',   icon: CalendarDays,     label: 'Jadwal Ustaz',      adminOnly: true },
+      { id: 'admin-data-santri',    icon: Users,            label: 'Data Santri',       adminOnly: true },
+      { id: 'admin-jadwal-asatiz',  icon: BookOpen,         label: 'Jadwal Asatiz',     adminOnly: true },
+      { id: 'admin-kelola-lembaga', icon: Building2,        label: 'Kelola Lembaga',    adminOnly: true },
+      { id: 'pengumuman',           icon: Megaphone,        label: 'Pengumuman',        adminOnly: true },
+      { id: 'presensi-admin',       icon: LayoutDashboard,  label: 'Presensi Admin',    adminOnly: true },
     ],
   },
 ];
 
 const allNavItems = navGroups.flatMap(g => g.items);
-const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'presensi', 'nilai', 'murid'];
+
+const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'absensi', 'presensi', 'murid', 'jurnal'];
 
 export default function Layout({ activeTab, setActiveTab, profile, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [adminExpanded, setAdminExpanded] = useState(false);
   const [now, setNow] = useState(new Date());
-  const { isInstallable, isInstalled, promptInstall } = usePWAInstall();
+  const { isInstallable, isInstalled, promptInstall, dismissInstall } = usePWAInstall();
 
   const isAdmin = profile?.role === 'admin';
 
@@ -104,74 +107,23 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
     return () => { document.body.style.overflow = ''; };
   }, [sidebarOpen]);
 
-  // Auto-expand admin group if active tab is in admin section
-  useEffect(() => {
-    if (navGroups[3].items.some(item => item.id === activeTab)) {
-      setAdminExpanded(true);
-    }
-  }, [activeTab]);
-
   const handleNav = (tab: ActiveTab) => {
     setActiveTab(tab);
     setSidebarOpen(false);
-    window.history.pushState(null, '', `#${tab}`);
   };
 
-  const activeLabel = activeTab === 'profil' ? 'Profil' : allNavItems.find(n => n.id === activeTab)?.label ?? 'Beranda';
+  const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : allNavItems.find(n => n.id === activeTab)?.label ?? 'Beranda';
   const displayName = profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Ustaz';
   const roleLabel = profile?.role === 'admin' ? 'Administrator' : profile?.role === 'operator' ? 'Operator' : 'Ustaz';
 
   const renderNavGroups = () => (
     <>
-      {navGroups.map((group, gi) => {
+      {navGroups.map(group => {
         const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
         if (visibleItems.length === 0) return null;
-
-        // Admin group: collapsible
-        if (group.collapsible && group.label === 'Administrasi') {
-          return (
-            <div key={group.label} className="mb-1">
-              <button
-                onClick={() => setAdminExpanded(prev => !prev)}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-              >
-                <span>{group.label}</span>
-                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${adminExpanded ? 'rotate-180' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {adminExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    {visibleItems.map(item => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => handleNav(item.id)}
-                          className={`nav-item w-full text-left ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`}
-                        >
-                          <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
-                          <span>{item.label}</span>
-                          {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto text-emerald-400" />}
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          );
-        }
-
         return (
           <div key={group.label} className="mb-1">
-            <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">{group.label}</p>
+            <p className="px-4 py-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider">{group.label}</p>
             {visibleItems.map(item => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -181,9 +133,9 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
                   onClick={() => handleNav(item.id)}
                   className={`nav-item w-full text-left ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`}
                 >
-                  <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto text-emerald-400" />}
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span className="text-sm">{item.label}</span>
+                  {isActive && <ChevronRight className="w-4 h-4 ml-auto text-emerald-400" />}
                 </button>
               );
             })}
@@ -194,62 +146,59 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-16 md:pb-0 md:pl-60">
+    <div className="min-h-screen bg-slate-50 pb-20 md:pb-0 md:pl-64">
       {/* Sidebar Desktop */}
-      <nav className="hidden md:flex flex-col w-60 bg-white dark:bg-slate-800 shadow-sm border-r border-slate-200 dark:border-slate-700 fixed top-0 bottom-0 left-0 z-40">
-        {/* Logo Header */}
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 p-0.5 shadow-sm border border-slate-100">
+      <nav className="hidden md:flex flex-col w-64 bg-white shadow-sm border-r border-slate-100 fixed top-0 bottom-0 left-0 z-40">
+        <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 p-0.5 shadow-lg">
               <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <p className="font-bold text-sm text-slate-800 dark:text-slate-100 leading-tight">SIM KBM Ustaz</p>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">V2.0 Multi-Tenant</p>
+              <p className="font-bold text-base leading-tight">SIM KBM Ustaz</p>
+              <p className="text-[10px] text-emerald-100">V2.0 Multi-Tenant</p>
             </div>
           </div>
         </div>
 
-        {/* Nav Items */}
-        <div className="flex-1 overflow-y-auto py-2 px-1.5">
+        <div className="flex-1 overflow-y-auto py-3 px-2">
           {renderNavGroups()}
         </div>
 
-        {/* User Footer */}
-        <div className="p-2 border-t border-slate-100 dark:border-slate-700 space-y-1">
+        <div className="p-3 border-t border-slate-100 space-y-2">
           <button
             onClick={() => handleNav('profil')}
-            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors text-left ${activeTab === 'profil' ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'profil' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
           >
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'profil' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'}`}>
-              <User className="w-3.5 h-3.5" />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'profil' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-600'}`}>
+              <User className="w-4 h-4" />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{displayName}</p>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{roleLabel}</p>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-800 truncate">{displayName}</p>
+              <p className="text-[10px] text-slate-400 capitalize">{roleLabel}</p>
             </div>
           </button>
 
           {isInstallable && !isInstalled && (
             <button
               onClick={promptInstall}
-              className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs"
+              className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold transition-colors text-sm"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Instal</span>
+              <Download className="w-4 h-4" />
+              <span>Instal Aplikasi</span>
             </button>
           )}
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs"
+            className="w-full flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-50 px-4 py-2.5 rounded-xl font-semibold transition-colors text-sm"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-4 h-4" />
             <span>Keluar</span>
           </button>
         </div>
       </nav>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Overlay & Sidebar Mobile */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -266,37 +215,37 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-              className="fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-slate-800 z-50 shadow-2xl md:hidden flex flex-col"
+              className="fixed top-0 left-0 bottom-0 w-72 bg-white z-50 shadow-2xl md:hidden flex flex-col"
             >
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-0.5 shadow-sm border border-slate-100">
+              <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center p-1 shadow-lg">
                     <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
                   </div>
-                  <span className="font-bold text-sm text-slate-800 dark:text-slate-100">SIM KBM</span>
+                  <span className="font-bold">SIM KBM</span>
                 </div>
-                <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                  <X className="w-4 h-4 text-slate-500" />
+                <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex-1 py-2 px-1.5 overflow-y-auto">
+              <div className="flex-1 py-3 px-2 overflow-y-auto">
                 {renderNavGroups()}
               </div>
-              <div className="p-2 border-t border-slate-100 dark:border-slate-700 space-y-1">
+              <div className="p-3 border-t border-slate-100 space-y-2">
                 {isInstallable && !isInstalled && (
                   <button
                     onClick={() => { promptInstall(); setSidebarOpen(false); }}
-                    className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs"
+                    className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold transition-colors"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <Download className="w-4 h-4" />
                     <span>Instal Aplikasi</span>
                   </button>
                 )}
                 <button
                   onClick={() => { onLogout(); setSidebarOpen(false); }}
-                  className="w-full flex items-center justify-center gap-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs"
+                  className="w-full flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-50 px-4 py-2.5 rounded-xl font-semibold transition-colors"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="w-4 h-4" />
                   <span>Keluar</span>
                 </button>
               </div>
@@ -305,36 +254,36 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30">
-        <div className="px-3.5 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+      {/* Header Mobile & Desktop */}
+      <header className="bg-white shadow-sm border-b border-slate-100 sticky top-0 z-30">
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-8 h-8 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 active:scale-95 transition-transform"
+              className="md:hidden w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 active:scale-95 transition-transform"
             >
-              <Menu className="w-4 h-4" />
+              <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="md:hidden w-7 h-7 rounded-lg bg-white flex items-center justify-center flex-shrink-0 p-0.5 shadow-sm border border-slate-100">
+              <div className="md:hidden w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 p-0.5 shadow">
                 <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div>
-                <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                <h1 className="text-base font-bold text-slate-800 leading-tight">
                   <span className="md:hidden">{activeLabel}</span>
                   <span className="hidden md:inline">SIM KBM Ustaz</span>
                 </h1>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium hidden sm:block">
-                  {now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="md:hidden flex items-center gap-2">
             <button
               onClick={() => handleNav('profil')}
-              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'}`}
-              title="Profil"
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'}`}
+              title="Ke Halaman Profil"
             >
               <User className="w-4 h-4" />
             </button>
@@ -343,7 +292,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
       </header>
 
       {/* Bottom Nav Mobile */}
-      <nav className="md:hidden fixed bottom-0 w-full bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 z-30 flex justify-around px-1 py-1">
+      <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] z-30 flex justify-around px-1 py-1.5 overflow-x-auto">
         {bottomNavItems.map(tabId => {
           const item = allNavItems.find(n => n.id === tabId);
           if (!item) return null;
@@ -354,10 +303,12 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             <button
               key={item.id}
               onClick={() => handleNav(item.id)}
-              className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg min-w-[48px] transition-all ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl min-w-[52px] transition-all ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}
             >
-              <Icon className="w-[18px] h-[18px]" />
-              <span className={`text-[9px] leading-none mt-0.5 ${isActive ? 'font-bold' : 'font-medium'}`}>
+              <div className={`p-1.5 rounded-xl mb-0.5 transition-colors ${isActive ? 'bg-emerald-50' : ''}`}>
+                <Icon className="w-[18px] h-[18px]" />
+              </div>
+              <span className={`text-[9px] leading-none ${isActive ? 'font-bold text-emerald-600' : 'font-medium'}`}>
                 {item.label}
               </span>
             </button>
@@ -365,22 +316,24 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         })}
         <button
           onClick={() => setSidebarOpen(true)}
-          className="flex flex-col items-center justify-center py-1 px-2 rounded-lg min-w-[48px] text-slate-400"
+          className="flex flex-col items-center justify-center py-1 px-2 rounded-xl min-w-[52px] text-slate-400"
         >
-          <Menu className="w-[18px] h-[18px]" />
-          <span className="text-[9px] leading-none mt-0.5 font-medium">Menu</span>
+          <div className="p-1.5 rounded-xl mb-0.5">
+            <Menu className="w-[18px] h-[18px]" />
+          </div>
+          <span className="text-[9px] leading-none font-medium">Lainnya</span>
         </button>
       </nav>
 
-      {/* Main Content */}
-      <main className="p-3.5 md:p-5">
+      {/* Main Content Area */}
+      <main className="p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -3 }}
+              exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             >
               {children}

@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
-import type { Murid, Sikap, ShowToast, Profile, Lembaga } from '../types';
+import type { Murid, Sikap, ShowToast, Profile } from '../types';
 import { getUstazScope } from '../lib/ustazData';
 
 const SIKAP_FIELDS = [
@@ -40,7 +40,7 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
   });
 
   const lembagaOptions = useMemo(
-    () => lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga })),
+    () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
   );
 

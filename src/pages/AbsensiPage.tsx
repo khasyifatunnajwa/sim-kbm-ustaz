@@ -9,7 +9,7 @@ import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { generatePDF, shareWA } from '../lib/pdf';
-import type { Murid, Absensi, Profile, ShowToast, Lembaga } from '../types';
+import type { Murid, Absensi, Profile, ShowToast } from '../types';
 
 type Status = 'Hadir' | 'Izin' | 'Sakit' | 'Alpha';
 type Tab = 'input' | 'rekap';
@@ -290,7 +290,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                   label="Pilih Lembaga"
                   value={selectedLembagaId}
                   onChange={(v) => setSelectedLembagaId(v)}
-                  options={lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga }))}
+                  options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
                   placeholder="Semua Lembaga"
                 />
               </div>
@@ -396,7 +396,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                   label="Lembaga"
                   value={selectedLembagaId}
                   onChange={(v) => setSelectedLembagaId(v)}
-                  options={lembagaList.map((l: Lembaga) => ({ value: l.id, label: l.nama_lembaga }))}
+                  options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
                   placeholder="Semua Lembaga"
                 />
               </div>
