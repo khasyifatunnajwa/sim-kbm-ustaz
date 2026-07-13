@@ -1,13 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   Palette, Type, LayoutDashboard, Table, Bell, Smartphone,
   Zap, Database, Shield, Accessibility, Film, Info, RotateCcw,
-  Sun, Moon, Monitor, Check, ChevronRight, Trash2, RefreshCw,
+  Sun, Moon, Monitor, ChevronRight, Trash2, RefreshCw,
   Download, Eye, KeyRound, Lock, LogOut, Fingerprint, ScanFace,
-  HardDrive, Loader2, Save, X, ArrowUp, ArrowDown, GripVertical,
+  HardDrive, Loader2, Save, ArrowUp, ArrowDown, GripVertical,
 } from 'lucide-react';
 import { useSettings, DEFAULT_SETTINGS } from '../store/useSettings';
-import type { AppSettings, DashboardWidgetId, ThemeColor, FontSize, FontWeight, LineSpacing, TableSize, IconSize, RefreshInterval, AnimationSpeed, ThemeMode } from '../store/useSettings';
+import type { DashboardWidgetId, ThemeColor, FontSize, FontWeight, LineSpacing, TableSize, IconSize, RefreshInterval, AnimationSpeed, ThemeMode } from '../store/useSettings';
 import type { ShowToast, Profile } from '../types';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -75,8 +75,8 @@ const ANIM_SPEED_OPTIONS: { label: string; value: AnimationSpeed }[] = [
   { label: 'Nonaktif', value: 'off' },
 ];
 
-export default function PengaturanPage({ showToast, profile }: PengaturanPageProps) {
-  const { settings, updateSetting, updateSettings, resetSettings, resetPersonalData } = useSettings();
+export default function PengaturanPage({ showToast }: PengaturanPageProps) {
+  const { settings, updateSetting, resetSettings, resetPersonalData } = useSettings();
   const [showResetSettings, setShowResetSettings] = useState(false);
   const [showResetPersonal, setShowResetPersonal] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -86,7 +86,7 @@ export default function PengaturanPage({ showToast, profile }: PengaturanPagePro
   const [showChangelog, setShowChangelog] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [cacheInfo, setCacheInfo] = useState<string | null>(null);
-  const [clearingCache, setClearingCache] = useState(false);
+  const [, setClearingCache] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   // ====== Theme Mode (integrated with existing useTheme localStorage key) ======

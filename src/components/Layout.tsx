@@ -72,11 +72,6 @@ const navGroups: NavGroup[] = [
     label: 'Administrasi',
     items: [
       { id: 'admin',                icon: Shield,           label: 'Panel Admin',       adminOnly: true },
-      { id: 'admin-presensi-ustaz', icon: ClipboardCheck,   label: 'Presensi Ustaz',    adminOnly: true },
-      { id: 'admin-jadwal-ustaz',   icon: CalendarDays,     label: 'Jadwal Ustaz',      adminOnly: true },
-      { id: 'admin-data-santri',    icon: Users,            label: 'Data Santri',       adminOnly: true },
-      { id: 'admin-jadwal-asatiz',  icon: BookOpen,         label: 'Jadwal Asatiz',     adminOnly: true },
-      { id: 'admin-kelola-lembaga', icon: Building2,        label: 'Kelola Lembaga',    adminOnly: true },
       { id: 'pengumuman',           icon: Megaphone,        label: 'Pengumuman',        adminOnly: true },
       { id: 'presensi-admin',       icon: LayoutDashboard,  label: 'Presensi Admin',    adminOnly: true },
     ],
