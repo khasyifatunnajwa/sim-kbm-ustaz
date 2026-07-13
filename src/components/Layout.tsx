@@ -14,6 +14,7 @@ import {
   Home,
   FileText,
   Shield,
+  Settings,
   Download,
   GraduationCap,
   Camera,
@@ -112,7 +113,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
     setSidebarOpen(false);
   };
 
-  const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : allNavItems.find(n => n.id === activeTab)?.label ?? 'Beranda';
+  const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : activeTab === 'pengaturan' ? 'Pengaturan Aplikasi' : allNavItems.find(n => n.id === activeTab)?.label ?? 'Beranda';
   const displayName = profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Ustaz';
   const roleLabel = profile?.role === 'admin' ? 'Administrator' : profile?.role === 'operator' ? 'Operator' : 'Ustaz';
 
@@ -166,6 +167,18 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         </div>
 
         <div className="p-3 border-t border-slate-100 space-y-2">
+          <button
+            onClick={() => handleNav('pengaturan')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'pengaturan' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+              <Settings className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Pengaturan</p>
+              <p className="text-[10px] text-slate-400">Tampilan & preferensi</p>
+            </div>
+          </button>
           <button
             onClick={() => handleNav('profil')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'profil' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
@@ -279,7 +292,14 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               </div>
             </div>
           </div>
-          <div className="md:hidden flex items-center gap-2">
+          <div className="md:hidden flex items-center gap-1.5">
+            <button
+              onClick={() => handleNav('pengaturan')}
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              title="Pengaturan"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
             <button
               onClick={() => handleNav('profil')}
               className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'}`}

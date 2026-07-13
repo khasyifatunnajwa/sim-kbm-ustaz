@@ -8,6 +8,18 @@ export default {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
+        primary: {
+          50: 'var(--c-primary-50, #ecfdf5)',
+          100: 'var(--c-primary-100, #d1fae5)',
+          200: 'var(--c-primary-200, #a7f3d0)',
+          300: 'var(--c-primary-300, #6ee7b7)',
+          400: 'var(--c-primary-400, #34d399)',
+          500: 'var(--c-primary-500, #10b981)',
+          600: 'var(--c-primary-600, #059669)',
+          700: 'var(--c-primary-700, #047857)',
+          800: 'var(--c-primary-800, #065f46)',
+          900: 'var(--c-primary-900, #064e3b)',
+        },
         emerald: {
           50: '#ecfdf5',
           100: '#d1fae5',

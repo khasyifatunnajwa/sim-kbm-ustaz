@@ -4,14 +4,71 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ====== THEME COLOR PALETTES ====== */
+:root, :root[data-theme-color="hijau"] {
+  --c-primary-50:#ecfdf5; --c-primary-100:#d1fae5; --c-primary-200:#a7f3d0;
+  --c-primary-300:#6ee7b7; --c-primary-400:#34d399; --c-primary-500:#10b981;
+  --c-primary-600:#059669; --c-primary-700:#047857; --c-primary-800:#065f46; --c-primary-900:#064e3b;
+}
+:root[data-theme-color="biru"] {
+  --c-primary-50:#eff6ff; --c-primary-100:#dbeafe; --c-primary-200:#bfdbfe;
+  --c-primary-300:#93c5fd; --c-primary-400:#60a5fa; --c-primary-500:#3b82f6;
+  --c-primary-600:#2563eb; --c-primary-700:#1d4ed8; --c-primary-800:#1e40af; --c-primary-900:#1e3a8a;
+}
+:root[data-theme-color="ungu"] {
+  --c-primary-50:#faf5ff; --c-primary-100:#f3e8ff; --c-primary-200:#e9d5ff;
+  --c-primary-300:#d8b4fe; --c-primary-400:#c084fc; --c-primary-500:#a855f7;
+  --c-primary-600:#9333ea; --c-primary-700:#7e22ce; --c-primary-800:#6b21a8; --c-primary-900:#581c87;
+}
+:root[data-theme-color="merah"] {
+  --c-primary-50:#fef2f2; --c-primary-100:#fee2e2; --c-primary-200:#fecaca;
+  --c-primary-300:#fca5a5; --c-primary-400:#f87171; --c-primary-500:#ef4444;
+  --c-primary-600:#dc2626; --c-primary-700:#b91c1c; --c-primary-800:#991b1b; --c-primary-900:#7f1d1d;
+}
+:root[data-theme-color="orange"] {
+  --c-primary-50:#fff7ed; --c-primary-100:#ffedd5; --c-primary-200:#fed7aa;
+  --c-primary-300:#fdba74; --c-primary-400:#fb923c; --c-primary-500:#f97316;
+  --c-primary-600:#ea580c; --c-primary-700:#c2410c; --c-primary-800:#9a3412; --c-primary-900:#7c2d12;
+}
+:root[data-theme-color="abu"] {
+  --c-primary-50:#f8fafc; --c-primary-100:#f1f5f9; --c-primary-200:#e2e8f0;
+  --c-primary-300:#cbd5e1; --c-primary-400:#94a3b8; --c-primary-500:#64748b;
+  --c-primary-600:#475569; --c-primary-700:#334155; --c-primary-800:#1e293b; --c-primary-900:#0f172a;
+}
+
+/* ====== FONT SIZE SCALE ====== */
+:root[data-font-size="xs"] { --app-font-size: 12px; }
+:root[data-font-size="sm"] { --app-font-size: 13px; }
+:root[data-font-size="md"] { --app-font-size: 14px; }
+:root[data-font-size="lg"] { --app-font-size: 16px; }
+:root[data-font-size="xl"] { --app-font-size: 18px; }
+
+/* ====== FONT WEIGHT ====== */
+:root[data-font-weight="semibold"] { --app-font-weight: 600; }
+:root { --app-font-weight: 400; }
+
+/* ====== LINE SPACING ====== */
+:root[data-line-spacing="rapat"] { --app-line-height: 1.4; }
+:root[data-line-spacing="sedang"] { --app-line-height: 1.5; }
+:root[data-line-spacing="lebar"] { --app-line-height: 1.7; }
+
+/* ====== ANIMATION SPEED ====== */
+:root[data-anim-speed="fast"] { --app-anim-duration: 0.1s; }
+:root[data-anim-speed="normal"] { --app-anim-duration: 0.3s; }
+:root[data-anim-speed="slow"] { --app-anim-duration: 0.6s; }
+:root[data-anim-speed="off"] { --app-anim-duration: 0s; }
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    font-size: var(--app-font-size, 14px);
   }
 
   body {
     @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100;
+    font-weight: var(--app-font-weight, 400);
+    line-height: var(--app-line-height, 1.5);
   }
 
   * {
@@ -23,6 +80,43 @@
     scrollbar-color: #475569 transparent;
   }
 }
+
+/* ====== COMPACT MODE ====== */
+.compact-mode .card { @apply rounded-xl; }
+.compact-mode .card:not(.card-preserve) { @apply p-3; }
+.compact-mode .nav-item { @apply py-2 px-3; }
+.compact-mode .btn-primary, .compact-mode .btn-secondary { @apply py-2 px-3 text-sm; }
+.compact-mode main { @apply p-2 md:p-3; }
+.compact-mode .gap-4 { gap: 0.5rem; }
+.compact-mode .space-y-4 > * + * { margin-top: 0.5rem; }
+.compact-mode .space-y-6 > * + * { margin-top: 0.75rem; }
+
+/* ====== ACCESSIBILITY: REDUCE MOTION ====== */
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ====== ACCESSIBILITY: HIGH CONTRAST ====== */
+.high-contrast {
+  --hc-border: rgba(0,0,0,0.8);
+}
+.high-contrast .card { border-width: 2px; }
+.high-contrast .btn-primary { font-weight: 800; }
+.high-contrast .nav-item-active { border: 2px solid currentColor; }
+.dark.high-contrast { --hc-border: rgba(255,255,255,0.9); }
+
+/* ====== ACCESSIBILITY: LARGE BUTTONS ====== */
+.large-buttons .btn-primary, .large-buttons .btn-secondary { @apply py-3.5 px-6 text-base; }
+.large-buttons button { min-height: 44px; }
+
+/* ====== ACCESSIBILITY: SENIOR MODE ====== */
+.senior-mode { font-size: calc(var(--app-font-size, 14px) * 1.15); }
+.senior-mode .card { @apply rounded-3xl; }
+.senior-mode .btn-primary, .senior-mode .btn-secondary { @apply py-3.5 text-base; }
+.senior-mode .nav-item { @apply py-4; }
 
 @layer components {
   .card {

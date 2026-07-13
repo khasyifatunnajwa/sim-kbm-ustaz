@@ -8,6 +8,7 @@ import { useToast } from './hooks/useToast';
 import { useBackButton } from './hooks/useBackButton';
 import { useRealtimePengumuman } from './hooks/useRealtime';
 import { useStore } from './store/useStore';
+import { useApplySettings } from './hooks/useApplySettings';
 import InstallBanner from './components/InstallBanner';
 import type { ActiveTab, ShowToast, Profile } from './types';
 
@@ -26,6 +27,7 @@ const RaporPage = lazy(() => import('./pages/RaporPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const AdminPengumumanPage = lazy(() => import('./pages/AdminPengumumanPage'));
 const ProfilPage = lazy(() => import('./pages/ProfilPage'));
+const PengaturanPage = lazy(() => import('./pages/PengaturanPage'));
 const PresensiPage = lazy(() => import('./pages/PresensiPage'));
 const PresensiAdminPage = lazy(() => import('./pages/PresensiAdminPage'));
 
@@ -322,6 +324,7 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
 export default function App() {
   // PENGGUNAAN ZUSTAND STORE
   const { user, profile, activeTab, setUser, setProfile, setActiveTab, clearStore } = useStore();
+  useApplySettings();
 
   const [authLoading, setAuthLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
@@ -511,6 +514,7 @@ export default function App() {
         {activeTab === 'admin-kelola-lembaga' && <AdminPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} initialSection="data-akademik" initialSubTab="kelola-lembaga" />}
         {activeTab === 'pengumuman' && <AdminPengumumanPage showToast={showToast} />}
         {activeTab === 'profil' && <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />}
+        {activeTab === 'pengaturan' && <PengaturanPage showToast={showToast} profile={profile} />}
         {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
         {activeTab === 'presensi-admin' && <PresensiAdminPage showToast={showToast} profile={profile} />}
       </Suspense>

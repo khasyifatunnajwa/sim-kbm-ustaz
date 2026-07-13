@@ -462,6 +462,7 @@ export type ActiveTab =
   | 'pengumuman'
   | 'admin'
   | 'profil'
+  | 'pengaturan'
   | 'presensi'
   | 'presensi-admin'
   | 'admin-presensi'
