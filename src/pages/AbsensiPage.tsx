@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   ClipboardCheck, Save, CheckCircle, AlertCircle, XCircle, Clock,
   FileText, Share2, Calendar, BarChart3, Pencil,
@@ -29,94 +30,76 @@ const STATUS_COLOR: Record<Status, string> = {
 const STATUS_BADGE: Record<Status, string> = {
   Hadir: 'badge-success', Izin: 'badge-warning', Sakit: 'badge-info', Alpha: 'badge-danger',
 };
-void STATUS_BADGE;
 
 export default function AbsensiPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
-  // 1. Inisialisasi awal tab berdasarkan URL Hash
+  // Inisialisasi awal tab berdasarkan URL Hash
   const [tab, setTab] = useState<Tab>(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
-    if (hashParts[0] === 'absensi' && hashParts[1] === 'rekap') {
-      return 'rekap';
-    }
+    if (hashParts[0] === 'absensi' && hashParts[1] === 'rekap') return 'rekap';
     return 'input';
   });
 
-  const [muridList, setMuridList] = useState<Murid[]>([]);
-  const [kelasOptions, setKelasOptions] = useState<string[]>([]);
-  const [mapelOptions, setMapelOptions] = useState<string[]>([]);
   const [selectedLembagaId, setSelectedLembagaId] = useState<string>('');
   const [selectedKelas, setSelectedKelas] = useState<string>('');
   const [selectedMapel, setSelectedMapel] = useState<string>('');
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState<Record<string, Status>>({});
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Rekap state
   const [rekapType, setRekapType] = useState<'bulanan' | 'tahunan'>('bulanan');
   const [rekapBulan, setRekapBulan] = useState(new Date().getMonth() + 1);
   const [rekapTahun, setRekapTahun] = useState(new Date().getFullYear());
-  const [rekapData, setRekapData] = useState<Record<string, Record<Status, number>>>({});
-  const [rekapLoading, setRekapLoading] = useState(false);
 
   const { data: lembagaList = [] } = useLembaga();
   const { settings } = useSettings();
   const [filterGender, setFilterGender] = useState<string>('');
 
-  const today = new Date().toISOString().split('T')[0];
-  void today;
   const todayInfo = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-  // 2. SINKRONISASI HASH PADA SUB-MENU ABSENSI
+  // Sinkronisasi Hash
   useEffect(() => {
     const handlePopState = () => {
       const hashParts = window.location.hash.replace('#', '').split('/');
-      // Jika kembali ke menu absensi utama (misal dari /#absensi/rekap ke /#absensi)
       if (hashParts[0] === 'absensi') {
-        if (hashParts[1] === 'rekap') {
-          setTab('rekap');
-        } else {
-          setTab('input');
-        }
+        setTab(hashParts[1] === 'rekap' ? 'rekap' : 'input');
       }
     };
-    
-    // Dengarkan perubahan URL dari tombol back browser/HP
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // 3. FUNGSI UNTUK MENGUBAH TAB DAN URL SEKALIGUS
   const handleTabChange = (newTab: Tab) => {
     setTab(newTab);
-    // Jika pindah ke rekap, tambahkan '/rekap' ke URL hash
-    if (newTab === 'rekap') {
-      window.history.pushState(null, '', '#absensi/rekap');
-    } else {
-      // Jika kembali ke input (default), hilangkan sub-hash
-      window.history.pushState(null, '', '#absensi');
-    }
+    window.history.pushState(null, '', newTab === 'rekap' ? '#absensi/rekap' : '#absensi');
   };
 
-
-  useEffect(() => {
-    (async () => {
+  // --- MENGGUNAKAN REACT QUERY UNTUK DATA MASTER (SCOPE & MURID) ---
+  const { data: scopeData, isLoading: loadingScope } = useQuery({
+    queryKey: ['absensi-scope', profile?.id],
+    queryFn: async () => {
       const scope = await getUstazScope(profile);
-      setKelasOptions(scope.kelasList);
-      setMapelOptions(scope.mapelList);
-      if (scope.kelasList.length) setSelectedKelas(scope.kelasList[0]);
-      if (scope.mapelList.length) setSelectedMapel(scope.mapelList[0]);
-
       const { data } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
       let murid = (data ?? []) as Murid[];
       if (!scope.isAdmin && scope.kelasList.length > 0) {
         murid = murid.filter(m => scope.kelasList.includes(m.kelas || ''));
       }
-      setMuridList(murid);
-    })();
-  }, [profile]);
+      return { scope, murid };
+    },
+    enabled: !!profile,
+    staleTime: 5 * 60 * 1000, // Cache 5 menit
+  });
 
-  // Filter kelas options based on selected lembaga
+  const muridList = scopeData?.murid ?? [];
+  const kelasOptions = scopeData?.scope.kelasList ?? [];
+  const mapelOptions = scopeData?.scope.mapelList ?? [];
+
+  // Set nilai default kelas dan mapel jika belum ada yang terpilih
+  useEffect(() => {
+    if (kelasOptions.length > 0 && !selectedKelas) setSelectedKelas(kelasOptions[0]);
+    if (mapelOptions.length > 0 && !selectedMapel) setSelectedMapel(mapelOptions[0]);
+  }, [kelasOptions, mapelOptions]);
+
   const kelasOptionsFiltered = useMemo(() => {
     if (!selectedLembagaId) return kelasOptions;
     const kelasSet = new Set<string>();
@@ -126,7 +109,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     return Array.from(kelasSet).sort();
   }, [kelasOptions, muridList, selectedLembagaId]);
 
-  // Reset kelas if it's no longer valid when lembaga changes
   useEffect(() => {
     if (selectedLembagaId && kelasOptionsFiltered.length > 0 && !kelasOptionsFiltered.includes(selectedKelas)) {
       setSelectedKelas(kelasOptionsFiltered[0]);
@@ -134,10 +116,10 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     if (selectedLembagaId && kelasOptionsFiltered.length === 0 && selectedKelas) {
       setSelectedKelas('');
     }
-  }, [selectedLembagaId, kelasOptionsFiltered]);
+  }, [selectedLembagaId, kelasOptionsFiltered, selectedKelas]);
 
-  const muridFiltered = useMemo(
-    () => muridList.filter(m =>
+  const muridFiltered = useMemo(() => 
+    muridList.filter(m =>
       m.kelas === selectedKelas &&
       (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
       (!filterGender || m.gender_kelas === filterGender)
@@ -145,29 +127,35 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     [muridList, selectedKelas, selectedLembagaId, filterGender]
   );
 
-  useEffect(() => {
-    if (selectedKelas && tab === 'input') loadData(selectedKelas, tanggal);
-  }, [selectedKelas, tanggal, tab]);
+  // --- MENGGUNAKAN REACT QUERY UNTUK DATA ABSENSI HARIAN ---
+  const { data: fetchedAttendance, isLoading: loadingAbsensi, refetch: refetchAbsensi } = useQuery({
+    queryKey: ['absensi-harian', tanggal, selectedKelas, selectedLembagaId, filterGender],
+    queryFn: async () => {
+      const muridIds = muridFiltered.map(m => m.id);
+      const map: Record<string, Status> = {};
+      muridFiltered.forEach(m => { map[m.id] = 'Hadir'; });
+      
+      if (muridIds.length) {
+        let query = supabase.from('absensi').select('*').eq('tanggal', tanggal).in('murid_id', muridIds);
+        if (selectedLembagaId) query = query.eq('lembaga_id', selectedLembagaId);
+        const { data } = await query;
+        (data ?? []).forEach((a: Absensi) => { if (a.murid_id) map[a.murid_id] = a.status as Status; });
+      }
+      return map;
+    },
+    enabled: tab === 'input' && !!selectedKelas && muridFiltered.length > 0,
+  });
 
-  const loadData = async (kelas: string, tgl: string) => {
-    setLoading(true);
-    const muridKelas = muridList.filter(m =>
-      m.kelas === kelas &&
-      (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
-      (!filterGender || m.gender_kelas === filterGender)
-    );
-    const muridIds = muridKelas.map(m => m.id);
-    const map: Record<string, Status> = {};
-    muridKelas.forEach(m => { map[m.id] = 'Hadir'; });
-    if (muridIds.length) {
-      let query = supabase.from('absensi').select('*').eq('tanggal', tgl).in('murid_id', muridIds);
-      if (selectedLembagaId) query = query.eq('lembaga_id', selectedLembagaId);
-      const { data } = await query;
-      (data ?? []).forEach((a: Absensi) => { if (a.murid_id) map[a.murid_id] = a.status as Status; });
+  // Sinkronisasi data dari server ke state lokal agar bisa diedit
+  useEffect(() => {
+    if (fetchedAttendance) {
+      setAttendance(fetchedAttendance);
+    } else if (muridFiltered.length > 0) {
+      const map: Record<string, Status> = {};
+      muridFiltered.forEach(m => { map[m.id] = 'Hadir'; });
+      setAttendance(map);
     }
-    setAttendance(map);
-    setLoading(false);
-  };
+  }, [fetchedAttendance, muridFiltered]);
 
   const handleSave = async () => {
     if (!selectedKelas || !muridFiltered.length) return;
@@ -176,57 +164,61 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     let deleteQuery = supabase.from('absensi').delete().eq('tanggal', tanggal).in('murid_id', muridIds);
     if (selectedLembagaId) deleteQuery = deleteQuery.eq('lembaga_id', selectedLembagaId);
     await deleteQuery;
+    
     const records = muridFiltered.map(m => ({
       murid_id: m.id,
       tanggal,
       status: attendance[m.id] ?? 'Hadir',
       ...(selectedLembagaId ? { lembaga_id: selectedLembagaId } : {}),
     }));
+    
     const { error } = await supabase.from('absensi').insert(records);
     setSaving(false);
+    
     if (error) { showToast(error.message, 'error'); return; }
     showToast('Absensi berhasil disimpan!', 'success');
+    refetchAbsensi(); // Mutakhirkan cache latar belakang setelah simpan
   };
 
-  const loadRekap = async () => {
-    if (!selectedKelas) return;
-    setRekapLoading(true);
-    const muridKelas = muridList.filter(m =>
-      m.kelas === selectedKelas &&
-      (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
-    );
-    const muridIds = muridKelas.map(m => m.id);
-    if (!muridIds.length) { setRekapData({}); setRekapLoading(false); return; }
+  // --- MENGGUNAKAN REACT QUERY UNTUK REKAP ABSENSI ---
+  const { data: fetchedRekapData, isLoading: loadingRekapData } = useQuery({
+    queryKey: ['absensi-rekap', selectedKelas, selectedLembagaId, rekapType, rekapBulan, rekapTahun],
+    queryFn: async () => {
+      const muridKelas = muridList.filter(m =>
+        m.kelas === selectedKelas &&
+        (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
+      );
+      const muridIds = muridKelas.map(m => m.id);
+      const grouped: Record<string, Record<Status, number>> = {};
+      muridKelas.forEach(m => { grouped[m.id] = { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0 }; });
 
-    let query = supabase.from('absensi').select('*').in('murid_id', muridIds);
-    if (selectedLembagaId) query = query.eq('lembaga_id', selectedLembagaId);
-    if (rekapType === 'bulanan') {
-      const start = `${rekapTahun}-${String(rekapBulan).padStart(2, '0')}-01`;
-      const end = `${rekapTahun}-${String(rekapBulan).padStart(2, '0')}-31`;
-      query = query.gte('tanggal', start).lte('tanggal', end);
-    } else {
-      const start = `${rekapTahun}-01-01`;
-      const end = `${rekapTahun}-12-31`;
-      query = query.gte('tanggal', start).lte('tanggal', end);
-    }
-    const { data } = await query.order('tanggal', { ascending: true });
+      if (!muridIds.length) return grouped;
 
-    const grouped: Record<string, Record<Status, number>> = {};
-    muridKelas.forEach(m => {
-      grouped[m.id] = { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0 };
-    });
-    (data ?? []).forEach((a: Absensi) => {
-      if (a.murid_id && grouped[a.murid_id]) {
-        grouped[a.murid_id][a.status as Status] = (grouped[a.murid_id][a.status as Status] ?? 0) + 1;
+      let query = supabase.from('absensi').select('*').in('murid_id', muridIds);
+      if (selectedLembagaId) query = query.eq('lembaga_id', selectedLembagaId);
+      
+      if (rekapType === 'bulanan') {
+        const start = `${rekapTahun}-${String(rekapBulan).padStart(2, '0')}-01`;
+        const end = `${rekapTahun}-${String(rekapBulan).padStart(2, '0')}-31`;
+        query = query.gte('tanggal', start).lte('tanggal', end);
+      } else {
+        const start = `${rekapTahun}-01-01`;
+        const end = `${rekapTahun}-12-31`;
+        query = query.gte('tanggal', start).lte('tanggal', end);
       }
-    });
-    setRekapData(grouped);
-    setRekapLoading(false);
-  };
+      
+      const { data } = await query.order('tanggal', { ascending: true });
+      (data ?? []).forEach((a: Absensi) => {
+        if (a.murid_id && grouped[a.murid_id]) {
+          grouped[a.murid_id][a.status as Status] = (grouped[a.murid_id][a.status as Status] ?? 0) + 1;
+        }
+      });
+      return grouped;
+    },
+    enabled: tab === 'rekap' && !!selectedKelas,
+  });
 
-  useEffect(() => {
-    if (tab === 'rekap' && selectedKelas) loadRekap();
-  }, [tab, selectedKelas, rekapType, rekapBulan, rekapTahun, selectedLembagaId]);
+  const rekapData = fetchedRekapData ?? {};
 
   const stats = {
     hadir: Object.values(attendance).filter(s => s === 'Hadir').length,
@@ -268,6 +260,9 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
 
+  const isLoadingInput = loadingScope || loadingAbsensi;
+  const isLoadingRekap = loadingScope || loadingRekapData;
+
   return (
     <div>
       <div className="mb-5">
@@ -276,14 +271,12 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
       </div>
 
       <div className="tab-switcher mb-5">
-        {/* PERUBAHAN: Gunakan handleTabChange, bukan setTab langsung */}
         <button onClick={() => handleTabChange('input')} className={`tab-btn ${tab === 'input' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Input Harian</button>
         <button onClick={() => handleTabChange('rekap')} className={`tab-btn ${tab === 'rekap' ? 'tab-btn-active' : 'tab-btn-inactive'}`}>Rekapitulasi</button>
       </div>
 
       {tab === 'input' && (
         <>
-          {/* Header info */}
           <div className="card p-4 mb-4 bg-gradient-to-br from-slate-50 to-white">
             <div className="flex items-center gap-2 mb-3">
               <Calendar className="w-4 h-4 text-emerald-600" />
@@ -329,7 +322,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
             </div>
           </div>
 
-          {/* Stats */}
           {muridFiltered.length > 0 && (
             <div className="grid grid-cols-4 gap-2 mb-4">
               {[
@@ -346,7 +338,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
             </div>
           )}
 
-          {loading ? (
+          {isLoadingInput ? (
             <div className="space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="card p-4 animate-pulse h-16 bg-slate-50 rounded-2xl" />)}</div>
           ) : !selectedKelas ? (
             <EmptyState title="Pilih kelas" description="Pilih kelas untuk mulai absensi." icon={<ClipboardCheck className="w-8 h-8 text-slate-300" />} />
@@ -364,7 +356,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                           <span className="text-slate-600 font-bold text-xs">{i + 1}</span>
                         </div>
                         <p className="font-semibold text-slate-800 text-sm flex-1 min-w-0 truncate">{m.nama}</p>
-                        <span className={`badge text-[9px] flex-shrink-0 ${status === 'Hadir' ? 'badge-success' : status === 'Izin' ? 'badge-warning' : status === 'Sakit' ? 'badge-info' : 'badge-danger'}`}>
+                        <span className={`badge text-[9px] flex-shrink-0 ${STATUS_BADGE[status]}`}>
                           {status}
                         </span>
                       </div>
@@ -388,8 +380,8 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                 })}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => loadData(selectedKelas, tanggal)} className="btn-secondary flex-1 flex items-center justify-center gap-2 text-sm">
-                  <Pencil className="w-4 h-4" /> Edit
+                <button onClick={() => refetchAbsensi()} className="btn-secondary flex-1 flex items-center justify-center gap-2 text-sm">
+                  <Pencil className="w-4 h-4" /> Reset ke Data Tersimpan
                 </button>
                 <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm">
                   <Save className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan'}
@@ -402,7 +394,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
 
       {tab === 'rekap' && (
         <>
-          {/* Filter Rekap */}
           <div className="card p-4 mb-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               <div>
@@ -445,7 +436,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
             </div>
           </div>
 
-          {/* Export & Share */}
           {selectedKelas && muridFiltered.length > 0 && (
             <div className="flex gap-2 mb-4">
               <button onClick={exportRekapPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors">
@@ -457,7 +447,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
             </div>
           )}
 
-          {rekapLoading ? (
+          {isLoadingRekap ? (
             <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="card p-4 animate-pulse h-16 bg-slate-50 rounded-2xl" />)}</div>
           ) : !selectedKelas ? (
             <EmptyState title="Pilih kelas" description="Pilih kelas dan periode untuk melihat rekap." icon={<BarChart3 className="w-8 h-8 text-slate-300" />} />
@@ -465,7 +455,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
             <EmptyState title="Tidak ada santri" description="Belum ada santri di kelas ini." icon={<BarChart3 className="w-8 h-8 text-slate-300" />} />
           ) : (
             <div className="space-y-3">
-              {/* Overall percentage */}
               <div className="card p-4 bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-bold text-slate-700">Persentase Kehadiran Kelas</span>
@@ -497,7 +486,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                 </div>
               </div>
 
-              {/* Per-student rekap */}
               <div className="space-y-2">
                 {muridFiltered.map((m, i) => {
                   const d = rekapData[m.id] ?? { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0 };
@@ -514,7 +502,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                           {pct.toFixed(0)}% Hadir
                         </span>
                       </div>
-                      {/* Bar chart */}
                       <div className="flex h-2 rounded-full overflow-hidden bg-slate-100">
                         {total > 0 && STATUS_LIST.map(s => {
                           const val = d[s];
