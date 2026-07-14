@@ -17,6 +17,10 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
   const [selectedLembagaId, setSelectedLembagaId] = useState('');
   const [selectedKelas, setSelectedKelas] = useState('');
+  
+  // INI BARIS YANG DITAMBAHKAN UNTUK MENGATASI ERROR "filterGender is not defined"
+  const [filterGender, setFilterGender] = useState<string>(''); 
+  
   const [selectedMuridId, setSelectedMuridId] = useState('');
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -65,7 +69,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
         setSelectedMuridId('');
       }
     }
-  }, [selectedLembagaId, kelasFiltered]);
+  }, [selectedLembagaId, kelasFiltered, selectedKelas]);
 
   const muridFiltered = useMemo(
     () => muridList.filter(m =>
@@ -130,7 +134,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
       const scores = [s.disiplin, s.adab, s.kerajinan, s.kejujuran, s.tanggung_jawab].filter((v): v is number => v != null);
       return scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
     });
-    return totals.reduce((a, b) => a + b, 0) / totals.length;
+    return totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : 0;
   }, [sikapList]);
 
   const getPredikat = (score: number) => {
