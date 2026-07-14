@@ -516,6 +516,7 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
 
 // ====== CRUD Kelas ======
 function CrudKelas({ showToast }: { showToast: ShowToast }) {
+  const { data: lembagaList = [] } = useLembaga();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -524,7 +525,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ nama_kelas: '', tingkat: '1', kode: '' });
+  const [form, setForm] = useState({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '' });
 
   useEffect(() => { fetchList(); }, []);
   const fetchList = async () => {
@@ -540,7 +541,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
     if (!form.nama_kelas) { showToast('Nama kelas wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload = { nama_kelas: form.nama_kelas, tingkat: Number(form.tingkat) || 1, kode: form.kode || null, is_active: true };
+      const payload = { nama_kelas: form.nama_kelas, tingkat: Number(form.tingkat) || 1, kode: form.kode || null, is_active: true, lembaga_id: form.lembaga_id || null };
       if (editingId) {
         const { error } = await supabase.from('kelas').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -550,7 +551,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
         if (error) throw error;
         showToast('Kelas ditambahkan', 'success');
       }
-      setShowModal(false); setForm({ nama_kelas: '', tingkat: '1', kode: '' }); setEditingId(null); fetchList();
+      setShowModal(false); setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '' }); setEditingId(null); fetchList();
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
@@ -575,14 +576,15 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
 
   return (
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
-      onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '' }); setEditingId(null); setShowModal(true); }}
+      onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '' }); setEditingId(null); setShowModal(true); }}
       onImport={() => setShowImport(true)} importLabel="Import"
       loading={loading} list={filtered} page={page} setPage={setPage}
-      onEdit={(item) => { setEditingId(item.id); setForm({ nama_kelas: item.nama_kelas || '', tingkat: String(item.tingkat || '1'), kode: item.kode || '' }); setShowModal(true); }}
+      onEdit={(item) => { setEditingId(item.id); setForm({ nama_kelas: item.nama_kelas || '', tingkat: String(item.tingkat || '1'), kode: item.kode || '', lembaga_id: item.lembaga_id || '' }); setShowModal(true); }}
       onDelete={handleDelete} displayName={(item) => item.nama_kelas} subInfo={(item) => `Tingkat ${item.tingkat || '-'}`}
       showModal={showModal} onClose={() => setShowModal(false)} saving={saving} onSave={handleSave}
       modalTitle={editingId ? 'Edit Kelas' : 'Tambah Kelas'}>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Kelas *</label><input type="text" value={form.nama_kelas} onChange={e => setForm({ ...form, nama_kelas: e.target.value })} className="input-field text-xs" /></div>
+      <SearchableSelect label="Lembaga" value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga }))} placeholder="Pilih lembaga" />
       <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tingkat</label><input type="number" value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="input-field text-xs" min={1} max={12} /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div></div>
       <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Tingkat', 'Kode']} note="Kolom Nama Kelas wajib. Tingkat diisi angka (misal: 1, 2, 3)." />
     </CrudList>
@@ -591,6 +593,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
 
 // ====== CRUD Ruangan ======
 function CrudRuangan({ showToast }: { showToast: ShowToast }) {
+  const { data: lembagaList = [] } = useLembaga();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -598,7 +601,7 @@ function CrudRuangan({ showToast }: { showToast: ShowToast }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '' });
+  const [form, setForm] = useState({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '', lembaga_id: '' });
 
   useEffect(() => { fetchList(); }, []);
   const fetchList = async () => {
@@ -610,10 +613,10 @@ function CrudRuangan({ showToast }: { showToast: ShowToast }) {
     if (!form.nama_ruangan) { showToast('Nama ruangan wajib', 'error'); return; }
     setSaving(true);
     try {
-      const payload = { nama_ruangan: form.nama_ruangan, kode: form.kode || null, kapasitas: form.kapasitas ? Number(form.kapasitas) : null, keterangan: form.keterangan || null, is_active: true };
+      const payload = { nama_ruangan: form.nama_ruangan, kode: form.kode || null, kapasitas: form.kapasitas ? Number(form.kapasitas) : null, keterangan: form.keterangan || null, is_active: true, lembaga_id: form.lembaga_id || null };
       if (editingId) { const { error } = await supabase.from('ruangan').update(payload).eq('id', editingId); if (error) throw error; showToast('Ruangan diperbarui', 'success'); }
       else { const { error } = await supabase.from('ruangan').insert(payload); if (error) throw error; showToast('Ruangan ditambahkan', 'success'); }
-      setShowModal(false); setForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '' }); setEditingId(null); fetchList();
+      setShowModal(false); setForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '', lembaga_id: '' }); setEditingId(null); fetchList();
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
@@ -622,13 +625,14 @@ function CrudRuangan({ showToast }: { showToast: ShowToast }) {
 
   return (
     <CrudList title="Ruangan" icon={Building2} search={search} setSearch={setSearch}
-      onAdd={() => { setForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '' }); setEditingId(null); setShowModal(true); }}
+      onAdd={() => { setForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '', lembaga_id: '' }); setEditingId(null); setShowModal(true); }}
       loading={loading} list={filtered} page={page} setPage={setPage}
-      onEdit={(item) => { setEditingId(item.id); setForm({ nama_ruangan: item.nama_ruangan || '', kode: item.kode || '', kapasitas: item.kapasitas?.toString() || '', keterangan: item.keterangan || '' }); setShowModal(true); }}
+      onEdit={(item) => { setEditingId(item.id); setForm({ nama_ruangan: item.nama_ruangan || '', kode: item.kode || '', kapasitas: item.kapasitas?.toString() || '', keterangan: item.keterangan || '', lembaga_id: item.lembaga_id || '' }); setShowModal(true); }}
       onDelete={handleDelete} displayName={(item) => item.nama_ruangan} subInfo={(item) => item.kapasitas ? `Kapasitas ${item.kapasitas}` : ''}
       showModal={showModal} onClose={() => setShowModal(false)} saving={saving} onSave={handleSave}
       modalTitle={editingId ? 'Edit Ruangan' : 'Tambah Ruangan'}>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Ruangan *</label><input type="text" value={form.nama_ruangan} onChange={e => setForm({ ...form, nama_ruangan: e.target.value })} className="input-field text-xs" /></div>
+      <SearchableSelect label="Lembaga" value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga }))} placeholder="Pilih lembaga" />
       <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kapasitas</label><input type="number" value={form.kapasitas} onChange={e => setForm({ ...form, kapasitas: e.target.value })} className="input-field text-xs" /></div></div>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Keterangan</label><input type="text" value={form.keterangan} onChange={e => setForm({ ...form, keterangan: e.target.value })} className="input-field text-xs" /></div>
     </CrudList>
