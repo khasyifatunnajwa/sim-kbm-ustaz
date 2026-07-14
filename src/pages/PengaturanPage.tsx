@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import {
   Palette, Type, LayoutDashboard, Table, Bell, Smartphone,
-  Zap, Database, Shield, Accessibility, Film, Info, RotateCcw,
+  Zap, Database, Shield, Accessibility, Info, RotateCcw,
   Sun, Moon, Monitor, ChevronRight, Trash2, RefreshCw,
-  Download, Eye, KeyRound, Lock, LogOut, Fingerprint, ScanFace,
+  Download, Eye, KeyRound, LogOut,
   HardDrive, Loader2, Save, ArrowUp, ArrowDown, GripVertical,
+  Code2,
 } from 'lucide-react';
 import { useSettings, DEFAULT_SETTINGS } from '../store/useSettings';
-import type { DashboardWidgetId, ThemeColor, FontSize, FontWeight, LineSpacing, TableSize, IconSize, RefreshInterval, AnimationSpeed, ThemeMode } from '../store/useSettings';
+import type { DashboardWidgetId, ThemeColor, FontSize, FontWeight, LineSpacing, TableSize, IconSize, RefreshInterval, ThemeMode } from '../store/useSettings';
 import type { ShowToast, Profile } from '../types';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  SettingsSection, SettingsRow, Toggle, OptionGroup, SegmentedControl,
+  SettingsSection, SettingsRow, Toggle, OptionGroup,
   SettingsSlider, SettingsAction, ColorSwatchPicker,
 } from '../components/SettingsControls';
 
@@ -68,13 +69,6 @@ const REFRESH_OPTIONS: { label: string; value: RefreshInterval }[] = [
   { label: 'Manual', value: 'manual' },
 ];
 
-const ANIM_SPEED_OPTIONS: { label: string; value: AnimationSpeed }[] = [
-  { label: 'Cepat', value: 'fast' },
-  { label: 'Normal', value: 'normal' },
-  { label: 'Lambat', value: 'slow' },
-  { label: 'Nonaktif', value: 'off' },
-];
-
 export default function PengaturanPage({ showToast }: PengaturanPageProps) {
   const { settings, updateSetting, resetSettings, resetPersonalData } = useSettings();
   const [showResetSettings, setShowResetSettings] = useState(false);
@@ -89,7 +83,7 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
   const [, setClearingCache] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
-  // ====== Theme Mode (integrated with existing useTheme localStorage key) ======
+  // ====== Theme Mode ======
   const handleThemeModeChange = (mode: ThemeMode) => {
     updateSetting('themeMode', mode);
     const root = document.documentElement;
@@ -98,7 +92,6 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
     } else if (mode === 'light') {
       root.classList.remove('dark');
     } else {
-      // system
       const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       root.classList.toggle('dark', isDark);
     }
@@ -116,12 +109,11 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
           total += val.length + key.length;
         }
       }
-      // IndexedDB estimate
       if (navigator.storage?.estimate) {
         const est = await navigator.storage.estimate();
         const idb = est.usage ?? 0;
         setCacheInfo(
-          `localStorage: ${(total / 1024).toFixed(1)} KB | Total storage (approx): ${((idb) / 1024 / 1024).toFixed(2)} MB dari ${(est.quota ?? 0) / 1024 / 1024} MB`
+          `localStorage: ${(total / 1024).toFixed(1)} KB | Total storage: ${((idb) / 1024 / 1024).toFixed(2)} MB dari ${((est.quota ?? 0) / 1024 / 1024).toFixed(0)} MB`
         );
       } else {
         setCacheInfo(`localStorage: ${(total / 1024).toFixed(1)} KB`);
@@ -134,19 +126,15 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
   const handleClearCache = async () => {
     setClearingCache(true);
     try {
-      // Keep auth tokens and settings, clear everything else
       const keepKeys = ['simkbm-settings', 'simkbm-theme', 'sim-kbm-storage'];
       const kept: Record<string, string | null> = {};
       keepKeys.forEach(k => { kept[k] = localStorage.getItem(k); });
       localStorage.clear();
       keepKeys.forEach(k => { if (kept[k]) localStorage.setItem(k, kept[k]!); });
-
-      // Clear IndexedDB cache (idb-keyval)
       try {
         const idbKeyval = await import('idb-keyval');
         await idbKeyval.clear();
       } catch { /* ignore */ }
-
       setCacheInfo(null);
       showToast('Cache berhasil dibersihkan', 'success');
     } catch {
@@ -159,7 +147,6 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
   const handleSyncData = async () => {
     setSyncing(true);
     try {
-      // Force reload all TanStack Query caches by reloading
       showToast('Sinkronisasi ulang dimulai...', 'info');
       setTimeout(() => {
         window.location.reload();
@@ -411,12 +398,9 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
 
       {/* ====== Privasi & Keamanan ====== */}
       <SettingsSection icon={Shield} title="Privasi & Keamanan" desc="Keamanan akun dan kontrol perangkat." accent="text-slate-600 bg-slate-100">
-        <SettingsAction icon={KeyRound} title="Ubah Password" onClick={() => setShowChangePassword(true)} rightIcon={ChevronRight} />
-        <SettingsAction icon={Lock} title="Ganti PIN" desc="Atur PIN untuk akses cepat." onClick={() => showToast('Fitur PIN akan tersedia segera', 'info')} rightIcon={ChevronRight} />
-        <SettingsAction icon={Fingerprint} title="Login dengan Fingerprint" desc="Aktifkan biometrik perangkat." onClick={() => showToast('Fitur biometrik akan tersedia segera', 'info')} rightIcon={ChevronRight} />
-        <SettingsAction icon={ScanFace} title="Login dengan Face Unlock" onClick={() => showToast('Fitur Face Unlock akan tersedia segera', 'info')} rightIcon={ChevronRight} />
+        <SettingsAction icon={KeyRound} title="Ubah Password" desc="Ganti kata sandi akun Anda." onClick={() => setShowChangePassword(true)} rightIcon={ChevronRight} />
         <div className="border-t border-slate-100 dark:border-slate-700 my-2" />
-        <SettingsAction icon={LogOut} title="Logout dari Semua Perangkat" onClick={handleLogoutAllDevices} variant="danger" rightIcon={ChevronRight} />
+        <SettingsAction icon={LogOut} title="Logout dari Semua Perangkat" desc="Keluar dari semua sesi aktif." onClick={handleLogoutAllDevices} variant="danger" rightIcon={ChevronRight} />
         <SettingsAction icon={Smartphone} title="Lihat Perangkat yang Sedang Login" onClick={() => setShowDevices(true)} rightIcon={ChevronRight} />
       </SettingsSection>
 
@@ -428,26 +412,19 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         <SettingsRow title="Mode Ramah Lansia" desc="Font lebih besar, tombol lebih mudah."><Toggle checked={settings.a11ySeniorMode} onChange={(v) => updateSetting('a11ySeniorMode', v)} /></SettingsRow>
       </SettingsSection>
 
-      {/* ====== Animasi ====== */}
-      <SettingsSection icon={Film} title="Animasi" desc="Kecepatan efek animasi antarmuka." accent="text-purple-600 bg-purple-50">
-        <SettingsRow title="Kecepatan Animasi">
-          <SegmentedControl options={ANIM_SPEED_OPTIONS} value={settings.animationSpeed} onChange={(v) => updateSetting('animationSpeed', v)} />
-        </SettingsRow>
-      </SettingsSection>
-
       {/* ====== Tentang Aplikasi ====== */}
       <SettingsSection icon={Info} title="Tentang Aplikasi" desc="Informasi versi dan dokumen." accent="text-slate-600 bg-slate-100">
         <div className="grid grid-cols-2 gap-3 py-2">
           <InfoItem label="Versi Aplikasi" value="2.0.0" />
           <InfoItem label="Versi Database" value="v2" />
-          <InfoItem label="Versi Build" value="2026.07.13" />
+          <InfoItem label="Versi Build" value="2026.07.14" />
           <InfoItem label="Platform" value="PWA" />
         </div>
         <div className="border-t border-slate-100 dark:border-slate-700 my-2" />
         <SettingsAction icon={RefreshCw} title="Riwayat Update" onClick={() => setShowChangelog(true)} rightIcon={ChevronRight} />
         <SettingsAction icon={Shield} title="Kebijakan Privasi" onClick={() => setShowPrivacy(true)} rightIcon={ChevronRight} />
         <SettingsAction icon={Info} title="Syarat Penggunaan" onClick={() => setShowTerms(true)} rightIcon={ChevronRight} />
-        <SettingsAction icon={Info} title="Developer" onClick={() => setShowAbout(true)} rightIcon={ChevronRight} />
+        <SettingsAction icon={Code2} title="Tim Pengembang" onClick={() => setShowAbout(true)} rightIcon={ChevronRight} />
       </SettingsSection>
 
       {/* ====== Reset ====== */}
@@ -459,7 +436,7 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
       {/* ====== Footer ====== */}
       <div className="text-center py-4">
         <p className="text-xs text-slate-400">SIM KBM Ustaz V2.0 Multi-Tenant</p>
-        <p className="text-[10px] text-slate-300 mt-0.5">Sistem Informasi Manajemen Kelas & Santri</p>
+        <p className="text-[10px] text-slate-300 mt-0.5">Dikembangkan oleh TIM aQanD-APP</p>
       </div>
 
       {/* ====== Dialogs ====== */}
@@ -510,16 +487,33 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         showToast={showToast}
       />
 
-      {/* About Modal */}
-      <Modal isOpen={showAbout} onClose={() => setShowAbout(false)} title="Tentang Developer" size="sm">
+      {/* About / Developer Modal */}
+      <Modal isOpen={showAbout} onClose={() => setShowAbout(false)} title="Tim Pengembang" size="sm">
         <div className="text-center py-2">
           <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3 p-1">
             <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
-          <h3 className="font-bold text-slate-800">SIM KBM Ustaz</h3>
-          <p className="text-xs text-slate-500 mt-1">Dikembangkan untuk Manajemen Kelas & Santri Madrasah</p>
-          <p className="text-xs text-slate-400 mt-3">Versi 2.0.0 (Build 2026.07.13)</p>
-          <p className="text-[10px] text-slate-300 mt-2">© 2026 Tim SIM KBM</p>
+          <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-full px-4 py-1.5 mb-3">
+            <Code2 className="w-4 h-4 text-emerald-600" />
+            <span className="font-bold text-emerald-700 text-sm">TIM aQanD-APP</span>
+          </div>
+          <h3 className="font-bold text-slate-800 text-base">SIM KBM Ustaz</h3>
+          <p className="text-xs text-slate-500 mt-1">Sistem Informasi Manajemen KBM untuk Madrasah & Pesantren</p>
+          <div className="mt-4 bg-slate-50 rounded-xl p-3 text-left space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-500">Versi</span>
+              <span className="font-semibold text-slate-700">2.0.0</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-500">Build</span>
+              <span className="font-semibold text-slate-700">2026.07.14</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-500">Platform</span>
+              <span className="font-semibold text-slate-700">PWA (Offline Ready)</span>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-300 mt-4">© 2026 TIM aQanD-APP. All rights reserved.</p>
         </div>
       </Modal>
 
@@ -551,7 +545,7 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         <div className="text-sm text-slate-600 dark:text-slate-300 space-y-4 max-h-[60vh] overflow-y-auto">
           <div>
             <span className="badge badge-success text-[10px]">v2.0.0</span>
-            <p className="mt-1.5 text-xs">Multi-tenant architecture, presensi ustaz system, dashboard widgets, dark mode, PWA offline support, settings personalization.</p>
+            <p className="mt-1.5 text-xs">Multi-tenant architecture, presensi ustaz system, dashboard widgets, dark mode, PWA offline support, settings personalization, admin panel lengkap.</p>
           </div>
           <div>
             <span className="badge badge-info text-[10px]">v1.5.0</span>
