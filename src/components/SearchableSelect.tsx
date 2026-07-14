@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Search, X, Check } from 'lucide-react';
+import { ChevronDown, Search, X, Check, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SearchableSelectProps {
@@ -11,10 +11,13 @@ interface SearchableSelectProps {
   icon?: React.ReactNode;
   disabled?: boolean;
   className?: string;
+  onAddNew?: (searchText: string) => void;
+  addNewLabel?: string;
 }
 
 export default function SearchableSelect({
   value, onChange, options, placeholder = 'Pilih...', label, icon, disabled, className,
+  onAddNew, addNewLabel = 'Tambah Data Baru',
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -86,7 +89,19 @@ export default function SearchableSelect({
             </div>
             <div className="max-h-52 overflow-y-auto py-1">
               {filtered.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">Tidak ada data</p>
+                <div className="py-3 px-2">
+                  <p className="text-xs text-slate-400 text-center mb-2">Tidak ada data ditemukan</p>
+                  {onAddNew && searchText.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => { onAddNew(searchText.trim()); setSearchText(''); setShowDropdown(false); }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-xs font-bold transition-colors border border-emerald-200"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {addNewLabel}: "{searchText.trim()}"
+                    </button>
+                  )}
+                </div>
               ) : (
                 filtered.map(opt => (
                   <button

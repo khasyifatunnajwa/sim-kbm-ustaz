@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SkeletonCard } from '../components/Skeleton';
+import DashboardActivityFlow from '../components/DashboardActivityFlow';
 import { useSettings } from '../store/useSettings';
 import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab, CatatanGuru } from '../types';
 
@@ -412,6 +413,17 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
             Sepertinya Anda belum memasukkan data apa pun. Silakan mulai dengan menambahkan <b>data santri</b> atau <b>jadwal mengajar</b> melalui menu agar ringkasan statistik muncul di sini.
           </p>
         </div>
+      )}
+
+      {/* Smart Activity Flow — auto pipeline presensi → absensi → jurnal */}
+      {jadwalHariIni.length > 0 && (
+        <DashboardActivityFlow
+          profile={profile}
+          showToast={showToast}
+          setActiveTab={setActiveTab}
+          jadwalHariIni={jadwalHariIni}
+          now={now}
+        />
       )}
 
       {/* Presensi Reminder Banner */}

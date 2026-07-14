@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
+import { getActivityContext, clearActivityContext } from '../lib/activityContext';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
@@ -34,6 +35,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterTab, setFilterTab] = useState<FilterTab>('semua');
   const [selectedKelas, setSelectedKelas] = useState<string>('');
+  const [jadwalContextId, setJadwalContextId] = useState<string>('');
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -48,6 +50,23 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     catatan: '',
     lembaga_id: '',
   });
+
+  // Auto-read activity context from Dashboard
+  useEffect(() => {
+    const ctx = getActivityContext();
+    if (ctx) {
+      setForm(f => ({
+        ...f,
+        kelas: ctx.kelas || f.kelas,
+        pelajaran: ctx.pelajaran || f.pelajaran,
+        tanggal: today,
+        lembaga_id: ctx.lembaga_id || f.lembaga_id,
+      }));
+      setJadwalContextId(ctx.jadwal_id);
+      setShowModal(true);
+      clearActivityContext();
+    }
+  }, []);
 
   // Kelas yang difilter berdasarkan lembaga yang dipilih di form
   const { data: formKelasList = [] } = useLembagaKelas(form.lembaga_id || undefined);
@@ -77,6 +96,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     } else {
       setShowModal(false);
       setEditingId(null);
+      setJadwalContextId('');
     }
   };
 
@@ -179,6 +199,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
       metode: form.metode || null,
       catatan: form.catatan || null,
       lembaga_id: form.lembaga_id || null,
+      ...(jadwalContextId ? { jadwal_id: jadwalContextId } : {}),
     };
 
     let error;

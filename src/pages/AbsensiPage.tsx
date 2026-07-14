@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
+import { getActivityContext, clearActivityContext } from '../lib/activityContext';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import Modal from '../components/Modal';
@@ -100,6 +101,17 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Auto-read activity context from Dashboard
+  useEffect(() => {
+    const ctx = getActivityContext();
+    if (ctx) {
+      if (ctx.kelas) setSelectedKelas(ctx.kelas);
+      if (ctx.lembaga_id) setSelectedLembagaId(ctx.lembaga_id);
+      setTab('input');
+      clearActivityContext();
+    }
   }, []);
 
   const handleTabChange = (newTab: Tab) => {
