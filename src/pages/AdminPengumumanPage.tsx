@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Pencil, Megaphone, Search, X, Archive, Send, File as FileEdit, AlertTriangle, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -32,11 +33,10 @@ const STATUS_STYLE: Record<string, string> = {
 const PAGE_SIZE = 6;
 
 export default function AdminPengumuman({ showToast }: { showToast: ShowToast }) {
-  const [list, setList] = useState<Pengumuman[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   
-  // 1. MODIFIKASI: Baca status modal dari Hash URL saat awal muat
+  // Baca status modal dari Hash URL saat awal muat
   const [showModal, setShowModal] = useState(() => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     return hashParts[0] === 'pengumuman' && hashParts[1] === 'form';
@@ -60,7 +60,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     lampiran: '',
   });
 
-  // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
+  // Sinkronisasi Modal dengan tombol Back HP
   useEffect(() => {
     const handlePopState = () => {
       const hashParts = window.location.hash.replace('#', '').split('/');
@@ -77,32 +77,33 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // 3. FUNGSI CERDAS MENUTUP MODAL (Membersihkan History URL)
   const handleCloseModal = () => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     if (hashParts[1] === 'form') {
-      window.history.back(); // Memicu popstate untuk mundur secara native
+      window.history.back();
     } else {
       setShowModal(false);
       setEditingId(null);
     }
   };
 
-  const fetchList = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('pengumuman')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) {
-      showToast(error.message, 'error');
-    } else {
-      setList((data || []) as Pengumuman[]);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchList(); }, []);
+  // --- MENGGUNAKAN REACT QUERY UNTUK FETCH DATA ---
+  const { data: list = [], isLoading: loading } = useQuery<Pengumuman[]>({
+    queryKey: ['admin-pengumuman-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pengumuman')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        showToast(error.message, 'error');
+        return [];
+      }
+      return (data || []) as Pengumuman[];
+    },
+    staleTime: 60 * 1000,
+  });
 
   const filtered = useMemo(() => {
     return list.filter(p => {
@@ -119,7 +120,6 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // 4. MENDORONG HASH SAAT BUKA MODAL
   const openAdd = () => {
     setEditingId(null);
     setForm({
@@ -130,7 +130,6 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     window.history.pushState(null, '', '#pengumuman/form');
   };
 
-  // 4. MENDORONG HASH SAAT BUKA MODAL EDIT
   const openEdit = (p: Pengumuman) => {
     setEditingId(String(p.id));
     setForm({
@@ -157,6 +156,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       showToast('Tanggal mulai wajib diisi', 'error');
       return;
     }
+    
     setSaving(true);
     const payload = {
       judul: form.judul,
@@ -170,29 +170,65 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       kategori: form.jenis,
       tanggal: form.tanggal_mulai,
     };
+
     const { error } = editingId
       ? await supabase.from('pengumuman').update(payload).eq('id', editingId)
       : await supabase.from('pengumuman').insert(payload);
-    setSaving(false);
-    if (error) { showToast(error.message, 'error'); return; }
-    showToast(editingId ? 'Pengumuman diperbarui!' : 'Pengumuman dibuat!', 'success');
     
-    // PERUBAHAN: Memanggil handleCloseModal agar kembali otomatis secara native
+    setSaving(false);
+    
+    if (error) { 
+      showToast(error.message, 'error'); 
+      return; 
+    }
+    
+    showToast(editingId ? 'Pengumuman diperbarui!' : 'Pengumuman dibuat!', 'success');
     handleCloseModal();
-    fetchList();
+    
+    // Invalidasi cache agar data baru di-fetch dari server otomatis
+    queryClient.invalidateQueries({ queryKey: ['admin-pengumuman-list'] });
   };
 
+  // --- OPTIMISTIC UPDATES: HAPUS ---
   const handleDelete = async (id: string) => {
+    // 1. Simpan state lama
+    const previousList = queryClient.getQueryData<Pengumuman[]>(['admin-pengumuman-list']);
+    
+    // 2. Ubah UI secara instan (Optimistic Update)
+    if (previousList) {
+      queryClient.setQueryData(['admin-pengumuman-list'], previousList.filter(p => String(p.id) !== id));
+    }
+
+    // 3. Eksekusi ke database
     const { error } = await supabase.from('pengumuman').delete().eq('id', id);
-    if (error) { showToast(error.message, 'error'); return; }
-    setList(prev => prev.filter(p => String(p.id) !== id));
+    
+    if (error) { 
+      showToast(error.message, 'error'); 
+      // 4. Jika gagal, kembalikan UI ke versi sebelumnya
+      queryClient.setQueryData(['admin-pengumuman-list'], previousList);
+      return; 
+    }
     showToast('Pengumuman dihapus', 'info');
   };
 
+  // --- OPTIMISTIC UPDATES: UBAH STATUS CEPAT ---
   const quickStatus = async (p: Pengumuman, newStatus: string) => {
+    const previousList = queryClient.getQueryData<Pengumuman[]>(['admin-pengumuman-list']);
+    
+    if (previousList) {
+      queryClient.setQueryData(
+        ['admin-pengumuman-list'], 
+        previousList.map(item => item.id === p.id ? { ...item, status: newStatus } : item)
+      );
+    }
+
     const { error } = await supabase.from('pengumuman').update({ status: newStatus }).eq('id', p.id);
-    if (error) { showToast(error.message, 'error'); return; }
-    setList(prev => prev.map(item => item.id === p.id ? { ...item, status: newStatus } : item));
+    
+    if (error) { 
+      showToast(error.message, 'error'); 
+      queryClient.setQueryData(['admin-pengumuman-list'], previousList);
+      return; 
+    }
     showToast(`Status diubah ke ${newStatus}`, 'success');
   };
 
@@ -315,7 +351,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       {/* Modal */}
       <Modal
         isOpen={showModal}
-        onClose={handleCloseModal} // PERUBAHAN
+        onClose={handleCloseModal}
         title={editingId ? 'Edit Pengumuman' : 'Buat Pengumuman Baru'}
         size="lg"
       >
@@ -393,7 +429,6 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
           )}
 
           <div className="flex gap-2 pt-2">
-            {/* PERUBAHAN: Gunakan handleCloseModal */}
             <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm">Batal</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
               {saving ? <FileEdit className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
