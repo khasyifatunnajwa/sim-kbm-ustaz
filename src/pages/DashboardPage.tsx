@@ -4,7 +4,7 @@ import {
   BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
   CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
   Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X,
-  AlertCircle, StickyNote,
+  AlertCircle, StickyNote, Inbox
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SkeletonCard } from '../components/Skeleton';
@@ -61,7 +61,8 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     staleTime: 60 * 1000,
   });
 
-  const { data: jadwalHariIni = [] } = useQuery<JadwalMengajar[]>({
+  // MENAMBAHKAN isLoading: loadingJadwalHariIni
+  const { data: jadwalHariIni = [], isLoading: loadingJadwalHariIni } = useQuery<JadwalMengajar[]>({
     queryKey: ['dashboard-jadwal', todayHari, userId, isUstaz],
     queryFn: async () => {
       let q = supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).order('jam_mulai');
@@ -105,7 +106,8 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     staleTime: 60 * 1000,
   });
 
-  const { data: muridCount = 0 } = useQuery<number>({
+  // MENAMBAHKAN isLoading: loadingMurid
+  const { data: muridCount = 0, isLoading: loadingMurid } = useQuery<number>({
     queryKey: ['dashboard-murid-count'],
     queryFn: async () => {
       const { count } = await supabase.from('murid').select('*', { count: 'exact', head: true }).eq('status_aktif', true);
@@ -114,7 +116,8 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: jadwalCount = 0 } = useQuery<number>({
+  // MENAMBAHKAN isLoading: loadingJadwal
+  const { data: jadwalCount = 0, isLoading: loadingJadwal } = useQuery<number>({
     queryKey: ['dashboard-jadwal-count', userId, isUstaz],
     queryFn: async () => {
       let q = supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true });
@@ -196,7 +199,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
     staleTime: 60 * 1000,
   });
 
-  // Presensi Guru check — whether the current user has done presensi today
+  // Presensi Guru check
   const { data: presensiToday } = useQuery({
     queryKey: ['dashboard-presensi-guru', todayDate, userId],
     queryFn: async () => {
@@ -281,10 +284,13 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
 
   const marqueeText = `Ahlan Ustaz ${profile?.nama_panggilan || profile?.nama_lengkap || ''} — ${greeting()}! Semoga harimu penuh berkah dan ilmu yang bermanfaat. ${jadwalHariIni.length > 0 ? `Anda memiliki ${jadwalHariIni.length} jadwal mengajar hari ini.` : 'Tidak ada jadwal mengajar hari ini.'} ${agendaList.length > 0 ? `Ada ${agendaList.length} agenda mendatang yang perlu diperhatikan.` : ''} Tetap semangat dalam mengajar!`;
 
-  // Show skeleton only on very first load (no cached data yet)
-  const isLoading = jadwalHariIni.length === 0 && !broadcastList.length && !agendaList.length && !pengumumanList.length;
-  // But if we have ANY data, show it immediately (TanStack Query returns cached data instantly)
-  const showSkeleton = isLoading && jadwalCount === 0 && muridCount === 0;
+  // PERBAIKAN LOGIKA LOADING
+  // Skeleton hanya akan muncul saat React Query mendeteksi proses request (loading = true)
+  const showSkeleton = loadingJadwalHariIni || loadingMurid || loadingJadwal;
+  
+  // LOGIKA UNTUK NOTIFIKASI DATA KOSONG
+  // Jika loading sudah selesai, dan murid serta jadwal kosong, berarti sistem belum ada data sama sekali.
+  const isDataEmpty = !showSkeleton && muridCount === 0 && jadwalCount === 0;
 
   if (showSkeleton) {
     return (
@@ -394,6 +400,19 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
           </div>
         </div>
       </div>
+
+      {/* Modern Empty State Notification */}
+      {isDataEmpty && (
+        <div className="card p-6 border-2 border-dashed border-emerald-200 bg-emerald-50/50 flex flex-col items-center text-center animate-fadeIn">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-emerald-100">
+            <Inbox className="w-8 h-8 text-emerald-500" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">Dashboard Masih Kosong</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Sepertinya Anda belum memasukkan data apa pun. Silakan mulai dengan menambahkan <b>data santri</b> atau <b>jadwal mengajar</b> melalui menu agar ringkasan statistik muncul di sini.
+          </p>
+        </div>
+      )}
 
       {/* Presensi Reminder Banner */}
       {ongoingClass && !hasPresensiToday && !presensiBannerDismissed && (
@@ -580,7 +599,7 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
         </div>
 
         {jadwalHariIni.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-4">Tidak ada jadwal hari ini</p>
+          <p className="text-sm text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">Tidak ada jadwal hari ini</p>
         ) : (
           <div className="space-y-2">
             {jadwalHariIni.map((j) => {
