@@ -5,7 +5,7 @@ import {
   Sun, Moon, Monitor, ChevronRight, Trash2, RefreshCw,
   Download, Eye, KeyRound, LogOut,
   HardDrive, Loader2, Save, ArrowUp, ArrowDown, GripVertical,
-  Code2,
+  Code2, Users,
 } from 'lucide-react';
 import { useSettings, DEFAULT_SETTINGS } from '../store/useSettings';
 import type { DashboardWidgetId, ThemeColor, FontSize, FontWeight, LineSpacing, TableSize, IconSize, RefreshInterval, ThemeMode } from '../store/useSettings';
@@ -425,6 +425,72 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         <SettingsAction icon={Shield} title="Kebijakan Privasi" onClick={() => setShowPrivacy(true)} rightIcon={ChevronRight} />
         <SettingsAction icon={Info} title="Syarat Penggunaan" onClick={() => setShowTerms(true)} rightIcon={ChevronRight} />
         <SettingsAction icon={Code2} title="Tim Pengembang" onClick={() => setShowAbout(true)} rightIcon={ChevronRight} />
+      </SettingsSection>
+
+      {/* ====== Pengaturan Gender ====== */}
+      <SettingsSection title="Pengaturan Gender" icon={Users}>
+        <SettingsRow label="Aktifkan Sistem Gender" desc="Pisahkan kelas menjadi Banin/Banat">
+          <Toggle checked={settings.genderEnabled} onChange={v => updateSetting('genderEnabled', v)} />
+        </SettingsRow>
+        {settings.genderEnabled && (
+          <>
+            <SettingsRow label="Pilihan Gender" desc="Pilih gender yang digunakan">
+            </SettingsRow>
+            <div className="px-4 pb-2 flex flex-wrap gap-2">
+              {(['Banin', 'Banat', 'Campuran'] as const).map(g => {
+                const active = settings.genderOptions.includes(g);
+                return (
+                  <button
+                    key={g}
+                    onClick={() => {
+                      const opts = active
+                        ? settings.genderOptions.filter(x => x !== g)
+                        : [...settings.genderOptions, g];
+                      if (opts.length > 0) updateSetting('genderOptions', opts);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      active
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                );
+              })}
+            </div>
+            <SettingsRow label="Pisahkan Dashboard" desc="Tampilkan statistik terpisah berdasarkan gender">
+              <Toggle checked={settings.genderDashboardSplit} onChange={v => updateSetting('genderDashboardSplit', v)} />
+            </SettingsRow>
+            <SettingsRow label="Pisahkan Laporan" desc="Pisahkan laporan berdasarkan gender">
+              <Toggle checked={settings.genderReportSplit} onChange={v => updateSetting('genderReportSplit', v)} />
+            </SettingsRow>
+            <SettingsRow label="Istilah Banin" desc="Nama istilah untuk Banin">
+              <input
+                type="text"
+                value={settings.genderLabelBanin}
+                onChange={e => updateSetting('genderLabelBanin', e.target.value)}
+                className="input-field text-xs w-32"
+              />
+            </SettingsRow>
+            <SettingsRow label="Istilah Banat" desc="Nama istilah untuk Banat">
+              <input
+                type="text"
+                value={settings.genderLabelBanat}
+                onChange={e => updateSetting('genderLabelBanat', e.target.value)}
+                className="input-field text-xs w-32"
+              />
+            </SettingsRow>
+            <SettingsRow label="Istilah Campuran" desc="Nama istilah untuk Campuran">
+              <input
+                type="text"
+                value={settings.genderLabelCampuran}
+                onChange={e => updateSetting('genderLabelCampuran', e.target.value)}
+                className="input-field text-xs w-32"
+              />
+            </SettingsRow>
+          </>
+        )}
       </SettingsSection>
 
       {/* ====== Reset ====== */}

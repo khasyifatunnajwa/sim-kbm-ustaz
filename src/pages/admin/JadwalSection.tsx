@@ -9,8 +9,10 @@ import EmptyState from '../../components/EmptyState';
 import Pagination from '../../components/Pagination';
 import SearchableSelect from '../../components/SearchableSelect';
 import { useLembaga } from '../../hooks/useLembaga';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useSettings } from '../../store/useSettings';
 import { shareWA } from '../../lib/pdf';
-import type { ShowToast, Profile, JadwalMengajar } from '../../types';
+import type { ShowToast, Profile, JadwalMengajar, GenderKelas } from '../../types';
 
 const PAGE_SIZE = 15;
 const hariOptions = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
@@ -142,6 +144,8 @@ function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
 
 // ====== Main ======
 export default function JadwalSection({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+  const { confirm, dialog } = useConfirm();
+  const { settings } = useSettings();
   const [subTab, setSubTab] = useState<SubTab>('jadwal-mengajar');
   const [list, setList] = useState<JadwalMengajar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,6 +161,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   const [filterHari, setFilterHari] = useState('');
   const [filterUstazId, setFilterUstazId] = useState('');
   const [filterLembagaId, setFilterLembagaId] = useState('');
+  const [filterGender, setFilterGender] = useState('');
 
   // Reference data
   const [ustazOptions, setUstazOptions] = useState<{ value: string; label: string }[]>([]);
@@ -167,6 +172,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   const [form, setForm] = useState({
     user_id: '', hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:30',
     kelas: '', pelajaran: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false,
+    gender: '' as GenderKelas | '',
   });
 
   const subTabs = [
@@ -197,14 +203,14 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   };
 
   const resetForm = () => {
-    setForm({ user_id: isAdmin ? '' : (profile?.id || ''), hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:30', kelas: '', pelajaran: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false });
+    setForm({ user_id: isAdmin ? '' : (profile?.id || ''), hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:30', kelas: '', pelajaran: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false, gender: '' });
     setEditingId(null);
   };
 
   const openAdd = () => { resetForm(); setShowModal(true); };
   const openEdit = (j: JadwalMengajar) => {
     setEditingId(j.id);
-    setForm({ user_id: j.user_id || '', hari: j.hari || 'Senin', jam_mulai: j.jam_mulai?.slice(0, 5) || '07:00', jam_selesai: j.jam_selesai?.slice(0, 5) || '08:30', kelas: j.kelas || '', pelajaran: j.pelajaran || '', ruangan: j.ruangan || '', lembaga_id: (j as any).lembaga_id || '', guru_pengganti_id: (j as any).guru_pengganti_id || '', is_libur: (j as any).is_libur ?? false });
+    setForm({ user_id: j.user_id || '', hari: j.hari || 'Senin', jam_mulai: j.jam_mulai?.slice(0, 5) || '07:00', jam_selesai: j.jam_selesai?.slice(0, 5) || '08:30', kelas: j.kelas || '', pelajaran: j.pelajaran || '', ruangan: j.ruangan || '', lembaga_id: (j as any).lembaga_id || '', guru_pengganti_id: (j as any).guru_pengganti_id || '', is_libur: (j as any).is_libur ?? false, gender: (j as any).gender || '' });
     setShowModal(true);
   };
 
@@ -212,7 +218,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     if (!form.user_id || !form.kelas || !form.pelajaran || !form.hari) { showToast('Ustaz, kelas, pelajaran, dan hari wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload: any = { user_id: form.user_id, hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai || null, kelas: form.kelas, pelajaran: form.pelajaran, ruangan: form.ruangan || null, lembaga_id: form.lembaga_id || null, guru_pengganti_id: form.guru_pengganti_id || null, is_libur: form.is_libur };
+      const payload: any = { user_id: form.user_id, hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai || null, kelas: form.kelas, pelajaran: form.pelajaran, ruangan: form.ruangan || null, lembaga_id: form.lembaga_id || null, guru_pengganti_id: form.guru_pengganti_id || null, is_libur: form.is_libur, gender: form.gender || null };
       if (editingId) {
         const { error } = await supabase.from('jadwal_mengajar').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -228,7 +234,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   };
 
   const handleDelete = async (j: JadwalMengajar) => {
-    if (!confirm('Hapus jadwal ini?')) return;
+    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: `${j.hari} - ${j.pelajaran} (${j.kelas})`, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
     try {
       await supabase.from('jadwal_mengajar').delete().eq('id', j.id);
       showToast('Jadwal dihapus', 'success'); fetchList();
@@ -305,6 +311,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     if (filterHari) result = result.filter(j => j.hari === filterHari);
     if (filterUstazId) result = result.filter(j => j.user_id === filterUstazId);
     if (filterLembagaId) result = result.filter(j => (j as any).lembaga_id === filterLembagaId);
+    if (filterGender) result = result.filter(j => (j as any).gender === filterGender);
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(j => [j.kelas, j.pelajaran, j.hari, j.ruangan].filter(Boolean).join(' ').toLowerCase().includes(q));
@@ -322,7 +329,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     return g;
   }, [filtered]);
 
-  const hasFilters = !!(filterHari || filterUstazId || filterLembagaId);
+  const hasFilters = !!(filterHari || filterUstazId || filterLembagaId || filterGender);
 
   return (
     <div className="space-y-3">
@@ -375,8 +382,17 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
                 <label className="block text-[10px] font-semibold text-slate-500 mb-1">Lembaga</label>
                 <SearchableSelect value={filterLembagaId} onChange={v => setFilterLembagaId(v)} options={lembagaOptions} placeholder="Semua Lembaga" />
               </div>
+              {settings.genderEnabled && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Gender</label>
+                  <select value={filterGender} onChange={e => setFilterGender(e.target.value)} className="input-field text-xs py-2">
+                    <option value="">Semua Gender</option>
+                    {settings.genderOptions.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              )}
               {hasFilters && (
-                <button onClick={() => { setFilterHari(''); setFilterUstazId(''); setFilterLembagaId(''); }} className="text-[10px] text-rose-600 hover:underline col-span-full text-left">
+                <button onClick={() => { setFilterHari(''); setFilterUstazId(''); setFilterLembagaId(''); setFilterGender(''); }} className="text-[10px] text-rose-600 hover:underline col-span-full text-left">
                   Hapus semua filter
                 </button>
               )}
@@ -428,6 +444,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
                                 <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">{j.pelajaran}</span>
                                 <span className="badge badge-success text-[10px]">{j.kelas}</span>
                                 {lembagaNama && <span className="badge bg-sky-50 text-sky-700 border border-sky-100 text-[10px]">{lembagaNama}</span>}
+                                {(j as any).gender && <span className="badge bg-purple-50 text-purple-700 border border-purple-100 text-[10px]">{(j as any).gender}</span>}
                                 {(j as any).is_libur && <span className="badge badge-danger text-[10px]">Libur</span>}
                                 {penggantiNama && <span className="badge badge-warning text-[10px]">Pengganti: {penggantiNama}</span>}
                               </div>
@@ -494,6 +511,14 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label><input type="text" value={form.kelas} onChange={e => setForm({ ...form, kelas: e.target.value })} className="input-field text-xs" placeholder="Kelas" /></div>
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Mata Pelajaran *</label><input type="text" value={form.pelajaran} onChange={e => setForm({ ...form, pelajaran: e.target.value })} className="input-field text-xs" placeholder="Pelajaran" /></div>
             </div>
+            {settings.genderEnabled && (
+              <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
+                <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value as GenderKelas })} className="input-field text-xs">
+                  <option value="">Pilih gender</option>
+                  {settings.genderOptions.map(g => <option key={g} value={g}>{g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}</option>)}
+                </select>
+              </div>
+            )}
             <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Ruangan</label><input type="text" value={form.ruangan} onChange={e => setForm({ ...form, ruangan: e.target.value })} className="input-field text-xs" /></div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Guru Pengganti</label>
@@ -509,6 +534,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
       )}
 
       <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} />
+      {dialog}
     </div>
   );
 }

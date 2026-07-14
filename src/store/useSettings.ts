@@ -10,6 +10,7 @@ export type TableSize = 'compact' | 'normal' | 'lebar';
 export type IconSize = 'kecil' | 'sedang' | 'besar';
 export type RefreshInterval = '1' | '5' | '10' | 'manual';
 export type AnimationSpeed = 'fast' | 'normal' | 'slow' | 'off';
+export type GenderMode = 'Banin' | 'Banat' | 'Campuran';
 
 export type DashboardWidgetId =
   | 'ringkasanData'
@@ -60,6 +61,14 @@ export interface AppSettings {
   a11ySeniorMode: boolean;
 
   animationSpeed: AnimationSpeed;
+
+  genderEnabled: boolean;
+  genderOptions: GenderMode[];
+  genderDashboardSplit: boolean;
+  genderReportSplit: boolean;
+  genderLabelBanin: string;
+  genderLabelBanat: string;
+  genderLabelCampuran: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -102,6 +111,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   a11ySeniorMode: false,
 
   animationSpeed: 'normal',
+
+  genderEnabled: false,
+  genderOptions: ['Banin', 'Banat'],
+  genderDashboardSplit: false,
+  genderReportSplit: false,
+  genderLabelBanin: 'Banin',
+  genderLabelBanat: 'Banat',
+  genderLabelCampuran: 'Campuran',
 };
 
 interface SettingsState {

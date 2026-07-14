@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SkeletonCard } from '../components/Skeleton';
+import { useSettings } from '../store/useSettings';
 import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab, CatatanGuru } from '../types';
 
 interface DashboardPageProps {
@@ -17,6 +18,7 @@ interface DashboardPageProps {
 }
 
 export default function DashboardPage({ profile, setActiveTab }: DashboardPageProps) {
+  const { settings } = useSettings();
   const [now, setNow] = useState(new Date());
   const [currentSlide, setCurrentSlide] = useState(0);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
@@ -121,6 +123,47 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
       return count ?? 0;
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Gender-separated counts
+  const { data: muridBaninCount = 0 } = useQuery<number>({
+    queryKey: ['dashboard-murid-banin-count'],
+    queryFn: async () => {
+      const { count } = await supabase.from('murid').select('*', { count: 'exact', head: true }).eq('status_aktif', true).eq('gender_kelas', 'Banin');
+      return count ?? 0;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: settings.genderEnabled && settings.genderDashboardSplit,
+  });
+
+  const { data: muridBanatCount = 0 } = useQuery<number>({
+    queryKey: ['dashboard-murid-banat-count'],
+    queryFn: async () => {
+      const { count } = await supabase.from('murid').select('*', { count: 'exact', head: true }).eq('status_aktif', true).eq('gender_kelas', 'Banat');
+      return count ?? 0;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: settings.genderEnabled && settings.genderDashboardSplit,
+  });
+
+  const { data: kelasBaninCount = 0 } = useQuery<number>({
+    queryKey: ['dashboard-kelas-banin-count'],
+    queryFn: async () => {
+      const { count } = await supabase.from('kelas').select('*', { count: 'exact', head: true }).eq('aktif', true).eq('gender', 'Banin');
+      return count ?? 0;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: settings.genderEnabled && settings.genderDashboardSplit,
+  });
+
+  const { data: kelasBanatCount = 0 } = useQuery<number>({
+    queryKey: ['dashboard-kelas-banat-count'],
+    queryFn: async () => {
+      const { count } = await supabase.from('kelas').select('*', { count: 'exact', head: true }).eq('aktif', true).eq('gender', 'Banat');
+      return count ?? 0;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: settings.genderEnabled && settings.genderDashboardSplit,
   });
 
   const { data: jurnalCount = 0 } = useQuery<number>({
@@ -432,6 +475,44 @@ export default function DashboardPage({ profile, setActiveTab }: DashboardPagePr
           </div>
         </div>
       </div>
+
+      {/* Gender-separated stats */}
+      {settings.genderEnabled && settings.genderDashboardSplit && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+          <div className="card p-4">
+            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              {settings.genderLabelBanin}
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-blue-50 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-blue-700">{kelasBaninCount}</p>
+                <p className="text-[10px] text-blue-600">Kelas</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-blue-700">{muridBaninCount}</p>
+                <p className="text-[10px] text-blue-600">Santri</p>
+              </div>
+            </div>
+          </div>
+          <div className="card p-4">
+            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              {settings.genderLabelBanat}
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-rose-50 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-rose-700">{kelasBanatCount}</p>
+                <p className="text-[10px] text-rose-600">Kelas</p>
+              </div>
+              <div className="bg-rose-50 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-rose-700">{muridBanatCount}</p>
+                <p className="text-[10px] text-rose-600">Santri</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       {setActiveTab && (

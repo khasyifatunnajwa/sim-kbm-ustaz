@@ -8,6 +8,7 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { useSettings } from '../store/useSettings';
 import { generatePDF, shareWA } from '../lib/pdf';
 import type { Murid, Penilaian, DetailNilai, Profile, ShowToast } from '../types';
 
@@ -25,6 +26,8 @@ const NAMA_PENILAIAN_OPTIONS = [
 
 export default function NilaiPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const { data: lembagaList = [] } = useLembaga();
+  const { settings } = useSettings();
+  const [filterGender, setFilterGender] = useState('');
   const [tab, setTab] = useState<Tab>('input');
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [mapelOptions, setMapelOptions] = useState<string[]>([]);
@@ -116,8 +119,8 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
   }, [kelasOptionsFiltered]);
 
   const muridFiltered = useMemo(
-    () => muridList.filter(m => m.kelas === selectedKelas),
-    [muridList, selectedKelas]
+    () => muridList.filter(m => m.kelas === selectedKelas && (!filterGender || m.gender_kelas === filterGender)),
+    [muridList, selectedKelas, filterGender]
   );
 
   useEffect(() => {
@@ -463,6 +466,17 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
               {modalKelasOptions.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
           </div>
+
+          {/* 2b. Gender Filter */}
+          {settings.genderEnabled && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Gender</label>
+              <select value={filterGender} onChange={e => setFilterGender(e.target.value)} className="input-field text-sm">
+                <option value="">Semua Gender</option>
+                {settings.genderOptions.map(g => <option key={g} value={g}>{g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}</option>)}
+              </select>
+            </div>
+          )}
 
           {/* 3. Mata Pelajaran */}
           <div className="grid grid-cols-2 gap-3">

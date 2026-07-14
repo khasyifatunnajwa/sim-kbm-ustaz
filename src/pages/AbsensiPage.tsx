@@ -8,8 +8,9 @@ import { getUstazScope } from '../lib/ustazData';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { useSettings } from '../store/useSettings';
 import { generatePDF, shareWA } from '../lib/pdf';
-import type { Murid, Absensi, Profile, ShowToast } from '../types';
+import type { Murid, Absensi, Profile, ShowToast, GenderKelas } from '../types';
 
 type Status = 'Hadir' | 'Izin' | 'Sakit' | 'Alpha';
 type Tab = 'input' | 'rekap';
@@ -59,6 +60,8 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const [rekapLoading, setRekapLoading] = useState(false);
 
   const { data: lembagaList = [] } = useLembaga();
+  const { settings } = useSettings();
+  const [filterGender, setFilterGender] = useState<string>('');
 
   const today = new Date().toISOString().split('T')[0];
   void today;
@@ -136,9 +139,10 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const muridFiltered = useMemo(
     () => muridList.filter(m =>
       m.kelas === selectedKelas &&
-      (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
+      (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
+      (!filterGender || m.gender_kelas === filterGender)
     ),
-    [muridList, selectedKelas, selectedLembagaId]
+    [muridList, selectedKelas, selectedLembagaId, filterGender]
   );
 
   useEffect(() => {
@@ -149,7 +153,8 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     setLoading(true);
     const muridKelas = muridList.filter(m =>
       m.kelas === kelas &&
-      (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
+      (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
+      (!filterGender || m.gender_kelas === filterGender)
     );
     const muridIds = muridKelas.map(m => m.id);
     const map: Record<string, Status> = {};
@@ -301,6 +306,15 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                   {kelasOptionsFiltered.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
               </div>
+              {settings.genderEnabled && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Gender</label>
+                  <select value={filterGender} onChange={e => setFilterGender(e.target.value)} className="input-field text-sm">
+                    <option value="">Semua Gender</option>
+                    {settings.genderOptions.map(g => <option key={g} value={g}>{g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pelajaran</label>
                 <select value={selectedMapel} onChange={e => setSelectedMapel(e.target.value)} className="input-field text-sm">

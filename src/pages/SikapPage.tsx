@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { useSettings } from '../store/useSettings';
 import type { Murid, Sikap, ShowToast, Profile } from '../types';
 import { getUstazScope } from '../lib/ustazData';
 
@@ -19,6 +20,8 @@ const SIKAP_FIELDS = [
 
 export default function SikapPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const { data: lembagaList = [] } = useLembaga();
+  const { settings } = useSettings();
+  const [filterGender, setFilterGender] = useState('');
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [sikapList, setSikapList] = useState<Sikap[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,8 +56,8 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
   }, [muridList, filterLembaga]);
 
   const muridFiltered = useMemo(
-    () => muridList.filter(m => !filterKelas || m.kelas === filterKelas),
-    [muridList, filterKelas]
+    () => muridList.filter(m => (!filterKelas || m.kelas === filterKelas) && (!filterGender || m.gender_kelas === filterGender)),
+    [muridList, filterKelas, filterGender]
   );
 
   const fetchData = async () => {
@@ -187,6 +190,16 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
               {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
           </div>
+
+          {settings.genderEnabled && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Gender</label>
+              <select value={filterGender} onChange={e => setFilterGender(e.target.value)} className="input-field text-sm">
+                <option value="">Semua Gender</option>
+                {settings.genderOptions.map(g => <option key={g} value={g}>{g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}</option>)}
+              </select>
+            </div>
+          )}
 
           <div className="card p-4">
             <label className="block text-xs font-semibold text-slate-600 mb-2">Pilih Santri</label>

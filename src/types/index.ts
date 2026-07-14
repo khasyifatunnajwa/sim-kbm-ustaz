@@ -13,6 +13,8 @@ export type StatusCatatan = 'Belum Selesai' | 'Selesai';
 export type PrioritasPengumuman = 'Normal' | 'Penting' | 'Sangat Penting';
 export type StatusWA = 'pending' | 'sent' | 'failed';
 export type StatusPresensi = 'Hadir' | 'Terlambat' | 'Belum Presensi';
+export type GenderKelas = 'Banin' | 'Banat' | 'Campuran';
+export type BolehMengajar = 'Banin' | 'Banat' | 'Keduanya';
 
 export interface Lembaga {
   id: string;
@@ -52,6 +54,8 @@ export interface Profile {
   alamat?: string;
   foto?: string;
   role: UserRole;
+  jenis_kelamin?: 'L' | 'P';
+  boleh_mengajar?: BolehMengajar;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -82,6 +86,7 @@ export interface Kelas {
   kode?: string;
   nama_kelas: string;
   tingkat?: string;
+  gender?: GenderKelas;
   warna?: string;
   keterangan?: string;
   created_at: string;
@@ -112,6 +117,7 @@ export interface Murid {
   nis?: string;
   nama: string;
   jenis_kelamin?: 'L' | 'P';
+  gender_kelas?: GenderKelas;
   tempat_lahir?: string;
   tanggal_lahir?: string;
   alamat?: string;
@@ -513,6 +519,7 @@ export interface JadwalMengajar {
   ruangan?: string;
   catatan?: string;
   lembaga_id?: string;
+  gender?: GenderKelas;
   is_libur?: boolean;
   guru_pengganti_id?: string;
   user_id: string;

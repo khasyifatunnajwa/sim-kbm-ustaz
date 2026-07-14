@@ -7,10 +7,12 @@ import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { useSettings } from '../store/useSettings';
 import { generateRaporPDF, shareWA } from '../lib/pdf';
 import type { Murid, Nilai, Absensi, CatatanPerilaku, CapaianHafalan, Sikap, ShowToast } from '../types';
 
 export default function RaporPage({ showToast }: { showToast: ShowToast }) {
+  const { settings } = useSettings();
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
   const [selectedLembagaId, setSelectedLembagaId] = useState('');
@@ -68,9 +70,10 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
   const muridFiltered = useMemo(
     () => muridList.filter(m =>
       (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
-      (!selectedKelas || m.kelas === selectedKelas)
+      (!selectedKelas || m.kelas === selectedKelas) &&
+      (!filterGender || m.gender_kelas === filterGender)
     ),
-    [muridList, selectedLembagaId, selectedKelas]
+    [muridList, selectedLembagaId, selectedKelas, filterGender]
   );
 
   const selectedMurid = muridList.find(m => m.id === selectedMuridId);
@@ -222,6 +225,15 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
             placeholder="Semua Lembaga"
           />
         </div>
+        {settings.genderEnabled && (
+          <div className="sm:w-40 flex-shrink-0">
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Gender</label>
+            <select value={filterGender} onChange={e => { setFilterGender(e.target.value); setSelectedMuridId(''); }} className="input-field text-sm">
+              <option value="">Semua Gender</option>
+              {settings.genderOptions.map(g => <option key={g} value={g}>{g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}</option>)}
+            </select>
+          </div>
+        )}
         {kelasFiltered.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-1 flex-1">
             {kelasFiltered.map(k => (
@@ -278,6 +290,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
                         <p className="font-bold text-lg truncate">{selectedMurid.nama}</p>
                         <p className="text-emerald-100 text-sm">
                           Kelas {selectedMurid.kelas || '-'}
+                          {selectedMurid.gender_kelas ? ` • ${selectedMurid.gender_kelas}` : ''}
                           {selectedMurid.domisili ? ` • ${selectedMurid.domisili}` : ''}
                         </p>
                       </div>

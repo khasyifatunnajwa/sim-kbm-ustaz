@@ -16,6 +16,9 @@ import type {
 } from '../../types';
 import DataSiswaPage from '../DataSiswaPage';
 import DataUstazPage from '../DataUstazPage';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useSettings } from '../../store/useSettings';
+import type { GenderKelas } from '../../types';
 
 const PAGE_SIZE = 10;
 
@@ -226,6 +229,7 @@ export default function DataMasterSection({ showToast, profile }: { showToast: S
 
 // ====== Kelola Lembaga ======
 function KelolaLembaga({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+  const { confirm, dialog } = useConfirm();
   const { data: lembagaList, isLoading, refetch } = useLembaga();
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -257,7 +261,7 @@ function KelolaLembaga({ showToast, profile }: { showToast: ShowToast; profile: 
   };
 
   const handleDelete = async (l: Lembaga) => {
-    if (!confirm(`Hapus lembaga "${l.nama_lembaga}"?`)) return;
+    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: l.nama_lembaga, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
     try {
       const { error } = await supabase.from('lembaga').delete().eq('id', l.id);
       if (error) throw error;
@@ -316,6 +320,7 @@ function KelolaLembaga({ showToast, profile }: { showToast: ShowToast; profile: 
           </div>
         </Modal>
       )}
+      {dialog}
     </div>
   );
 }
@@ -323,6 +328,8 @@ function KelolaLembaga({ showToast, profile }: { showToast: ShowToast; profile: 
 // ====== Kelola Data Murid (full CRUD + import/export) ======
 function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const { data: lembagaList = [] } = useLembaga();
+  const { confirm, dialog } = useConfirm();
+  const { settings } = useSettings();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -334,7 +341,7 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
   const [filterLembaga, setFilterLembaga] = useState('');
   const [page, setPage] = useState(1);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
-  const [form, setForm] = useState({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true });
+  const [form, setForm] = useState({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '' as 'L' | 'P' | '', gender_kelas: '' as GenderKelas | '' });
 
   const lembagaOptions = useMemo(() => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
@@ -363,15 +370,15 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
     return result;
   }, [list, search, filterKelas, filterLembaga]);
 
-  const resetForm = () => { setForm({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true }); setEditingId(null); };
+  const resetForm = () => { setForm({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '', gender_kelas: '' }); setEditingId(null); };
   const openAdd = () => { resetForm(); setShowModal(true); };
-  const openEdit = (m: any) => { setEditingId(m.id); setForm({ nama: m.nama || '', kelas: m.kelas || '', lembaga_id: m.lembaga_id || '', domisili: m.domisili || '', alamat: m.alamat || '', nomor_whatsapp: m.nomor_whatsapp || '', status_aktif: m.status_aktif !== false }); setShowModal(true); };
+  const openEdit = (m: any) => { setEditingId(m.id); setForm({ nama: m.nama || '', kelas: m.kelas || '', lembaga_id: m.lembaga_id || '', domisili: m.domisili || '', alamat: m.alamat || '', nomor_whatsapp: m.nomor_whatsapp || '', status_aktif: m.status_aktif !== false, jenis_kelamin: m.jenis_kelamin || '', gender_kelas: m.gender_kelas || '' }); setShowModal(true); };
 
   const handleSave = async () => {
     if (!form.nama || !form.kelas) { showToast('Nama dan kelas wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload = { nama: form.nama, kelas: form.kelas, lembaga_id: form.lembaga_id || null, domisili: form.domisili || null, alamat: form.alamat || null, nomor_whatsapp: form.nomor_whatsapp || null, status_aktif: form.status_aktif };
+      const payload = { nama: form.nama, kelas: form.kelas, lembaga_id: form.lembaga_id || null, domisili: form.domisili || null, alamat: form.alamat || null, nomor_whatsapp: form.nomor_whatsapp || null, status_aktif: form.status_aktif, jenis_kelamin: form.jenis_kelamin || null, gender_kelas: form.gender_kelas || null };
       if (editingId) {
         const { error } = await supabase.from('murid').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -386,7 +393,7 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
   };
 
   const handleDelete = async (m: any) => {
-    if (!confirm(`Hapus murid "${m.nama}"?`)) return;
+    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: m.nama, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
     try {
       await supabase.from('murid').delete().eq('id', m.id);
       showToast('Murid dihapus', 'success'); fetchList();
@@ -415,9 +422,9 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
   const handleImport = async (rows: string[][]) => {
     let count = 0;
     for (const row of rows) {
-      const [nama, kelas, domisili, alamat, nomor_whatsapp] = row;
+      const [nama, kelas, domisili, alamat, nomor_whatsapp, jenis_kelamin, gender_kelas] = row;
       if (!nama || !kelas) continue;
-      await supabase.from('murid').insert({ nama: nama.trim(), kelas: kelas.trim(), domisili: domisili?.trim() || null, alamat: alamat?.trim() || null, nomor_whatsapp: nomor_whatsapp?.trim() || null, status_aktif: true });
+      await supabase.from('murid').insert({ nama: nama.trim(), kelas: kelas.trim(), domisili: domisili?.trim() || null, alamat: alamat?.trim() || null, nomor_whatsapp: nomor_whatsapp?.trim() || null, status_aktif: true, jenis_kelamin: row[5]?.trim() || null, gender_kelas: row[6]?.trim() || null });
       count++;
     }
     showToast(`${count} murid berhasil diimpor`, 'success');
@@ -490,6 +497,23 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
                 <SearchableSelect value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaOptions} placeholder="Pilih lembaga" />
               </div>
             </div>
+            {settings.genderEnabled && (
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jenis Kelamin</label>
+                  <select value={form.jenis_kelamin} onChange={e => setForm({ ...form, jenis_kelamin: e.target.value as 'L' | 'P' })} className="input-field text-xs">
+                    <option value="">Pilih</option>
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </div>
+                <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender Kelas</label>
+                  <select value={form.gender_kelas} onChange={e => setForm({ ...form, gender_kelas: e.target.value as GenderKelas })} className="input-field text-xs">
+                    <option value="">Pilih</option>
+                    {settings.genderOptions.map(g => <option key={g} value={g}>{g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
             <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Domisili</label><input type="text" value={form.domisili} onChange={e => setForm({ ...form, domisili: e.target.value })} className="input-field text-xs" /></div>
             <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Alamat</label><textarea value={form.alamat} onChange={e => setForm({ ...form, alamat: e.target.value })} className="input-field text-xs" rows={2} /></div>
             <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">No. WhatsApp</label><input type="text" value={form.nomor_whatsapp} onChange={e => setForm({ ...form, nomor_whatsapp: e.target.value })} className="input-field text-xs" placeholder="08xx" /></div>
@@ -507,9 +531,10 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
         onClose={() => setShowImport(false)}
         onImport={handleImport}
         title="Data Murid"
-        columns={['Nama', 'Kelas', 'Domisili', 'Alamat', 'No HP']}
-        note="Kolom Nama dan Kelas wajib diisi. Domisili, Alamat, dan No HP boleh kosong."
+        columns={['Nama', 'Kelas', 'Domisili', 'Alamat', 'No HP', 'Jenis Kelamin', 'Gender Kelas']}
+        note="Kolom Nama dan Kelas wajib. Jenis Kelamin: L/P. Gender Kelas: Banin/Banat/Campuran."
       />
+      {dialog}
     </div>
   );
 }
@@ -517,6 +542,8 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
 // ====== CRUD Kelas ======
 function CrudKelas({ showToast }: { showToast: ShowToast }) {
   const { data: lembagaList = [] } = useLembaga();
+  const { confirm, dialog } = useConfirm();
+  const { settings } = useSettings();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -525,7 +552,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '' });
+  const [form, setForm] = useState({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' as GenderKelas | '' });
 
   useEffect(() => { fetchList(); }, []);
   const fetchList = async () => {
@@ -541,7 +568,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
     if (!form.nama_kelas) { showToast('Nama kelas wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload = { nama_kelas: form.nama_kelas, tingkat: Number(form.tingkat) || 1, kode: form.kode || null, is_active: true, lembaga_id: form.lembaga_id || null };
+      const payload = { nama_kelas: form.nama_kelas, tingkat: Number(form.tingkat) || 1, kode: form.kode || null, is_active: true, lembaga_id: form.lembaga_id || null, gender: form.gender || null };
       if (editingId) {
         const { error } = await supabase.from('kelas').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -551,12 +578,12 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
         if (error) throw error;
         showToast('Kelas ditambahkan', 'success');
       }
-      setShowModal(false); setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '' }); setEditingId(null); fetchList();
+      setShowModal(false); setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); fetchList();
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
   const handleDelete = async (item: any) => {
-    if (!confirm('Hapus kelas ini?')) return;
+    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama_kelas, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
     try { await supabase.from('kelas').delete().eq('id', item.id); showToast('Kelas dihapus', 'success'); fetchList(); } catch { showToast('Gagal menghapus', 'error'); }
   };
 
@@ -575,25 +602,37 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(i => i.nama_kelas?.toLowerCase().includes(q)); }, [list, search]);
 
   return (
+    <>
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
-      onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '' }); setEditingId(null); setShowModal(true); }}
+      onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); setShowModal(true); }}
       onImport={() => setShowImport(true)} importLabel="Import"
       loading={loading} list={filtered} page={page} setPage={setPage}
-      onEdit={(item) => { setEditingId(item.id); setForm({ nama_kelas: item.nama_kelas || '', tingkat: String(item.tingkat || '1'), kode: item.kode || '', lembaga_id: item.lembaga_id || '' }); setShowModal(true); }}
+      onEdit={(item) => { setEditingId(item.id); setForm({ nama_kelas: item.nama_kelas || '', tingkat: String(item.tingkat || '1'), kode: item.kode || '', lembaga_id: item.lembaga_id || '', gender: item.gender || '' }); setShowModal(true); }}
       onDelete={handleDelete} displayName={(item) => item.nama_kelas} subInfo={(item) => `Tingkat ${item.tingkat || '-'}`}
       showModal={showModal} onClose={() => setShowModal(false)} saving={saving} onSave={handleSave}
       modalTitle={editingId ? 'Edit Kelas' : 'Tambah Kelas'}>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Kelas *</label><input type="text" value={form.nama_kelas} onChange={e => setForm({ ...form, nama_kelas: e.target.value })} className="input-field text-xs" /></div>
       <SearchableSelect label="Lembaga" value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga }))} placeholder="Pilih lembaga" />
+      {settings.genderEnabled && (
+        <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
+          <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value as GenderKelas })} className="input-field text-xs">
+            <option value="">Pilih gender</option>
+            {settings.genderOptions.map(g => <option key={g} value={g}>{g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}</option>)}
+          </select>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tingkat</label><input type="number" value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="input-field text-xs" min={1} max={12} /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div></div>
-      <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Tingkat', 'Kode']} note="Kolom Nama Kelas wajib. Tingkat diisi angka (misal: 1, 2, 3)." />
+      <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Tingkat', 'Kode', 'Gender']} note="Kolom Nama Kelas wajib. Tingkat diisi angka. Gender: Banin/Banat/Campuran." />
     </CrudList>
+    {dialog}
+    </>
   );
 }
 
 // ====== CRUD Ruangan ======
 function CrudRuangan({ showToast }: { showToast: ShowToast }) {
   const { data: lembagaList = [] } = useLembaga();
+  const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -620,10 +659,11 @@ function CrudRuangan({ showToast }: { showToast: ShowToast }) {
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
-  const handleDelete = async (item: any) => { if (!confirm('Hapus ruangan ini?')) return; try { await supabase.from('ruangan').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
+  const handleDelete = async (item: any) => { if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama_ruangan, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return; try { await supabase.from('ruangan').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
   const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(i => i.nama_ruangan?.toLowerCase().includes(q)); }, [list, search]);
 
   return (
+    <>
     <CrudList title="Ruangan" icon={Building2} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_ruangan: '', kode: '', kapasitas: '', keterangan: '', lembaga_id: '' }); setEditingId(null); setShowModal(true); }}
       loading={loading} list={filtered} page={page} setPage={setPage}
@@ -636,11 +676,14 @@ function CrudRuangan({ showToast }: { showToast: ShowToast }) {
       <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kapasitas</label><input type="number" value={form.kapasitas} onChange={e => setForm({ ...form, kapasitas: e.target.value })} className="input-field text-xs" /></div></div>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Keterangan</label><input type="text" value={form.keterangan} onChange={e => setForm({ ...form, keterangan: e.target.value })} className="input-field text-xs" /></div>
     </CrudList>
+    {dialog}
+    </>
   );
 }
 
 // ====== CRUD Mapel ======
 function CrudMapel({ showToast }: { showToast: ShowToast }) {
+  const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -679,10 +722,11 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
     fetchList();
   };
 
-  const handleDelete = async (item: any) => { if (!confirm('Hapus mapel ini?')) return; try { await supabase.from('mata_pelajaran').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
+  const handleDelete = async (item: any) => { if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama_mapel, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return; try { await supabase.from('mata_pelajaran').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
   const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(i => i.nama_mapel?.toLowerCase().includes(q)); }, [list, search]);
 
   return (
+    <>
     <CrudList title="Mata Pelajaran" icon={BookOpen} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' }); setEditingId(null); setShowModal(true); }}
       onImport={() => setShowImport(true)} importLabel="Import"
@@ -700,11 +744,14 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
       </div>
       <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Mata Pelajaran" columns={['Nama Mapel', 'Kelompok', 'Kode']} note="Kelompok: Diniyah / Umum / Bahasa / Tahfidz / Lainnya. Kode boleh kosong." />
     </CrudList>
+    {dialog}
+    </>
   );
 }
 
 // ====== CRUD Tahun ======
 function CrudTahun({ showToast }: { showToast: ShowToast }) {
+  const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -728,10 +775,11 @@ function CrudTahun({ showToast }: { showToast: ShowToast }) {
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
-  const handleDelete = async (item: any) => { if (!confirm('Hapus tahun ini?')) return; try { await supabase.from('tahun_ajaran').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
+  const handleDelete = async (item: any) => { if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return; try { await supabase.from('tahun_ajaran').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
   const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(i => i.nama?.toLowerCase().includes(q)); }, [list, search]);
 
   return (
+    <>
     <CrudList title="Tahun Ajaran" icon={Calendar} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama: '', aktif: false }); setEditingId(null); setShowModal(true); }}
       loading={loading} list={filtered} page={page} setPage={setPage}
@@ -742,11 +790,14 @@ function CrudTahun({ showToast }: { showToast: ShowToast }) {
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Tahun Ajaran *</label><input type="text" value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} className="input-field text-xs" placeholder="Contoh: 2026/2027" /></div>
       <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.aktif} onChange={e => setForm({ ...form, aktif: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600" /><span className="text-xs text-slate-600 dark:text-slate-300">Set sebagai aktif</span></label>
     </CrudList>
+    {dialog}
+    </>
   );
 }
 
 // ====== CRUD Semester ======
 function CrudSemester({ showToast }: { showToast: ShowToast }) {
+  const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -770,10 +821,11 @@ function CrudSemester({ showToast }: { showToast: ShowToast }) {
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
-  const handleDelete = async (item: any) => { if (!confirm('Hapus semester ini?')) return; try { await supabase.from('semester').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
+  const handleDelete = async (item: any) => { if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return; try { await supabase.from('semester').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
   const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(i => i.nama?.toLowerCase().includes(q)); }, [list, search]);
 
   return (
+    <>
     <CrudList title="Semester" icon={BookOpen} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama: '', aktif: false }); setEditingId(null); setShowModal(true); }}
       loading={loading} list={filtered} page={page} setPage={setPage}
@@ -784,6 +836,8 @@ function CrudSemester({ showToast }: { showToast: ShowToast }) {
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Semester *</label><input type="text" value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} className="input-field text-xs" placeholder="Contoh: Ganjil / Genap" /></div>
       <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.aktif} onChange={e => setForm({ ...form, aktif: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600" /><span className="text-xs text-slate-600 dark:text-slate-300">Set sebagai aktif</span></label>
     </CrudList>
+    {dialog}
+    </>
   );
 }
 
@@ -874,6 +928,7 @@ function CrudHariBelajar({ showToast }: { showToast: ShowToast }) {
 
 // ====== Jam Pelajaran ======
 function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
+  const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -917,7 +972,7 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
   };
 
   const handleDelete = async (item: any) => {
-    if (!confirm('Hapus jam pelajaran ini?')) return;
+    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
     try { await supabase.from('jam_pelajaran').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); }
   };
 
@@ -997,6 +1052,7 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
           </div>
         </Modal>
       )}
+      {dialog}
     </div>
   );
 }

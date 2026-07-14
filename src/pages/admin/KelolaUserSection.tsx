@@ -6,13 +6,17 @@ import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmptyState from '../../components/EmptyState';
 import Pagination from '../../components/Pagination';
-import type { ShowToast, Profile, UserRole } from '../../types';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useSettings } from '../../store/useSettings';
+import type { ShowToast, Profile, UserRole, BolehMengajar } from '../../types';
 
 const PAGE_SIZE = 10;
 
 type UserTab = 'ustaz' | 'admin' | 'operator' | 'hak-akses';
 
 export default function KelolaUserSection({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+  const { confirm, dialog } = useConfirm();
+  const { settings } = useSettings();
   const [tab, setTab] = useState<UserTab>('ustaz');
   const [list, setList] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +30,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
   const [isResetting, setIsResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
 
-  const [form, setForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz' as UserRole, is_active: true });
+  const [form, setForm] = useState({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: 'ustaz' as UserRole, is_active: true, jenis_kelamin: '' as 'L' | 'P' | '', boleh_mengajar: '' as BolehMengajar | '' });
 
   const tabs = [
     { id: 'ustaz' as UserTab, label: 'Data Ustaz', icon: Users },
@@ -55,13 +59,13 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
     }
   };
 
-  const resetForm = () => { setForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: tab === 'admin' ? 'admin' : tab === 'operator' ? 'operator' : 'ustaz', is_active: true }); setEditingId(null); };
+  const resetForm = () => { setForm({ nama_lengkap: '', nama_panggilan: '', nomor_whatsapp: '', password: '', role: tab === 'admin' ? 'admin' : tab === 'operator' ? 'operator' : 'ustaz', is_active: true, jenis_kelamin: '', boleh_mengajar: '' }); setEditingId(null); };
 
   const openAdd = () => { resetForm(); setShowModal(true); };
 
   const openEdit = (u: Profile) => {
     setEditingId(u.id);
-    setForm({ nama_lengkap: u.nama_lengkap || '', nama_panggilan: u.nama_panggilan || '', nomor_whatsapp: u.nomor_whatsapp || '', password: '', role: u.role || 'ustaz', is_active: u.is_active ?? true });
+    setForm({ nama_lengkap: u.nama_lengkap || '', nama_panggilan: u.nama_panggilan || '', nomor_whatsapp: u.nomor_whatsapp || '', password: '', role: u.role || 'ustaz', is_active: u.is_active ?? true, jenis_kelamin: u.jenis_kelamin || '', boleh_mengajar: u.boleh_mengajar || '' });
     setShowModal(true);
   };
 
@@ -70,7 +74,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
     setSaving(true);
     try {
       if (editingId) {
-        const payload: any = { nama_lengkap: form.nama_lengkap, nama_panggilan: form.nama_panggilan, nomor_whatsapp: form.nomor_whatsapp, role: form.role, is_active: form.is_active };
+        const payload: any = { nama_lengkap: form.nama_lengkap, nama_panggilan: form.nama_panggilan, nomor_whatsapp: form.nomor_whatsapp, role: form.role, is_active: form.is_active, jenis_kelamin: form.jenis_kelamin || null, boleh_mengajar: form.boleh_mengajar || null };
         const { error } = await supabase.from('profiles').update(payload).eq('id', editingId);
         if (error) throw error;
         showToast('User diperbarui', 'success');
@@ -83,6 +87,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
           const { error: profileError } = await supabase.from('profiles').insert({
             id: authData.user.id, nama_lengkap: form.nama_lengkap, nama_panggilan: form.nama_panggilan,
             nomor_whatsapp: form.nomor_whatsapp, role: form.role, is_active: form.is_active, email,
+            jenis_kelamin: form.jenis_kelamin || null, boleh_mengajar: form.boleh_mengajar || null,
           });
           if (profileError) throw profileError;
         }
@@ -97,7 +102,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
   };
 
   const handleDelete = async (u: Profile) => {
-    if (!confirm(`Yakin ingin menghapus user "${u.nama_lengkap}"?`)) return;
+    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: u.nama_lengkap, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', u.id);
       if (error) throw error;
@@ -239,6 +244,25 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
               </div>
             </div>
             {!editingId && <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Password *</label><input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="input-field text-xs" placeholder="Min. 6 karakter" minLength={6} /></div>}
+            {settings.genderEnabled && form.role === 'ustaz' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jenis Kelamin</label>
+                  <select value={form.jenis_kelamin} onChange={e => setForm({ ...form, jenis_kelamin: e.target.value as 'L' | 'P' })} className="input-field text-xs">
+                    <option value="">Pilih</option>
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </div>
+                <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Boleh Mengajar</label>
+                  <select value={form.boleh_mengajar} onChange={e => setForm({ ...form, boleh_mengajar: e.target.value as BolehMengajar })} className="input-field text-xs">
+                    <option value="">Pilih</option>
+                    <option value="Banin">Banin</option>
+                    <option value="Banat">Banat</option>
+                    <option value="Keduanya">Keduanya</option>
+                  </select>
+                </div>
+              </div>
+            )}
             <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" /><span className="text-xs text-slate-600 dark:text-slate-300">Status Aktif</span></label>
             <div className="flex gap-2 pt-2">
               <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
@@ -260,6 +284,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
           </div>
         </Modal>
       )}
+      {dialog}
     </div>
   );
 }
