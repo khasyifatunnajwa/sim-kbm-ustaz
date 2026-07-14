@@ -80,7 +80,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
   const handleCloseModal = () => {
     const hashParts = window.location.hash.replace('#', '').split('/');
     if (hashParts[1] === 'form') {
-      window.history.back();
+      window.history.back(); // Memicu popstate untuk mundur secara native
     } else {
       setShowModal(false);
       setEditingId(null);
@@ -102,7 +102,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       }
       return (data || []) as Pengumuman[];
     },
-    staleTime: 60 * 1000,
+    staleTime: 60 * 1000, // Data dianggap fresh selama 1 menit
   });
 
   const filtered = useMemo(() => {
@@ -167,8 +167,8 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       tanggal_selesai: form.tanggal_selesai || null,
       status: form.status,
       lampiran: form.lampiran || null,
-      kategori: form.jenis,
-      tanggal: form.tanggal_mulai,
+      kategori: form.jenis, // duplikasi untuk jaga-jaga kompatibilitas skema lama
+      tanggal: form.tanggal_mulai, // duplikasi untuk jaga-jaga kompatibilitas skema lama
     };
 
     const { error } = editingId
@@ -183,6 +183,9 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     }
     
     showToast(editingId ? 'Pengumuman diperbarui!' : 'Pengumuman dibuat!', 'success');
+    
+    // Pastikan editingId dibersihkan sebelum modal tertutup
+    setEditingId(null);
     handleCloseModal();
     
     // Invalidasi cache agar data baru di-fetch dari server otomatis
@@ -194,7 +197,7 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     // 1. Simpan state lama
     const previousList = queryClient.getQueryData<Pengumuman[]>(['admin-pengumuman-list']);
     
-    // 2. Ubah UI secara instan (Optimistic Update)
+    // 2. Ubah UI secara instan
     if (previousList) {
       queryClient.setQueryData(['admin-pengumuman-list'], previousList.filter(p => String(p.id) !== id));
     }
