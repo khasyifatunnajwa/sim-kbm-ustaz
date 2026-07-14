@@ -1,22 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import {
   Shield, ArrowLeft, LayoutDashboard, Users, Building2, Calendar,
   BookOpen, CheckCircle, Award, GraduationCap, Megaphone, FileText,
   Settings as SettingsIcon, TrendingUp,
 } from 'lucide-react';
 import type { ShowToast, Profile, ActiveTab } from '../types';
-import AdminDashboard, { type AdminSectionId } from './admin/AdminDashboard';
-import KelolaUserSection from './admin/KelolaUserSection';
-import DataMasterSection from './admin/DataMasterSection';
-import JadwalSection from './admin/JadwalSection';
-import AkademikSection from './admin/AkademikSection';
-import PresensiSection from './admin/PresensiSection';
-import PenilaianSection from './admin/PenilaianSection';
-import DataMuridSection from './admin/DataMuridSection';
-import LaporanSection from './admin/LaporanSection';
-import PengaturanSistemSection from './admin/PengaturanSistemSection';
-import StatistikSection from './admin/StatistikSection';
-import AdminPengumuman from './AdminPengumumanPage';
+
+// Penting: Impor tipe (type) harus dipisah karena tipe tidak ikut di-compile
+import type { AdminSectionId } from './admin/AdminDashboard';
+
+// --- LAZY LOADING SEMUA KOMPONEN SECTION ---
+// Aplikasi HANYA akan memuat file ini jika tabnya diklik!
+const AdminDashboard = lazy(() => import('./admin/AdminDashboard'));
+const KelolaUserSection = lazy(() => import('./admin/KelolaUserSection'));
+const DataMasterSection = lazy(() => import('./admin/DataMasterSection'));
+const JadwalSection = lazy(() => import('./admin/JadwalSection'));
+const AkademikSection = lazy(() => import('./admin/AkademikSection'));
+const PresensiSection = lazy(() => import('./admin/PresensiSection'));
+const PenilaianSection = lazy(() => import('./admin/PenilaianSection'));
+const DataMuridSection = lazy(() => import('./admin/DataMuridSection'));
+const LaporanSection = lazy(() => import('./admin/LaporanSection'));
+const PengaturanSistemSection = lazy(() => import('./admin/PengaturanSistemSection'));
+const StatistikSection = lazy(() => import('./admin/StatistikSection'));
+const AdminPengumuman = lazy(() => import('./AdminPengumumanPage'));
 
 interface Props {
   showToast: ShowToast;
@@ -119,19 +125,28 @@ export default function AdminPage({ showToast, profile, initialSection }: Props)
         })}
       </div>
 
-      {/* Section Content */}
-      {section === 'dashboard' && <AdminDashboard onViewChange={handleSectionChange} profile={profile} />}
-      {section === 'kelola-user' && <KelolaUserSection showToast={showToast} profile={profile} />}
-      {section === 'data-master' && <DataMasterSection showToast={showToast} profile={profile} />}
-      {section === 'jadwal' && <JadwalSection showToast={showToast} profile={profile} />}
-      {section === 'akademik' && <AkademikSection showToast={showToast} />}
-      {section === 'presensi' && <PresensiSection showToast={showToast} />}
-      {section === 'penilaian' && <PenilaianSection showToast={showToast} />}
-      {section === 'data-murid' && <DataMuridSection showToast={showToast} profile={profile} />}
-      {section === 'pengumuman' && <AdminPengumuman showToast={showToast} />}
-      {section === 'laporan' && <LaporanSection showToast={showToast} />}
-      {section === 'pengaturan-sistem' && <PengaturanSistemSection showToast={showToast} profile={profile} />}
-      {section === 'statistik' && <StatistikSection showToast={showToast} />}
+      {/* --- SECTION CONTENT DIBUNGKUS SUSPENSE --- */}
+      <Suspense 
+        fallback={
+          <div className="flex flex-col items-center justify-center py-16 animate-fadeIn">
+            <div className="w-8 h-8 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mb-3"></div>
+            <p className="text-sm font-semibold text-slate-500">Memuat modul...</p>
+          </div>
+        }
+      >
+        {section === 'dashboard' && <AdminDashboard onViewChange={handleSectionChange} profile={profile} />}
+        {section === 'kelola-user' && <KelolaUserSection showToast={showToast} profile={profile} />}
+        {section === 'data-master' && <DataMasterSection showToast={showToast} profile={profile} />}
+        {section === 'jadwal' && <JadwalSection showToast={showToast} profile={profile} />}
+        {section === 'akademik' && <AkademikSection showToast={showToast} />}
+        {section === 'presensi' && <PresensiSection showToast={showToast} />}
+        {section === 'penilaian' && <PenilaianSection showToast={showToast} />}
+        {section === 'data-murid' && <DataMuridSection showToast={showToast} profile={profile} />}
+        {section === 'pengumuman' && <AdminPengumuman showToast={showToast} />}
+        {section === 'laporan' && <LaporanSection showToast={showToast} />}
+        {section === 'pengaturan-sistem' && <PengaturanSistemSection showToast={showToast} profile={profile} />}
+        {section === 'statistik' && <StatistikSection showToast={showToast} />}
+      </Suspense>
     </div>
   );
 }
