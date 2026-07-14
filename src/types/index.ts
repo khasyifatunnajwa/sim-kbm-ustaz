@@ -6,7 +6,7 @@ export type UserRole = 'admin' | 'operator' | 'ustaz';
 export type MuridStatus = 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar' | 'Cuti';
 export type KelompokMapel = 'Diniyah' | 'Umum' | 'Bahasa' | 'Tahfidz' | 'Lainnya';
 export type Hari = 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu' | 'Ahad';
-export type StatusAbsensi = 'Hadir' | 'Izin' | 'Sakit' | 'Alfa';
+export type StatusAbsensi = 'Hadir' | 'Izin' | 'Sakit' | 'Alfa' | 'Belum Hadir' | 'Telat';
 export type JenisPenilaian = 'Ulangan' | 'Ujian Tulis' | 'Ujian Lisan' | 'Tugas' | 'Hafalan' | 'Praktik' | 'Lainnya';
 export type KategoriCatatan = 'Umum' | 'Acara' | 'Undangan' | 'Agenda';
 export type StatusCatatan = 'Belum Selesai' | 'Selesai';
@@ -187,12 +187,47 @@ export interface Absensi {
   status?: StatusAbsensi;
   keterangan?: string;
   lembaga_id?: string;
+  jam_datang?: string;
+  telat_menit?: number;
+  diubah_oleh?: string;
+  alasan_ubah?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
   is_active: boolean;
   jadwal?: Jadwal;
   murid?: Murid;
+}
+
+export interface AuditTrailAbsensi {
+  id: string;
+  absensi_id?: string;
+  murid_id?: string;
+  jadwal_id?: string;
+  tanggal: string;
+  status_lama?: string;
+  status_baru: string;
+  jam_datang?: string;
+  telat_menit?: number;
+  diubah_oleh?: string;
+  diubah_oleh_nama?: string;
+  alasan?: string;
+  tipe_perubahan?: 'guru' | 'admin' | 'sistem';
+  created_at: string;
+}
+
+export interface JamPelajaran {
+  id: string;
+  nama?: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  urutan?: number;
+  batas_terlambat?: number;
+  batas_edit_absensi?: number;
+  batas_terlambat_presensi?: number;
+  batas_edit_presensi?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============ PENILAIAN MODULE ============
@@ -378,6 +413,8 @@ export interface PresensiGuru {
   lembaga_id?: string;
   foto_url?: string;
   telat_menit?: number;
+  status_presensi?: string;
+  alasan?: string;
   created_at: string;
   updated_at: string;
 }

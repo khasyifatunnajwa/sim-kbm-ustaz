@@ -4,6 +4,8 @@ import {
   Megaphone, CalendarDays, Building2, FileText, Shield,
   ChevronRight, LayoutDashboard, CheckCircle,
   School, Layers, Award, ArrowRight,
+  Clock, XCircle, Heart, Activity,
+  BookUser, TrendingUp,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Profile, DashboardPresensiUstaz, PresensiMuridByKelas, KelasKosong } from '../../types';
@@ -11,7 +13,7 @@ import type { Profile, DashboardPresensiUstaz, PresensiMuridByKelas, KelasKosong
 export type AdminSectionId =
   | 'dashboard' | 'kelola-user' | 'data-master' | 'jadwal' | 'akademik'
   | 'presensi' | 'penilaian' | 'data-murid' | 'pengumuman' | 'laporan'
-  | 'pengaturan-sistem' | 'statistik';
+  | 'rapor-ustaz' | 'rapor-murid' | 'pengaturan-sistem' | 'statistik';
 
 interface Props {
   onViewChange: (section: AdminSectionId) => void;
@@ -189,6 +191,9 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
     { label: 'Presensi', icon: CheckCircle, color: 'emerald', section: 'presensi' as AdminSectionId },
     { label: 'Nilai', icon: Award, color: 'violet', section: 'penilaian' as AdminSectionId },
     { label: 'Laporan', icon: FileText, color: 'rose', section: 'laporan' as AdminSectionId },
+    { label: 'Rapor Ustaz', icon: BookUser, color: 'emerald', section: 'rapor-ustaz' as AdminSectionId },
+    { label: 'Rapor Murid', icon: GraduationCap, color: 'sky', section: 'rapor-murid' as AdminSectionId },
+    { label: 'Statistik', icon: TrendingUp, color: 'violet', section: 'statistik' as AdminSectionId },
     { label: 'Pengaturan', icon: Shield, color: 'slate', section: 'pengaturan-sistem' as AdminSectionId },
     { label: 'Pengumuman', icon: Megaphone, color: 'amber', section: 'pengumuman' as AdminSectionId },
   ];
@@ -347,6 +352,107 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
               })}
             </div>
           </div>
+
+          {/* Presensi Ustaz Detail Breakdown */}
+          {presensiUstaz && (presensiUstaz.hadir > 0 || presensiUstaz.terlambat > 0 || monitoring.ustazBelumPresensi > 0 || monitoring.ustazIzin > 0 || monitoring.ustazSakit > 0 || monitoring.ustazAlfa > 0) && (
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Presensi Ustaz Hari Ini</span>
+                </div>
+                <button onClick={() => onViewChange('presensi')} className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all">
+                  Detail <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                {[
+                  { label: 'Hadir', val: presensiUstaz.hadir || 0, color: 'emerald', icon: CheckCircle },
+                  { label: 'Terlambat', val: presensiUstaz.terlambat || 0, color: 'amber', icon: Clock },
+                  { label: 'Belum Presensi', val: monitoring.ustazBelumPresensi, color: 'slate', icon: AlertTriangle },
+                  { label: 'Izin', val: monitoring.ustazIzin, color: 'sky', icon: FileText },
+                  { label: 'Sakit', val: monitoring.ustazSakit, color: 'violet', icon: Heart },
+                  { label: 'Alfa', val: monitoring.ustazAlfa, color: 'rose', icon: XCircle },
+                ].map((s, i) => {
+                  const Icon = s.icon;
+                  const c = colorMap[s.color] || colorMap.slate;
+                  return (
+                    <button key={i} onClick={() => onViewChange('presensi')} className={`rounded-xl p-2.5 text-center transition-all hover:shadow-sm ${c.bg}`}>
+                      <Icon className={`w-3.5 h-3.5 mx-auto mb-1 ${c.text}`} />
+                      <p className={`text-lg font-bold ${c.text}`}>{s.val}</p>
+                      <p className="text-[9px] font-semibold text-slate-600 dark:text-slate-300">{s.label}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Presensi Murid Detail Breakdown */}
+          {presensiMurid.length > 0 && (
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-sky-600" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Presensi Murid Hari Ini</span>
+                </div>
+                <button onClick={() => onViewChange('presensi')} className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold flex items-center gap-0.5 hover:gap-1 transition-all">
+                  Detail <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+              {(() => {
+                const totals = presensiMurid.reduce((acc, k) => ({
+                  total: acc.total + (k.total_murid || 0),
+                  hadir: acc.hadir + (k.hadir || 0),
+                  telat: acc.telat + ((k as any).telat || 0),
+                  izin: acc.izin + (k.izin || 0),
+                  sakit: acc.sakit + (k.sakit || 0),
+                  alfa: acc.alfa + (k.alfa || 0),
+                  belum: acc.belum + ((k as any).belum_hadir || 0),
+                }), { total: 0, hadir: 0, telat: 0, izin: 0, sakit: 0, alfa: 0, belum: 0 });
+                return (
+                  <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
+                    {[
+                      { label: 'Total', val: totals.total, color: 'slate', icon: Users },
+                      { label: 'Hadir', val: totals.hadir, color: 'emerald', icon: CheckCircle },
+                      { label: 'Telat', val: totals.telat, color: 'amber', icon: Clock },
+                      { label: 'Belum', val: totals.belum, color: 'slate', icon: AlertTriangle },
+                      { label: 'Izin', val: totals.izin, color: 'sky', icon: FileText },
+                      { label: 'Sakit', val: totals.sakit, color: 'violet', icon: Heart },
+                      { label: 'Alfa', val: totals.alfa, color: 'rose', icon: XCircle },
+                    ].map((s, i) => {
+                      const Icon = s.icon;
+                      const c = colorMap[s.color] || colorMap.slate;
+                      return (
+                        <button key={i} onClick={() => onViewChange('presensi')} className={`rounded-xl p-2.5 text-center transition-all hover:shadow-sm ${c.bg}`}>
+                          <Icon className={`w-3.5 h-3.5 mx-auto mb-1 ${c.text}`} />
+                          <p className={`text-lg font-bold ${c.text}`}>{s.val}</p>
+                          <p className="text-[9px] font-semibold text-slate-600 dark:text-slate-300">{s.label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+              {/* Per-class breakdown */}
+              <div className="mt-3 space-y-1.5">
+                {presensiMurid.slice(0, 5).map((k, i) => (
+                  <button key={i} onClick={() => onViewChange('presensi')} className="w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex-1 text-left truncate">{k.nama_kelas}</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">{k.hadir || 0}</span>
+                    <span className="text-[10px] text-slate-400">/</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{k.total_murid || 0}</span>
+                    <Activity className="w-3 h-3 text-slate-400" />
+                  </button>
+                ))}
+                {presensiMurid.length > 5 && (
+                  <button onClick={() => onViewChange('presensi')} className="text-[10px] text-sky-600 dark:text-sky-400 font-medium hover:underline">
+                    +{presensiMurid.length - 5} kelas lainnya
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Kelas Kosong Alert */}
           {kelasKosong.length > 0 && (

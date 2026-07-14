@@ -2,7 +2,7 @@ import { useState, useEffect, Suspense, lazy } from 'react';
 import {
   Shield, ArrowLeft, LayoutDashboard, Users, Building2, Calendar,
   BookOpen, CheckCircle, Award, GraduationCap, Megaphone, FileText,
-  Settings as SettingsIcon, TrendingUp,
+  Settings as SettingsIcon, TrendingUp, BookUser,
 } from 'lucide-react';
 import type { ShowToast, Profile, ActiveTab } from '../types';
 
@@ -23,6 +23,8 @@ const LaporanSection = lazy(() => import('./admin/LaporanSection'));
 const PengaturanSistemSection = lazy(() => import('./admin/PengaturanSistemSection'));
 const StatistikSection = lazy(() => import('./admin/StatistikSection'));
 const AdminPengumuman = lazy(() => import('./AdminPengumumanPage'));
+const RaporUstazPage = lazy(() => import('./RaporUstazPage'));
+const RaporPage = lazy(() => import('./RaporPage'));
 
 interface Props {
   showToast: ShowToast;
@@ -43,6 +45,8 @@ const SECTION_MAP: Record<string, AdminSectionId> = {
   'data-murid': 'data-murid',
   'pengumuman': 'pengumuman',
   'laporan': 'laporan',
+  'rapor-ustaz': 'rapor-ustaz',
+  'rapor-murid': 'rapor-murid',
   'pengaturan-sistem': 'pengaturan-sistem',
   'statistik': 'statistik',
 };
@@ -58,6 +62,8 @@ const NAV_ITEMS: { id: AdminSectionId; icon: React.ElementType; label: string; c
   { id: 'data-murid', icon: GraduationCap, label: 'Data Murid', color: 'sky' },
   { id: 'pengumuman', icon: Megaphone, label: 'Pengumuman', color: 'rose' },
   { id: 'laporan', icon: FileText, label: 'Laporan', color: 'rose' },
+  { id: 'rapor-ustaz', icon: BookUser, label: 'Rapor Ustaz', color: 'emerald' },
+  { id: 'rapor-murid', icon: GraduationCap, label: 'Rapor Murid', color: 'sky' },
   { id: 'pengaturan-sistem', icon: SettingsIcon, label: 'Pengaturan Sistem', color: 'slate' },
   { id: 'statistik', icon: TrendingUp, label: 'Statistik', color: 'emerald' },
 ];
@@ -144,6 +150,8 @@ export default function AdminPage({ showToast, profile, initialSection }: Props)
         {section === 'data-murid' && <DataMuridSection showToast={showToast} profile={profile} />}
         {section === 'pengumuman' && <AdminPengumuman showToast={showToast} />}
         {section === 'laporan' && <LaporanSection showToast={showToast} />}
+        {section === 'rapor-ustaz' && <RaporUstazPage showToast={showToast} />}
+        {section === 'rapor-murid' && <RaporPage showToast={showToast} profile={profile} />}
         {section === 'pengaturan-sistem' && <PengaturanSistemSection showToast={showToast} profile={profile} />}
         {section === 'statistik' && <StatistikSection showToast={showToast} />}
       </Suspense>

@@ -112,10 +112,15 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
 
   // Compute absensi summary
   const absenSummary = useMemo(() => {
-    const sum = { hadir: 0, izin: 0, sakit: 0, alpha: 0, total: 0 };
+    const sum = { hadir: 0, telat: 0, izin: 0, sakit: 0, alpha: 0, belumHadir: 0, total: 0 };
     absensiList.forEach(a => {
-      const st = (a.status || 'Hadir') as keyof typeof sum;
-      if (st in sum) sum[st]++;
+      const st = a.status || 'Hadir';
+      if (st === 'Hadir') sum.hadir++;
+      else if (st === 'Telat') sum.telat++;
+      else if (st === 'Izin') sum.izin++;
+      else if (st === 'Sakit') sum.sakit++;
+      else if (st === 'Alfa') sum.alpha++;
+      else if (st === 'Belum Hadir') sum.belumHadir++;
       sum.total++;
     });
     return sum;
@@ -183,7 +188,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
     text += `Kelas: ${m.kelas || '-'}\n`;
     if (m.domisili) text += `Domisili: ${m.domisili}\n`;
     text += `\n*Rekap Kehadiran:*\n`;
-    text += `Hadir: ${absenSummary.hadir} | Izin: ${absenSummary.izin} | Sakit: ${absenSummary.sakit} | Alpha: ${absenSummary.alpha}\n`;
+    text += `Hadir: ${absenSummary.hadir} | Telat: ${absenSummary.telat} | Izin: ${absenSummary.izin} | Sakit: ${absenSummary.sakit} | Alpha: ${absenSummary.alpha} | Belum: ${absenSummary.belumHadir}\n`;
     text += `Total: ${absenSummary.total}\n`;
     if (nilaiList.length > 0) {
       text += `\n*Nilai Akademik (Rata-rata: ${nilaiAvg.toFixed(1)} - ${getPredikat(nilaiAvg)}):*\n`;
@@ -388,12 +393,14 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
                     <p className="text-xs text-slate-400 text-center py-4">Belum ada data absensi</p>
                   ) : (
                     <>
-                      <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
                         {[
                           { label: 'Hadir', val: absenSummary.hadir, color: 'bg-emerald-50 text-emerald-700' },
+                          { label: 'Telat', val: absenSummary.telat, color: 'bg-orange-50 text-orange-700' },
                           { label: 'Izin', val: absenSummary.izin, color: 'bg-amber-50 text-amber-700' },
                           { label: 'Sakit', val: absenSummary.sakit, color: 'bg-sky-50 text-sky-700' },
                           { label: 'Alpha', val: absenSummary.alpha, color: 'bg-rose-50 text-rose-700' },
+                          { label: 'Belum', val: absenSummary.belumHadir, color: 'bg-slate-50 text-slate-600' },
                         ].map(s => (
                           <div key={s.label} className={`rounded-xl p-2.5 text-center ${s.color}`}>
                             <p className="text-lg font-bold">{s.val}</p>
@@ -404,9 +411,11 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
                       <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-100">
                         {absenSummary.total > 0 && [
                           { key: 'hadir', val: absenSummary.hadir, color: 'bg-emerald-500' },
+                          { key: 'telat', val: absenSummary.telat, color: 'bg-orange-500' },
                           { key: 'izin', val: absenSummary.izin, color: 'bg-amber-500' },
                           { key: 'sakit', val: absenSummary.sakit, color: 'bg-sky-500' },
                           { key: 'alpha', val: absenSummary.alpha, color: 'bg-rose-500' },
+                          { key: 'belum', val: absenSummary.belumHadir, color: 'bg-slate-400' },
                         ].map(s => s.val > 0 ? (
                           <div key={s.key} className={s.color} style={{ width: `${(s.val / absenSummary.total) * 100}%` }} />
                         ) : null)}

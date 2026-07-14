@@ -3,10 +3,11 @@ import {
   Building2, Shield, Calendar, Clock, Upload, Download, Smartphone,
   Database, Save, CheckCircle, X, AlertTriangle, AlertCircle, Wifi,
   WifiOff, Bell, BellOff, RefreshCw, Image as ImageIcon, Loader2, Plus, Trash2,
+  Info, Pencil, Check,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
-import type { ShowToast, Profile } from '../../types';
+import type { ShowToast, Profile, JamPelajaran } from '../../types';
 
 interface SistemSettings {
   nama_lembaga: string;
@@ -449,31 +450,35 @@ export default function PengaturanSistemSection({ showToast, profile }: { showTo
             <Clock className="w-5 h-5 text-violet-600" />
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Waktu Kehadiran</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Masuk</label>
-              <input type="time" value={settings.jam_masuk} onChange={e => setSettings(s => ({ ...s, jam_masuk: e.target.value }))} className="input-field text-sm" />
-              <p className="text-[10px] text-slate-400 mt-1">Jam mulai kehadiran ustaz</p>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Pulang</label>
-              <input type="time" value={settings.jam_pulang} onChange={e => setSettings(s => ({ ...s, jam_pulang: e.target.value }))} className="input-field text-sm" />
-              <p className="text-[10px] text-slate-400 mt-1">Jam selesai kegiatan belajar</p>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Batas Terlambat</label>
-              <input type="time" value={settings.batas_terlambat} onChange={e => setSettings(s => ({ ...s, batas_terlambat: e.target.value }))} className="input-field text-sm" />
-              <p className="text-[10px] text-slate-400 mt-1">Presensi setelah waktu ini = Terlambat</p>
-            </div>
-          </div>
-          <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-3">
+          <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-3 flex items-start gap-2">
+            <Info className="w-4 h-4 text-violet-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-violet-700 dark:text-violet-300">
-              Contoh: Masuk 07:00, Batas Terlambat 07:15 → Presensi di atas 07:15 dihitung terlambat.
+              Pengaturan waktu kehadiran ustaz & murid mengikuti Data Master Jam Pelajaran. Setiap jam memiliki batas terlambat dan batas edit yang dapat diatur per jam.
             </p>
           </div>
-          <button onClick={handleSaveWaktu} className="btn-primary w-full py-2.5 text-sm flex items-center justify-center gap-2">
-            <Save className="w-4 h-4" /> Simpan Pengaturan Waktu
-          </button>
+          <WaktuKehadiranEditor showToast={showToast} />
+          <div className="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Masuk Default</label>
+                <input type="time" value={settings.jam_masuk} onChange={e => setSettings(s => ({ ...s, jam_masuk: e.target.value }))} className="input-field text-sm" />
+                <p className="text-[10px] text-slate-400 mt-1">Jam mulai kegiatan</p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Pulang Default</label>
+                <input type="time" value={settings.jam_pulang} onChange={e => setSettings(s => ({ ...s, jam_pulang: e.target.value }))} className="input-field text-sm" />
+                <p className="text-[10px] text-slate-400 mt-1">Jam selesai kegiatan</p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Batas Terlambat Default</label>
+                <input type="time" value={settings.batas_terlambat} onChange={e => setSettings(s => ({ ...s, batas_terlambat: e.target.value }))} className="input-field text-sm" />
+                <p className="text-[10px] text-slate-400 mt-1">Presensi setelah ini = Terlambat</p>
+              </div>
+            </div>
+            <button onClick={handleSaveWaktu} className="btn-primary w-full py-2.5 text-sm flex items-center justify-center gap-2">
+              <Save className="w-4 h-4" /> Simpan Pengaturan Default
+            </button>
+          </div>
         </div>
       )}
 
@@ -665,6 +670,164 @@ export default function PengaturanSistemSection({ showToast, profile }: { showTo
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+// ===== WAKTU KEHADIRAN EDITOR (Jam Pelajaran) =====
+function WaktuKehadiranEditor({ showToast }: { showToast: ShowToast }) {
+  const [jamList, setJamList] = useState<JamPelajaran[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<JamPelajaran>>({});
+
+  useEffect(() => { fetchJam(); }, []);
+
+  const fetchJam = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('jam_pelajaran').select('*').order('jam_mulai');
+    if (error) { showToast(error.message, 'error'); }
+    else if (data) setJamList(data as JamPelajaran[]);
+    setLoading(false);
+  };
+
+  const startEdit = (jam: JamPelajaran) => {
+    setEditing(jam.id);
+    setEditForm({
+      jam_mulai: jam.jam_mulai,
+      jam_selesai: jam.jam_selesai,
+      batas_terlambat: jam.batas_terlambat ?? 15,
+      batas_edit_absensi: jam.batas_edit_absensi ?? 40,
+      batas_terlambat_presensi: jam.batas_terlambat_presensi ?? 15,
+      batas_edit_presensi: jam.batas_edit_presensi ?? 40,
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const { error } = await supabase.from('jam_pelajaran').update({
+      batas_terlambat: editForm.batas_terlambat,
+      batas_edit_absensi: editForm.batas_edit_absensi,
+      batas_terlambat_presensi: editForm.batas_terlambat_presensi,
+      batas_edit_presensi: editForm.batas_edit_presensi,
+    }).eq('id', editing);
+    if (error) { showToast(error.message, 'error'); return; }
+    showToast('Pengaturan waktu berhasil disimpan', 'success');
+    setEditing(null);
+    fetchJam();
+  };
+
+  const addNewJam = async () => {
+    const lastJam = jamList[jamList.length - 1];
+    const newMulai = lastJam?.jam_selesai || '13:00';
+    const [h, m] = newMulai.split(':').map(Number);
+    const newSelesai = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const { data, error } = await supabase.from('jam_pelajaran').insert({
+      jam_mulai: newMulai,
+      jam_selesai: newSelesai,
+      batas_terlambat: 15,
+      batas_edit_absensi: 40,
+      batas_terlambat_presensi: 15,
+      batas_edit_presensi: 40,
+    }).select().single();
+    if (error) { showToast(error.message, 'error'); return; }
+    showToast('Jam pelajaran baru ditambahkan', 'success');
+    fetchJam();
+  };
+
+  const deleteJam = async (id: string) => {
+    const { error } = await supabase.from('jam_pelajaran').delete().eq('id', id);
+    if (error) { showToast(error.message, 'error'); return; }
+    showToast('Jam pelajaran dihapus', 'success');
+    fetchJam();
+  };
+
+  if (loading) return <div className="flex items-center gap-2 py-4"><Loader2 className="w-4 h-4 text-slate-400 animate-spin" /><p className="text-xs text-slate-400">Memuat jam pelajaran...</p></div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Jam Pelajaran & Batas Kehadiran</p>
+        <button onClick={addNewJam} className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
+          <Plus className="w-3.5 h-3.5" /> Tambah Jam
+        </button>
+      </div>
+
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {jamList.map(jam => {
+          const isEditing = editing === jam.id;
+          return (
+            <div key={jam.id} className={`rounded-xl p-3 border ${isEditing ? 'border-emerald-300 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    {jam.jam_mulai?.slice(0, 5)} - {jam.jam_selesai?.slice(0, 5)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!isEditing ? (
+                    <button onClick={() => startEdit(jam)} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={saveEdit} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/30">
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => setEditing(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
+                  <button onClick={() => deleteJam(jam.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+              {isEditing ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div>
+                    <label className="text-[9px] font-semibold text-slate-500">Batas Terlambat (menit)</label>
+                    <input type="number" value={editForm.batas_terlambat ?? 15} onChange={e => setEditForm(f => ({ ...f, batas_terlambat: Number(e.target.value) }))} className="input-field text-xs py-1.5" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-semibold text-slate-500">Batas Edit Absensi (menit)</label>
+                    <input type="number" value={editForm.batas_edit_absensi ?? 40} onChange={e => setEditForm(f => ({ ...f, batas_edit_absensi: Number(e.target.value) }))} className="input-field text-xs py-1.5" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-semibold text-slate-500">Batas Terlambat Presensi</label>
+                    <input type="number" value={editForm.batas_terlambat_presensi ?? 15} onChange={e => setEditForm(f => ({ ...f, batas_terlambat_presensi: Number(e.target.value) }))} className="input-field text-xs py-1.5" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-semibold text-slate-500">Batas Edit Presensi</label>
+                    <input type="number" value={editForm.batas_edit_presensi ?? 40} onChange={e => setEditForm(f => ({ ...f, batas_edit_presensi: Number(e.target.value) }))} className="input-field text-xs py-1.5" />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+                  <div className="bg-white dark:bg-slate-800 rounded-lg px-2 py-1.5">
+                    <p className="text-slate-400">Terlambat</p>
+                    <p className="font-bold text-slate-700 dark:text-slate-200">{jam.batas_terlambat ?? 15} menit</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 rounded-lg px-2 py-1.5">
+                    <p className="text-slate-400">Edit Absensi</p>
+                    <p className="font-bold text-slate-700 dark:text-slate-200">{jam.batas_edit_absensi ?? 40} menit</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 rounded-lg px-2 py-1.5">
+                    <p className="text-slate-400">Terlambat Presensi</p>
+                    <p className="font-bold text-slate-700 dark:text-slate-200">{jam.batas_terlambat_presensi ?? 15} menit</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 rounded-lg px-2 py-1.5">
+                    <p className="text-slate-400">Edit Presensi</p>
+                    <p className="font-bold text-slate-700 dark:text-slate-200">{jam.batas_edit_presensi ?? 40} menit</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
