@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle
+  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
@@ -39,6 +39,10 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState<string>('all');
+
+  // State Baru untuk kontrol Dropdown Modern Kelas
+  const [kelasSearchInput, setKelasSearchInput] = useState('');
+  const [isKelasDropdownOpen, setIsKelasDropdownOpen] = useState(false);
 
   const [form, setForm] = useState({
     nama: '',
@@ -140,6 +144,18 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     return kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort();
   }, [kelasList, muridList, form.lembaga_id]);
 
+  // Memfilter pilihan kelas di form input berdasarkan ketikan user
+  const filteredFormKelasOptions = useMemo(() => {
+    return formKelasOptions.filter(kelas => 
+      kelas.toLowerCase().includes(kelasSearchInput.toLowerCase())
+    );
+  }, [formKelasOptions, kelasSearchInput]);
+
+  // Cek apakah ada kecocokan teks yang persis sama antara input ketikan dengan kelas yang sudah ada
+  const hasExactKelasMatch = useMemo(() => {
+    return formKelasOptions.some(kelas => kelas.toLowerCase() === kelasSearchInput.toLowerCase().trim());
+  }, [formKelasOptions, kelasSearchInput]);
+
   const filteredMuridList = useMemo(() => {
     return muridList.filter(m => {
       const matchesSearch = 
@@ -152,6 +168,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
   const resetForm = () => {
     setEditingId(null);
+    setKelasSearchInput('');
+    setIsKelasDropdownOpen(false);
     setForm({
       nama: '',
       kelas: '',
@@ -165,6 +183,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
   const openEdit = (murid: any) => {
     setEditingId(murid.id);
+    setKelasSearchInput(murid.kelas || '');
     setForm({
       nama: murid.nama || '',
       kelas: murid.kelas || '',
@@ -195,6 +214,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         nomor_whatsapp: form.nomor_whatsapp,
         status_aktif: form.status_aktif,
         lembaga_id: form.lembaga_id || null,
+        ustaz_id: profile?.id, // PRIVASI: Mengikat data kelas/santri ke ID ustaz pembuat
       };
 
       if (editingId) {
@@ -390,7 +410,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         onClose={handleCloseFormModal}
         title={editingId ? 'Ubah Data Santri' : 'Tambah Santri Baru'}
       >
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Lengkap *</label>
             <input
@@ -404,28 +424,84 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Lembaga</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Lembaga (Modern Search)</label>
             <SearchableSelect
               value={form.lembaga_id}
               onChange={v => setForm(p => ({ ...p, lembaga_id: v }))}
               options={lembagaOptions}
-              placeholder="Pilih Lembaga"
+              placeholder="Ketik nama lembaga..."
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            {/* INPUT KELAS BERMODEL COMBOBOX MODERN */}
+            <div className="relative">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <select
-                required
-                value={form.kelas}
-                onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))}
-                className="w-full p-2 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                <option value="">Pilih Kelas</option>
-                {formKelasOptions.map(kelas => <option key={kelas} value={kelas}>{kelas}</option>)}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="Ketik & cari kelas..."
+                  value={kelasSearchInput}
+                  onChange={(e) => {
+                    setKelasSearchInput(e.target.value);
+                    setForm(p => ({ ...p, kelas: e.target.value }));
+                    setIsKelasDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsKelasDropdownOpen(true)}
+                  className="w-full p-2 pr-8 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
+              </div>
+
+              {/* Dropdown List untuk Kelas */}
+              {isKelasDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsKelasDropdownOpen(false)} />
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto p-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                    {filteredFormKelasOptions.map(k => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => {
+                          setForm(p => ({ ...p, kelas: k }));
+                          setKelasSearchInput(k);
+                          setIsKelasDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors flex items-center justify-between ${form.kelas === k ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'}`}
+                      >
+                        <span>Kelas {k}</span>
+                        {form.kelas === k && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                      </button>
+                    ))}
+
+                    {/* Fitur Utama: Muncul tombol Tambah Kelas Baru jika tidak ada karakter serupa/kembar */}
+                    {kelasSearchInput.trim() !== '' && !hasExactKelasMatch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newKelas = kelasSearchInput.trim();
+                          setForm(p => ({ ...p, kelas: newKelas }));
+                          setKelasSearchInput(newKelas);
+                          setIsKelasDropdownOpen(false);
+                          showToast(`Kelas "${newKelas}" ditambahkan ke formulir`, 'success');
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 transition-colors sticky bottom-0 shadow-md"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Tambah kelas baru: "{kelasSearchInput}"
+                      </button>
+                    )}
+
+                    {filteredFormKelasOptions.length === 0 && kelasSearchInput.trim() === '' && (
+                      <p className="text-center py-3 text-xs text-slate-400">Belum ada kelas tersedia</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status Aktif</label>
               <select
