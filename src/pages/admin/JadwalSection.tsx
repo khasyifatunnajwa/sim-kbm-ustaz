@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Calendar, Plus, Pencil, Trash2, Search, Copy, FileText,
+  Calendar, Plus, Pencil, Trash2, Search, FileText,
   X, AlertCircle, Upload, Download, Share2, Filter, RefreshCw,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmptyState from '../../components/EmptyState';
-import Pagination from '../../components/Pagination';
 import SearchableSelect from '../../components/SearchableSelect';
 import { useLembaga } from '../../hooks/useLembaga';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -14,7 +13,6 @@ import { useSettings } from '../../store/useSettings';
 import { shareWA } from '../../lib/pdf';
 import type { ShowToast, Profile, JadwalMengajar, GenderKelas } from '../../types';
 
-const PAGE_SIZE = 15;
 const hariOptions = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
 const HARI_COLOR: Record<string, string> = {
@@ -155,7 +153,6 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   const [showFilters, setShowFilters] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
 
   // Filters
   const [filterHari, setFilterHari] = useState('');
@@ -182,6 +179,21 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   ];
 
   const lembagaOptions = useMemo(() => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
+
+  // Menggabungkan list standar dengan data unik yang sudah ada di database
+  const kelasOptions = useMemo(() => {
+    const defaultKelas = ['Kelas 1', 'Kelas 2', 'Kelas 3', 'Kelas 4', 'Kelas 5', 'Kelas 6', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', '1A', '1B'];
+    const existingKelas = list.map(item => item.kelas).filter(Boolean);
+    const uniqueKelas = Array.from(new Set([...defaultKelas, ...existingKelas]));
+    return uniqueKelas.sort().map(k => ({ value: k, label: k }));
+  }, [list]);
+
+  const pelajaranOptions = useMemo(() => {
+    const defaultPelajaran = ['Al-Qur\'an Hadits', 'Akidah Akhlak', 'Fiqih', 'Sejarah Kebudayaan Islam', 'Bahasa Arab', 'Tahfidz', 'Tematik', 'Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPA', 'IPS'];
+    const existingPelajaran = list.map(item => item.pelajaran).filter(Boolean);
+    const uniquePelajaran = Array.from(new Set([...defaultPelajaran, ...existingPelajaran]));
+    return uniquePelajaran.sort().map(p => ({ value: p, label: p }));
+  }, [list]);
 
   useEffect(() => { fetchList(); fetchUstaz(); }, []);
 
@@ -271,7 +283,6 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   const handleShareWA = () => {
     if (filtered.length === 0) { showToast('Tidak ada jadwal untuk dibagikan', 'error'); return; }
 
-    // Group by hari
     const grouped: Record<string, JadwalMengajar[]> = {};
     filtered.forEach(j => {
       if (!grouped[j.hari]) grouped[j.hari] = [];
@@ -305,7 +316,6 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     shareWA(text);
   };
 
-  // Filter & search
   const filtered = useMemo(() => {
     let result = list;
     if (filterHari) result = result.filter(j => j.hari === filterHari);
@@ -317,9 +327,8 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
       result = result.filter(j => [j.kelas, j.pelajaran, j.hari, j.ruangan].filter(Boolean).join(' ').toLowerCase().includes(q));
     }
     return result;
-  }, [list, filterHari, filterUstazId, filterLembagaId, search]);
+  }, [list, filterHari, filterUstazId, filterLembagaId, search, filterGender]);
 
-  // Group by hari for display
   const grouped = useMemo(() => {
     const g: Record<string, JadwalMengajar[]> = {};
     filtered.forEach(j => {
@@ -352,7 +361,6 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
       {subTab === 'jadwal-mengajar' && (
         <>
-          {/* Action bar */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[140px]">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
@@ -364,7 +372,6 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
             </button>
           </div>
 
-          {/* Filter panel */}
           {showFilters && (
             <div className="card p-3 grid grid-cols-2 md:grid-cols-3 gap-2">
               <div>
@@ -399,7 +406,6 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
             </div>
           )}
 
-          {/* Buttons row */}
           <div className="flex flex-wrap gap-1.5">
             <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
             <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border border-sky-200 hover:bg-sky-100 transition-colors"><Upload className="w-3.5 h-3.5" /> Import CSV</button>
@@ -407,7 +413,6 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
             <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 hover:bg-green-100 transition-colors"><Share2 className="w-3.5 h-3.5" /> Share WA</button>
           </div>
 
-          {/* Stats */}
           {filtered.length > 0 && (
             <p className="text-[10px] text-slate-400">{filtered.length} jadwal ditampilkan</p>
           )}
@@ -507,10 +512,28 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Mulai</label><input type="time" value={form.jam_mulai} onChange={e => setForm({ ...form, jam_mulai: e.target.value })} className="input-field text-xs" /></div>
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Selesai</label><input type="time" value={form.jam_selesai} onChange={e => setForm({ ...form, jam_selesai: e.target.value })} className="input-field text-xs" /></div>
             </div>
+            
             <div className="grid grid-cols-2 gap-2">
-              <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label><input type="text" value={form.kelas} onChange={e => setForm({ ...form, kelas: e.target.value })} className="input-field text-xs" placeholder="Kelas" /></div>
-              <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Mata Pelajaran *</label><input type="text" value={form.pelajaran} onChange={e => setForm({ ...form, pelajaran: e.target.value })} className="input-field text-xs" placeholder="Pelajaran" /></div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
+                <SearchableSelect 
+                  value={form.kelas} 
+                  onChange={v => setForm({ ...form, kelas: v })} 
+                  options={kelasOptions} 
+                  placeholder="Pilih kelas" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Mata Pelajaran *</label>
+                <SearchableSelect 
+                  value={form.pelajaran} 
+                  onChange={v => setForm({ ...form, pelajaran: v })} 
+                  options={pelajaranOptions} 
+                  placeholder="Pilih pelajaran" 
+                />
+              </div>
             </div>
+
             {settings.genderEnabled && (
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
                 <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value as GenderKelas })} className="input-field text-xs">
