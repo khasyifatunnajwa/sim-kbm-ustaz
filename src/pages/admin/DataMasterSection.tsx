@@ -102,7 +102,7 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.currentTarget === e.target) { onClose(); setFile(null); setPreview([]); }}}>
+    <div className="modal-overlay" onClick={e => { if (e.currentTarget === e.target) { onClose(); setFile(null); setPreview([]); } }}>
       <div className="modal-content max-w-lg">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Import {title}</h3>
@@ -341,11 +341,24 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
   const [filterLembaga, setFilterLembaga] = useState('');
   const [page, setPage] = useState(1);
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
+  const [dbKelasOptions, setDbKelasOptions] = useState<{ value: string; label: string }[]>([]);
   const [form, setForm] = useState({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '' as 'L' | 'P' | '', gender_kelas: '' as GenderKelas | '' });
 
   const lembagaOptions = useMemo(() => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
-  useEffect(() => { fetchList(); }, []);
+  useEffect(() => { fetchList(); fetchKelasFromDB(); }, []);
+
+  const fetchKelasFromDB = async () => {
+    try {
+      const { data, error } = await supabase.from('kelas').select('nama_kelas').eq('is_active', true).order('nama_kelas');
+      if (error) throw error;
+      if (data) {
+        setDbKelasOptions(data.map((k: any) => ({ value: k.nama_kelas, label: k.nama_kelas })));
+      }
+    } catch (err: any) {
+      console.error('Gagal memuat opsi kelas:', err.message);
+    }
+  };
 
   const fetchList = async () => {
     setLoading(true);
@@ -371,8 +384,8 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
   }, [list, search, filterKelas, filterLembaga]);
 
   const resetForm = () => { setForm({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '', gender_kelas: '' }); setEditingId(null); };
-  const openAdd = () => { resetForm(); setShowModal(true); };
-  const openEdit = (m: any) => { setEditingId(m.id); setForm({ nama: m.nama || '', kelas: m.kelas || '', lembaga_id: m.lembaga_id || '', domisili: m.domisili || '', alamat: m.alamat || '', nomor_whatsapp: m.nomor_whatsapp || '', status_aktif: m.status_aktif !== false, jenis_kelamin: m.jenis_kelamin || '', gender_kelas: m.gender_kelas || '' }); setShowModal(true); };
+  const openAdd = () => { resetForm(); fetchKelasFromDB(); setShowModal(true); };
+  const openEdit = (m: any) => { setEditingId(m.id); fetchKelasFromDB(); setForm({ nama: m.nama || '', kelas: m.kelas || '', lembaga_id: m.lembaga_id || '', domisili: m.domisili || '', alamat: m.alamat || '', nomor_whatsapp: m.nomor_whatsapp || '', status_aktif: m.status_aktif !== false, jenis_kelamin: m.jenis_kelamin || '', gender_kelas: m.gender_kelas || '' }); setShowModal(true); };
 
   const handleSave = async () => {
     if (!form.nama || !form.kelas) { showToast('Nama dan kelas wajib diisi', 'error'); return; }
@@ -424,7 +437,16 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
     for (const row of rows) {
       const [nama, kelas, domisili, alamat, nomor_whatsapp, jenis_kelamin, gender_kelas] = row;
       if (!nama || !kelas) continue;
-      await supabase.from('murid').insert({ nama: nama.trim(), kelas: kelas.trim(), domisili: domisili?.trim() || null, alamat: alamat?.trim() || null, nomor_whatsapp: nomor_whatsapp?.trim() || null, status_aktif: true, jenis_kelamin: row[5]?.trim() || null, gender_kelas: row[6]?.trim() || null });
+      await supabase.from('murid').insert({
+        nama: nama.trim(),
+        kelas: kelas.trim(),
+        domisili: domisili?.trim() || null,
+        alamat: alamat?.trim() || null,
+        nomor_whatsapp: nomor_whatsapp?.trim() || null,
+        status_aktif: true,
+        jenis_kelamin: jenis_kelamin?.trim() || null,
+        gender_kelas: gender_kelas?.trim() || null
+      });
       count++;
     }
     showToast(`${count} murid berhasil diimpor`, 'success');
@@ -492,8 +514,12 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
           <div className="space-y-3">
             <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Lengkap *</label><input type="text" value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} className="input-field text-xs" /></div>
             <div className="grid grid-cols-2 gap-2">
-              <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label><input type="text" value={form.kelas} onChange={e => setForm({ ...form, kelas: e.target.value })} className="input-field text-xs" /></div>
-              <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
+                <SearchableSelect value={form.kelas} onChange={v => setForm({ ...form, kelas: v })} options={dbKelasOptions} placeholder="Pilih kelas" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>
                 <SearchableSelect value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaOptions} placeholder="Pilih lembaga" />
               </div>
             </div>
@@ -612,7 +638,10 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
       showModal={showModal} onClose={() => setShowModal(false)} saving={saving} onSave={handleSave}
       modalTitle={editingId ? 'Edit Kelas' : 'Tambah Kelas'}>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Kelas *</label><input type="text" value={form.nama_kelas} onChange={e => setForm({ ...form, nama_kelas: e.target.value })} className="input-field text-xs" /></div>
-      <SearchableSelect label="Lembaga" value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga }))} placeholder="Pilih lembaga" />
+      <div>
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>
+        <SearchableSelect value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga }))} placeholder="Pilih lembaga" />
+      </div>
       {settings.genderEnabled && (
         <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
           <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value as GenderKelas })} className="input-field text-xs">
@@ -672,7 +701,10 @@ function CrudRuangan({ showToast }: { showToast: ShowToast }) {
       showModal={showModal} onClose={() => setShowModal(false)} saving={saving} onSave={handleSave}
       modalTitle={editingId ? 'Edit Ruangan' : 'Tambah Ruangan'}>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Ruangan *</label><input type="text" value={form.nama_ruangan} onChange={e => setForm({ ...form, nama_ruangan: e.target.value })} className="input-field text-xs" /></div>
-      <SearchableSelect label="Lembaga" value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga }))} placeholder="Pilih lembaga" />
+      <div>
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>
+        <SearchableSelect value={form.lembaga_id} onChange={v => setForm({ ...form, lembaga_id: v })} options={lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga }))} placeholder="Pilih lembaga" />
+      </div>
       <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kapasitas</label><input type="number" value={form.kapasitas} onChange={e => setForm({ ...form, kapasitas: e.target.value })} className="input-field text-xs" /></div></div>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Keterangan</label><input type="text" value={form.keterangan} onChange={e => setForm({ ...form, keterangan: e.target.value })} className="input-field text-xs" /></div>
     </CrudList>
@@ -753,7 +785,7 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
 function CrudTahun({ showToast }: { showToast: ShowToast }) {
   const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading = true, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -879,7 +911,6 @@ function CrudHariBelajar({ showToast }: { showToast: ShowToast }) {
       }
       showToast('Hari belajar disimpan', 'success');
     } catch {
-      // Table may not exist yet — just show success
       showToast('Pengaturan disimpan', 'success');
     } finally {
       setSaving(false);
