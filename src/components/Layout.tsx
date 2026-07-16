@@ -148,7 +148,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 p-0.5 shadow-lg">
-              <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
+              <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="font-bold text-base leading-tight">SIM KBM Ustaz</p>
@@ -228,7 +228,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center p-1 shadow-lg">
-                    <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
+                    <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-contain" />
                   </div>
                   <span className="font-bold">SIM KBM</span>
                 </div>
@@ -274,7 +274,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             </button>
             <div className="flex items-center gap-2">
               <div className="md:hidden w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 p-0.5 shadow">
-                <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
+                <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-base font-bold text-slate-800 leading-tight">
