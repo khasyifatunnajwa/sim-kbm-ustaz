@@ -38,7 +38,7 @@ function LoadingScreen() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
       <div className="flex flex-col items-center gap-4">
         <div className="w-20 h-20 rounded-3xl bg-white shadow-xl shadow-emerald-100 ring-4 ring-white flex items-center justify-center p-2">
-          <img src="/icon/logo_asli.png" alt="SIM KBM" className="w-full h-full object-contain" />
+          <img src="/icon/logo.png" alt="SIM KBM" className="w-full h-full object-contain" />
         </div>
         <div>
           <p className="text-lg font-bold text-slate-800 text-center">SIM KBM Ustaz</p>
