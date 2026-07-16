@@ -254,7 +254,7 @@ function AuthScreen({ showToast }: { showToast: ShowToast }) {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="w-20 h-20 rounded-3xl bg-white mx-auto mb-4 shadow-xl shadow-emerald-200 ring-4 ring-white flex items-center justify-center p-2">
-            <img src="/icon/192x192.png" alt="SIM KBM" className="w-full h-full object-contain" />
+            <img src="/icon/public/icon.svg" alt="SIM KBM" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">SIM KBM Ustaz</h1>
           <p className="text-slate-500 text-sm mt-1">Manajemen Kelas & Santri</p>
