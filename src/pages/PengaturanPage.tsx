@@ -557,7 +557,7 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
       <Modal isOpen={showAbout} onClose={() => setShowAbout(false)} title="Tim Pengembang" size="sm">
         <div className="text-center py-2">
           <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3 p-1">
-            <img src="/icon/logo_asli.png" alt="Logo" className="w-full h-full object-contain" />
+            <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-full px-4 py-1.5 mb-3">
             <Code2 className="w-4 h-4 text-emerald-600" />
