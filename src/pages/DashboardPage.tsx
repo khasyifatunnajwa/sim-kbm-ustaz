@@ -18,7 +18,7 @@ interface DashboardPageProps {
   setActiveTab?: (tab: ActiveTab) => void;
 }
 
-export default function DashboardPage({ profile, setActiveTab }: DashboardPageProps) {
+export default function DashboardPage({ showToast, profile, setActiveTab }: DashboardPageProps) {
   const { settings } = useSettings();
   const [now, setNow] = useState(new Date());
   const [currentSlide, setCurrentSlide] = useState(0);
