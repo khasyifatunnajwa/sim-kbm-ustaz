@@ -54,8 +54,10 @@ export interface Profile {
   alamat?: string;
   foto?: string;
   role: UserRole;
+  roles?: UserRole[];
   jenis_kelamin?: 'L' | 'P';
   boleh_mengajar?: BolehMengajar;
+  telepon?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
