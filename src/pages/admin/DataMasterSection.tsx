@@ -594,7 +594,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
     if (!form.nama_kelas) { showToast('Nama kelas wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload = { nama_kelas: form.nama_kelas, tingkat: Number(form.tingkat) || 1, kode: form.kode || null, is_active: true, lembaga_id: form.lembaga_id || null, gender: form.gender || null };
+      const payload: any = { nama_kelas: form.nama_kelas, tingkat: Number(form.tingkat) || 1, kode: form.kode || null, is_active: true, lembaga_id: form.lembaga_id || null, gender: form.gender || null };
       if (editingId) {
         const { error } = await supabase.from('kelas').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -785,7 +785,7 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
 function CrudTahun({ showToast }: { showToast: ShowToast }) {
   const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
-  const [loading = true, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -966,7 +966,7 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ nama: '', jam_mulai: '', jam_selesai: '', urutan: 1 });
+  const [form, setForm] = useState({ nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: 1 });
 
   useEffect(() => { fetchList(); }, []);
 
@@ -987,8 +987,8 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
     if (!form.jam_mulai || !form.jam_selesai) { showToast('Jam mulai dan selesai wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const nama = form.nama || `Jam ke-${form.urutan}`;
-      const payload = { nama, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai, urutan: form.urutan };
+      const nama_jam = form.nama_jam || `Jam ke-${form.urutan}`;
+      const payload = { nama_jam, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai, urutan: form.urutan, is_active: true };
       if (editingId) {
         const { error } = await supabase.from('jam_pelajaran').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -998,34 +998,35 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
         if (error) throw error;
         showToast('Jam pelajaran ditambahkan', 'success');
       }
-      setShowModal(false); setEditingId(null); setForm({ nama: '', jam_mulai: '', jam_selesai: '', urutan: (list.length || 0) + 1 }); fetchList();
+      setShowModal(false); setEditingId(null); setForm({ nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: (list.length || 0) + 1 }); fetchList();
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
   const handleDelete = async (item: any) => {
-    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
+    if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama_jam, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return;
     try { await supabase.from('jam_pelajaran').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); }
   };
 
   const generateDefault = async () => {
     setSaving(true);
     const defaults = [
-      { nama: 'Jam ke-1', jam_mulai: '07:00', jam_selesai: '07:45', urutan: 1 },
-      { nama: 'Jam ke-2', jam_mulai: '07:45', jam_selesai: '08:30', urutan: 2 },
-      { nama: 'Jam ke-3', jam_mulai: '08:30', jam_selesai: '09:15', urutan: 3 },
-      { nama: 'Istirahat', jam_mulai: '09:15', jam_selesai: '09:45', urutan: 4 },
-      { nama: 'Jam ke-4', jam_mulai: '09:45', jam_selesai: '10:30', urutan: 5 },
-      { nama: 'Jam ke-5', jam_mulai: '10:30', jam_selesai: '11:15', urutan: 6 },
-      { nama: 'Jam ke-6', jam_mulai: '11:15', jam_selesai: '12:00', urutan: 7 },
-      { nama: 'Jam ke-7', jam_mulai: '13:00', jam_selesai: '13:45', urutan: 8 },
+      { nama_jam: 'Jam ke-1', jam_mulai: '07:00', jam_selesai: '07:45', urutan: 1, is_active: true },
+      { nama_jam: 'Jam ke-2', jam_mulai: '07:45', jam_selesai: '08:30', urutan: 2, is_active: true },
+      { nama_jam: 'Jam ke-3', jam_mulai: '08:30', jam_selesai: '09:15', urutan: 3, is_active: true },
+      { nama_jam: 'Istirahat', jam_mulai: '09:15', jam_selesai: '09:45', urutan: 4, is_active: true },
+      { nama_jam: 'Jam ke-4', jam_mulai: '09:45', jam_selesai: '10:30', urutan: 5, is_active: true },
+      { nama_jam: 'Jam ke-5', jam_mulai: '10:30', jam_selesai: '11:15', urutan: 6, is_active: true },
+      { nama_jam: 'Jam ke-6', jam_mulai: '11:15', jam_selesai: '12:00', urutan: 7, is_active: true },
+      { nama_jam: 'Jam ke-7', jam_mulai: '13:00', jam_selesai: '13:45', urutan: 8, is_active: true },
     ];
     try {
       await supabase.from('jam_pelajaran').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('jam_pelajaran').insert(defaults);
+      const { error } = await supabase.from('jam_pelajaran').insert(defaults);
+      if (error) throw error;
       showToast('8 jam pelajaran default dibuat', 'success');
       fetchList();
-    } catch {
-      showToast('Gagal membuat jam default', 'error');
+    } catch (err: any) {
+      showToast('Gagal: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -1036,7 +1037,7 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <button onClick={() => { setForm({ nama: '', jam_mulai: '', jam_selesai: '', urutan: (list.length || 0) + 1 }); setEditingId(null); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
+        <button onClick={() => { setForm({ nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: (list.length || 0) + 1 }); setEditingId(null); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
         <button onClick={generateDefault} disabled={saving} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 hover:bg-amber-100 transition-colors">
           <RefreshCw className={`w-3.5 h-3.5 ${saving ? 'animate-spin' : ''}`} /> Generate Default (8 jam)
         </button>
@@ -1053,11 +1054,11 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
                   <span className="text-[10px] font-bold text-sky-600">{item.urutan}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{item.nama}</p>
+                  <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{item.nama_jam}</p>
                   <p className="text-[9px] text-slate-500">{item.jam_mulai} - {item.jam_selesai}</p>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={() => { setEditingId(item.id); setForm({ nama: item.nama || '', jam_mulai: item.jam_mulai || '', jam_selesai: item.jam_selesai || '', urutan: item.urutan || 1 }); setShowModal(true); }} className="p-1.5 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600"><Pencil className="w-3 h-3" /></button>
+                  <button onClick={() => { setEditingId(item.id); setForm({ nama_jam: item.nama_jam || '', jam_mulai: item.jam_mulai || '', jam_selesai: item.jam_selesai || '', urutan: item.urutan || 1 }); setShowModal(true); }} className="p-1.5 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600"><Pencil className="w-3 h-3" /></button>
                   <button onClick={() => handleDelete(item)} className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </div>
@@ -1070,7 +1071,7 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
       {showModal && (
         <Modal isOpen={true} onClose={() => { setShowModal(false); setEditingId(null); }} title={editingId ? 'Edit Jam Pelajaran' : 'Tambah Jam Pelajaran'}>
           <div className="space-y-3">
-            <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama (opsional)</label><input type="text" value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} className="input-field text-xs" placeholder="Contoh: Jam ke-1" /></div>
+            <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama (opsional)</label><input type="text" value={form.nama_jam} onChange={e => setForm({ ...form, nama_jam: e.target.value })} className="input-field text-xs" placeholder="Contoh: Jam ke-1" /></div>
             <div className="grid grid-cols-3 gap-2">
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Urutan</label><input type="number" value={form.urutan} onChange={e => setForm({ ...form, urutan: Number(e.target.value) })} className="input-field text-xs" min={1} /></div>
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Mulai *</label><input type="time" value={form.jam_mulai} onChange={e => setForm({ ...form, jam_mulai: e.target.value })} className="input-field text-xs" /></div>

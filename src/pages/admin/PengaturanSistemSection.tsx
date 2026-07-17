@@ -722,9 +722,13 @@ function WaktuKehadiranEditor({ showToast }: { showToast: ShowToast }) {
     const newMulai = lastJam?.jam_selesai || '13:00';
     const [h, m] = newMulai.split(':').map(Number);
     const newSelesai = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const newUrutan = (lastJam?.urutan || 0) + 1;
     const { data, error } = await supabase.from('jam_pelajaran').insert({
+      nama_jam: `Jam ke-${newUrutan}`,
       jam_mulai: newMulai,
       jam_selesai: newSelesai,
+      urutan: newUrutan,
+      is_active: true,
       batas_terlambat: 15,
       batas_edit_absensi: 40,
       batas_terlambat_presensi: 15,
