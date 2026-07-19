@@ -3,6 +3,7 @@ import {
   Plus, Trash2, Pencil, BookOpen, Calendar, Target, Save
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { namaHari } from '../lib/utils';
 import { getUstazScope } from '../lib/ustazData';
 import { getActivityContext, clearActivityContext } from '../lib/activityContext';
 import Modal from '../components/Modal';
@@ -232,7 +233,10 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     showToast('Jurnal dihapus', 'info');
   };
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const formatDate = (d: string) => {
+    const date = new Date(d);
+    return `${namaHari[date.getDay()]}, ${date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+  };
 
   const tabs = [
     { id: 'semua' as FilterTab, label: 'Semua' },

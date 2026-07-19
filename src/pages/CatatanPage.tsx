@@ -4,6 +4,7 @@ import {
   Circle, Search, X, Bell
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { namaHari } from '../lib/utils';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -328,14 +329,13 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
 
   const formatDateTime = (d: string) => {
     const date = new Date(d);
-    return date.toLocaleDateString('id-ID', {
-      weekday: 'long',
+    return `${namaHari[date.getDay()]}, ${date.toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    });
+    })}`;
   };
 
   const isUpcoming = (d: string) => new Date(d) >= new Date();

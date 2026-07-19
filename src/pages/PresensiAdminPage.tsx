@@ -5,6 +5,7 @@ import {
   Navigation, User, BookOpen
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { namaHari } from '../lib/utils';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
 import type { Profile, ShowToast, PresensiUstaz, JadwalMengajar } from '../types';
@@ -88,7 +89,7 @@ export default function PresensiAdminPage({ showToast, profile }: { showToast: S
       if (date.getFullYear() !== filterTahun) return false;
 
       if (filterHari !== 'Semua') {
-        const hari = date.toLocaleDateString('id-ID', { weekday: 'long' });
+        const hari = namaHari[date.getDay()];
         if (hari !== filterHari) return false;
       }
    
@@ -567,7 +568,7 @@ export default function PresensiAdminPage({ showToast, profile }: { showToast: S
 
             {/* Date Info */}
             <div className="text-xs text-slate-400 text-center">
-              Tanggal: {new Date(detailItem.jam_server).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              Tanggal: {new Date(detailItem.jam_server).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           </div>
         )}

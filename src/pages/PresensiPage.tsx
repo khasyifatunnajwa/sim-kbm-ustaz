@@ -5,17 +5,16 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { namaHari } from '../lib/utils';
 import { getUstazScope } from '../lib/ustazData';
 import EmptyState from '../components/EmptyState';
 import type { Profile, ShowToast, JadwalMengajar, PresensiUstaz, ActiveTab } from '../types';
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
-const HARI_LIST = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-
 function getHariToday(): string {
   const day = new Date().getDay();
-  return HARI_LIST[day];
+  return namaHari[day];
 }
 
 function formatTime(date: Date): string {

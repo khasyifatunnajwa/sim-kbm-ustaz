@@ -25,6 +25,7 @@ import {
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ActiveTab, Profile } from '../types';
+import { namaHari } from '../lib/utils';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface LayoutProps {
@@ -282,7 +283,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
                   <span className="hidden md:inline">SIM KBM Ustaz</span>
                 </h1>
                 <p className="text-[10px] text-slate-500 font-medium">
-                  {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  {`${namaHari[now.getDay()]}, ${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`}
                 </p>
               </div>
             </div>
