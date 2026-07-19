@@ -7,6 +7,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+// Hapus foto setelah 3×24 jam = 72 jam
+const RETENTION_HOURS = 72;
+
+function extractFilePath(photoUrl: string): string | null {
+  try {
+    const url = new URL(photoUrl);
+    const marker = "/object/public/presensi-ustaz/";
+    const idx = url.pathname.indexOf(marker);
+    if (idx !== -1) return url.pathname.slice(idx + marker.length);
+    // fallback: split on bucket name
+    const parts = url.pathname.split("/presensi-ustaz/");
+    if (parts.length >= 2) return parts[1];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -17,40 +35,36 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(now.getTime() - RETENTION_HOURS * 60 * 60 * 1000).toISOString();
 
-    // Find presensi records with photos older than 24 hours that haven't been expired yet
     const { data: expiredRecords, error: fetchError } = await supabase
       .from("presensi_ustaz")
-      .select("id, photo_url, guru_id, created_at")
+      .select("id, photo_url, guru_id, jam_server")
       .not("photo_url", "is", null)
       .eq("photo_expired", false)
-      .lt("jam_server", twentyFourHoursAgo);
+      .lt("jam_server", cutoff);
 
     if (fetchError) {
-      return new Response(
-        JSON.stringify({ error: fetchError.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: fetchError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (!expiredRecords || expiredRecords.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: "No expired photos to clean up", cleaned: 0 }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({
+          success: true,
+          message: "No expired photos to clean up",
+          cleaned: 0,
+          retention_hours: RETENTION_HOURS,
+          cutoff_time: cutoff,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -61,27 +75,9 @@ Deno.serve(async (req: Request) => {
       if (!record.photo_url) continue;
 
       try {
-        // Extract the file path from the URL
-        // URL format: https://<project>.supabase.co/storage/v1/object/public/presensi-ustaz/<path>
-        const urlObj = new URL(record.photo_url);
-        const pathSegments = urlObj.pathname.split("/presensi-ustaz/");
-        if (pathSegments.length < 2) {
-          // Try alternate format
-          const filePath = urlObj.pathname.split("/object/public/presensi-ustaz/")[1];
-          if (filePath) {
-            const { error: removeError } = await supabase.storage
-              .from("presensi-ustaz")
-              .remove([filePath]);
+        const filePath = extractFilePath(record.photo_url);
 
-            if (removeError) {
-              console.error(`Failed to delete file ${filePath}:`, removeError.message);
-              failedCount++;
-            } else {
-              deletedCount++;
-            }
-          }
-        } else {
-          const filePath = pathSegments[1];
+        if (filePath) {
           const { error: removeError } = await supabase.storage
             .from("presensi-ustaz")
             .remove([filePath]);
@@ -92,9 +88,12 @@ Deno.serve(async (req: Request) => {
           } else {
             deletedCount++;
           }
+        } else {
+          console.warn(`Cannot parse path from URL: ${record.photo_url}`);
+          failedCount++;
         }
 
-        // Mark the record as expired regardless of file deletion success
+        // Tandai sebagai expired terlepas dari berhasil/tidaknya hapus file
         await supabase
           .from("presensi_ustaz")
           .update({ photo_url: null, photo_expired: true })
@@ -112,19 +111,16 @@ Deno.serve(async (req: Request) => {
         cleaned: deletedCount,
         failed: failedCount,
         total_processed: expiredRecords.length,
+        retention_hours: RETENTION_HOURS,
+        cutoff_time: cutoff,
       }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Internal server error";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

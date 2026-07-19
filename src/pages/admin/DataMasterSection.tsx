@@ -958,6 +958,8 @@ function CrudHariBelajar({ showToast }: { showToast: ShowToast }) {
 }
 
 // ====== Jam Pelajaran ======
+const DEFAULT_BATAS = { batas_terlambat: 15, batas_edit_absensi: 40, batas_terlambat_presensi: 15, batas_edit_presensi: 40 };
+
 function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
   const { confirm, dialog } = useConfirm();
   const [list, setList] = useState<any[]>([]);
@@ -966,7 +968,10 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: 1 });
+  const [form, setForm] = useState({
+    nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: 1,
+    ...DEFAULT_BATAS,
+  });
 
   useEffect(() => { fetchList(); }, []);
 
@@ -983,12 +988,23 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
     }
   };
 
+  const resetForm = (nextUrutan?: number) => setForm({
+    nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: nextUrutan ?? (list.length || 0) + 1,
+    ...DEFAULT_BATAS,
+  });
+
   const handleSave = async () => {
     if (!form.jam_mulai || !form.jam_selesai) { showToast('Jam mulai dan selesai wajib diisi', 'error'); return; }
     setSaving(true);
     try {
       const nama_jam = form.nama_jam || `Jam ke-${form.urutan}`;
-      const payload = { nama_jam, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai, urutan: form.urutan, is_active: true };
+      const payload = {
+        nama_jam, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai, urutan: form.urutan, is_active: true,
+        batas_terlambat: form.batas_terlambat,
+        batas_edit_absensi: form.batas_edit_absensi,
+        batas_terlambat_presensi: form.batas_terlambat_presensi,
+        batas_edit_presensi: form.batas_edit_presensi,
+      };
       if (editingId) {
         const { error } = await supabase.from('jam_pelajaran').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -998,7 +1014,7 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
         if (error) throw error;
         showToast('Jam pelajaran ditambahkan', 'success');
       }
-      setShowModal(false); setEditingId(null); setForm({ nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: (list.length || 0) + 1 }); fetchList();
+      setShowModal(false); setEditingId(null); resetForm(); fetchList();
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
@@ -1009,15 +1025,16 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
 
   const generateDefault = async () => {
     setSaving(true);
+    const b = DEFAULT_BATAS;
     const defaults = [
-      { nama_jam: 'Jam ke-1', jam_mulai: '07:00', jam_selesai: '07:45', urutan: 1, is_active: true },
-      { nama_jam: 'Jam ke-2', jam_mulai: '07:45', jam_selesai: '08:30', urutan: 2, is_active: true },
-      { nama_jam: 'Jam ke-3', jam_mulai: '08:30', jam_selesai: '09:15', urutan: 3, is_active: true },
-      { nama_jam: 'Istirahat', jam_mulai: '09:15', jam_selesai: '09:45', urutan: 4, is_active: true },
-      { nama_jam: 'Jam ke-4', jam_mulai: '09:45', jam_selesai: '10:30', urutan: 5, is_active: true },
-      { nama_jam: 'Jam ke-5', jam_mulai: '10:30', jam_selesai: '11:15', urutan: 6, is_active: true },
-      { nama_jam: 'Jam ke-6', jam_mulai: '11:15', jam_selesai: '12:00', urutan: 7, is_active: true },
-      { nama_jam: 'Jam ke-7', jam_mulai: '13:00', jam_selesai: '13:45', urutan: 8, is_active: true },
+      { nama_jam: 'Jam ke-1', jam_mulai: '07:00', jam_selesai: '07:45', urutan: 1, is_active: true, ...b },
+      { nama_jam: 'Jam ke-2', jam_mulai: '07:45', jam_selesai: '08:30', urutan: 2, is_active: true, ...b },
+      { nama_jam: 'Jam ke-3', jam_mulai: '08:30', jam_selesai: '09:15', urutan: 3, is_active: true, ...b },
+      { nama_jam: 'Istirahat', jam_mulai: '09:15', jam_selesai: '09:45', urutan: 4, is_active: true, batas_terlambat: 0, batas_edit_absensi: 0, batas_terlambat_presensi: 0, batas_edit_presensi: 0 },
+      { nama_jam: 'Jam ke-4', jam_mulai: '09:45', jam_selesai: '10:30', urutan: 5, is_active: true, ...b },
+      { nama_jam: 'Jam ke-5', jam_mulai: '10:30', jam_selesai: '11:15', urutan: 6, is_active: true, ...b },
+      { nama_jam: 'Jam ke-6', jam_mulai: '11:15', jam_selesai: '12:00', urutan: 7, is_active: true, ...b },
+      { nama_jam: 'Jam ke-7', jam_mulai: '13:00', jam_selesai: '13:45', urutan: 8, is_active: true, ...b },
     ];
     try {
       await supabase.from('jam_pelajaran').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -1037,7 +1054,7 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <button onClick={() => { setForm({ nama_jam: '', jam_mulai: '', jam_selesai: '', urutan: (list.length || 0) + 1 }); setEditingId(null); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
+        <button onClick={() => { resetForm(); setEditingId(null); setShowModal(true); }} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
         <button onClick={generateDefault} disabled={saving} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 hover:bg-amber-100 transition-colors">
           <RefreshCw className={`w-3.5 h-3.5 ${saving ? 'animate-spin' : ''}`} /> Generate Default (8 jam)
         </button>
@@ -1049,17 +1066,50 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
         <>
           <div className="space-y-1">
             {list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(item => (
-              <div key={item.id} className="card p-2.5 flex items-center gap-2.5 group">
-                <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-[10px] font-bold text-sky-600">{item.urutan}</span>
+              <div key={item.id} className="card p-2.5 group">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-[10px] font-bold text-sky-600">{item.urutan}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{item.nama_jam}</p>
+                    <p className="text-[9px] text-slate-500">{item.jam_mulai} - {item.jam_selesai}</p>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                    <button
+                      onClick={() => {
+                        setEditingId(item.id);
+                        setForm({
+                          nama_jam: item.nama_jam || '',
+                          jam_mulai: item.jam_mulai || '',
+                          jam_selesai: item.jam_selesai || '',
+                          urutan: item.urutan || 1,
+                          batas_terlambat: item.batas_terlambat ?? DEFAULT_BATAS.batas_terlambat,
+                          batas_edit_absensi: item.batas_edit_absensi ?? DEFAULT_BATAS.batas_edit_absensi,
+                          batas_terlambat_presensi: item.batas_terlambat_presensi ?? DEFAULT_BATAS.batas_terlambat_presensi,
+                          batas_edit_presensi: item.batas_edit_presensi ?? DEFAULT_BATAS.batas_edit_presensi,
+                        });
+                        setShowModal(true);
+                      }}
+                      className="p-1.5 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600"
+                    ><Pencil className="w-3 h-3" /></button>
+                    <button onClick={() => handleDelete(item)} className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{item.nama_jam}</p>
-                  <p className="text-[9px] text-slate-500">{item.jam_mulai} - {item.jam_selesai}</p>
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={() => { setEditingId(item.id); setForm({ nama_jam: item.nama_jam || '', jam_mulai: item.jam_mulai || '', jam_selesai: item.jam_selesai || '', urutan: item.urutan || 1 }); setShowModal(true); }} className="p-1.5 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600"><Pencil className="w-3 h-3" /></button>
-                  <button onClick={() => handleDelete(item)} className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600"><Trash2 className="w-3 h-3" /></button>
+                {/* Batas kehadiran badges */}
+                <div className="flex flex-wrap gap-1.5 mt-1.5 ml-10">
+                  <span className="text-[9px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-medium">
+                    Terlambat: {item.batas_terlambat ?? 15} mnt
+                  </span>
+                  <span className="text-[9px] bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 px-1.5 py-0.5 rounded font-medium">
+                    Edit absensi: {item.batas_edit_absensi ?? 40} mnt
+                  </span>
+                  <span className="text-[9px] bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 px-1.5 py-0.5 rounded font-medium">
+                    Presensi terlambat: {item.batas_terlambat_presensi ?? 15} mnt
+                  </span>
+                  <span className="text-[9px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded font-medium">
+                    Edit presensi: {item.batas_edit_presensi ?? 40} mnt
+                  </span>
                 </div>
               </div>
             ))}
@@ -1077,6 +1127,34 @@ function CrudJamPelajaran({ showToast }: { showToast: ShowToast }) {
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Mulai *</label><input type="time" value={form.jam_mulai} onChange={e => setForm({ ...form, jam_mulai: e.target.value })} className="input-field text-xs" /></div>
               <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Selesai *</label><input type="time" value={form.jam_selesai} onChange={e => setForm({ ...form, jam_selesai: e.target.value })} className="input-field text-xs" /></div>
             </div>
+
+            {/* Batas kehadiran */}
+            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
+              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide mb-2">Batas Kehadiran (menit dari jam mulai)</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-1">Batas Terlambat Absensi</label>
+                  <input type="number" value={form.batas_terlambat} onChange={e => setForm({ ...form, batas_terlambat: Number(e.target.value) })} className="input-field text-xs" min={0} max={120} />
+                  <p className="text-[9px] text-slate-400 mt-0.5">Menit toleransi sebelum dihitung terlambat</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-600 dark:text-sky-400 mb-1">Batas Edit Absensi</label>
+                  <input type="number" value={form.batas_edit_absensi} onChange={e => setForm({ ...form, batas_edit_absensi: Number(e.target.value) })} className="input-field text-xs" min={0} max={999} />
+                  <p className="text-[9px] text-slate-400 mt-0.5">Menit setelah jam mulai, edit masih diizinkan</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-violet-600 dark:text-violet-400 mb-1">Batas Terlambat Presensi Ustaz</label>
+                  <input type="number" value={form.batas_terlambat_presensi} onChange={e => setForm({ ...form, batas_terlambat_presensi: Number(e.target.value) })} className="input-field text-xs" min={0} max={120} />
+                  <p className="text-[9px] text-slate-400 mt-0.5">Menit toleransi presensi ustaz</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1">Batas Edit Presensi Ustaz</label>
+                  <input type="number" value={form.batas_edit_presensi} onChange={e => setForm({ ...form, batas_edit_presensi: Number(e.target.value) })} className="input-field text-xs" min={0} max={999} />
+                  <p className="text-[9px] text-slate-400 mt-0.5">Menit setelah jam mulai, edit presensi diizinkan</p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex gap-2 pt-2">
               <button onClick={() => { setShowModal(false); setEditingId(null); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
               <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs">{saving ? 'Menyimpan...' : 'Simpan'}</button>

@@ -17,9 +17,6 @@ interface SistemSettings {
   website: string;
   tahun_ajaran_aktif: string;
   semester_aktif: string;
-  jam_masuk: string;
-  jam_pulang: string;
-  batas_terlambat: string;
   hari_libur: string[];
 }
 
@@ -60,7 +57,6 @@ export default function PengaturanSistemSection({ showToast, profile }: { showTo
   const [settings, setSettings] = useState<SistemSettings>({
     nama_lembaga: '', alamat: '', telepon: '', email: '', website: '',
     tahun_ajaran_aktif: '', semester_aktif: '',
-    jam_masuk: '07:00', jam_pulang: '15:00', batas_terlambat: '07:15',
     hari_libur: [...DEFAULT_HARI_LIBUR],
   });
 
@@ -131,7 +127,7 @@ export default function PengaturanSistemSection({ showToast, profile }: { showTo
       if (savedJam) {
         try {
           const jam = JSON.parse(savedJam);
-          setSettings(prev => ({ ...prev, jam_masuk: jam.jam_masuk || '07:00', jam_pulang: jam.jam_pulang || '15:00', batas_terlambat: jam.batas_terlambat || '07:15', hari_libur: jam.hari_libur || [...DEFAULT_HARI_LIBUR] }));
+          setSettings(prev => ({ ...prev, hari_libur: jam.hari_libur || [...DEFAULT_HARI_LIBUR] }));
         } catch { /* ignore */ }
       }
     } catch (err: any) {
@@ -181,12 +177,9 @@ export default function PengaturanSistemSection({ showToast, profile }: { showTo
 
   const handleSaveWaktu = () => {
     localStorage.setItem('simkbm-jam-settings', JSON.stringify({
-      jam_masuk: settings.jam_masuk,
-      jam_pulang: settings.jam_pulang,
-      batas_terlambat: settings.batas_terlambat,
       hari_libur: settings.hari_libur,
     }));
-    showToast('Pengaturan waktu & hari libur disimpan', 'success');
+    showToast('Hari libur disimpan', 'success');
   };
 
   const handleLogoChange = async (file: File) => {
@@ -457,28 +450,6 @@ export default function PengaturanSistemSection({ showToast, profile }: { showTo
             </p>
           </div>
           <WaktuKehadiranEditor showToast={showToast} />
-          <div className="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Masuk Default</label>
-                <input type="time" value={settings.jam_masuk} onChange={e => setSettings(s => ({ ...s, jam_masuk: e.target.value }))} className="input-field text-sm" />
-                <p className="text-[10px] text-slate-400 mt-1">Jam mulai kegiatan</p>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jam Pulang Default</label>
-                <input type="time" value={settings.jam_pulang} onChange={e => setSettings(s => ({ ...s, jam_pulang: e.target.value }))} className="input-field text-sm" />
-                <p className="text-[10px] text-slate-400 mt-1">Jam selesai kegiatan</p>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Batas Terlambat Default</label>
-                <input type="time" value={settings.batas_terlambat} onChange={e => setSettings(s => ({ ...s, batas_terlambat: e.target.value }))} className="input-field text-sm" />
-                <p className="text-[10px] text-slate-400 mt-1">Presensi setelah ini = Terlambat</p>
-              </div>
-            </div>
-            <button onClick={handleSaveWaktu} className="btn-primary w-full py-2.5 text-sm flex items-center justify-center gap-2">
-              <Save className="w-4 h-4" /> Simpan Pengaturan Default
-            </button>
-          </div>
         </div>
       )}
 
