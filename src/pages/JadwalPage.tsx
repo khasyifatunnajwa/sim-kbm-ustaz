@@ -8,14 +8,14 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { namaHari } from '../lib/utils';
 import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, Profile, ShowToast } from '../types';
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 const HARI_NON_JUMAT = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Sabtu', 'Ahad'];
 
 function getTodayHari(): string {
-  const today = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
-  return HARI.find(h => today.toLowerCase().startsWith(h.toLowerCase())) ?? 'Senin';
+  return namaHari[new Date().getDay()];
 }
 
 function parseTimeToMinutes(t: string): number {
@@ -242,7 +242,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
               <div>
                 <p className="font-bold text-base leading-tight">Ahlan Ustaz</p>
                 <p className="text-[11px] text-emerald-100">
-                  {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  {`${namaHari[now.getDay()]}, ${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`}
                 </p>
               </div>
             </div>

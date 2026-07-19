@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { SkeletonCard } from '../components/Skeleton';
 import DashboardActivityFlow from '../components/DashboardActivityFlow';
 import { useSettings } from '../store/useSettings';
+import { namaHari } from '../lib/utils';
 import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab, CatatanGuru } from '../types';
 
 interface DashboardPageProps {
@@ -25,7 +26,6 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [presensiBannerDismissed, setPresensiBannerDismissed] = useState(false);
 
-  const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const todayHari = namaHari[new Date().getDay()];
   const todayDate = new Date().toISOString().split('T')[0];
   const isUstaz = profile?.role !== 'admin';
@@ -328,7 +328,7 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
             <div>
               <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
               <p className="text-emerald-100 text-sm">
-                {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                {`${namaHari[now.getDay()]}, ${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`}
               </p>
             </div>
           </div>

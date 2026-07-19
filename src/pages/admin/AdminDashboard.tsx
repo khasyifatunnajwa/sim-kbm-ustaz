@@ -8,6 +8,7 @@ import {
   BookUser, TrendingUp,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { namaHari } from '../../lib/utils';
 import type { Profile, DashboardPresensiUstaz, PresensiMuridByKelas, KelasKosong } from '../../types';
 
 export type AdminSectionId =
@@ -65,7 +66,7 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
     setLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const dayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+      const dayName = namaHari[new Date().getDay()];
 
       const [ustazRes, muridRes, profilesRes, muridRes2, kelasRes, ruangRes, lembagaRes, mapelRes, tahunRes, semesterRes, pengumumanRes, agendaRes] = await Promise.all([
         supabase.from('v_dashboard_presensi_ustaz_hari_ini').select('*').maybeSingle(),
@@ -100,7 +101,7 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
       setAgendaCount(agendaRes.data?.length || 0);
 
       // Fetch jadwal today for kelas kosong & kbm stats
-      const { data: jadwalData } = await supabase.from('jadwal').select('id, kelas_id, mapel_id, user_id, jam_mulai').eq('is_active', true).eq('hari', dayName);
+      const { data: jadwalData } = await supabase.from('jadwal_mengajar').select('id, user_id, kelas, pelajaran, jam_mulai').eq('hari', dayName);
 
       if (jadwalData && jadwalData.length > 0) {
         const { data: presensiData } = await supabase.from('presensi_ustaz').select('guru_id').eq('tanggal', today);
@@ -110,18 +111,14 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
         const izinIds = new Set((izinData || []).map(i => i.user_id));
         const izinSakitIds = new Set((izinData || []).filter(i => i.jenis_izin?.toLowerCase().includes('sakit')).map(i => i.user_id));
 
-        const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('is_active', true);
-        const { data: mapelData } = await supabase.from('mata_pelajaran').select('id, nama_mapel').eq('is_active', true);
         const { data: profilesData } = await supabase.from('profiles').select('id, nama_lengkap');
 
-        const kelasMap = new Map((kelasData || []).map(k => [k.id, k.nama_kelas]));
-        const mapelMap = new Map((mapelData || []).map(m => [m.id, m.nama_mapel]));
         const profilesMap = new Map((profilesData || []).map(p => [p.id, p.nama_lengkap]));
 
         const kelasKosongList: KelasKosong[] = jadwalData
           .filter(j => !sudahPresensiIds.has(j.user_id) && !izinIds.has(j.user_id))
           .map(j => ({
-            jadwal_id: j.id, nama_kelas: kelasMap.get(j.kelas_id) || '-', nama_mapel: mapelMap.get(j.mapel_id) || '-',
+            jadwal_id: j.id, nama_kelas: j.kelas || '-', nama_mapel: j.pelajaran || '-',
             nama_guru: profilesMap.get(j.user_id) || '-', jam_mulai: j.jam_mulai || '-', jam_selesai: '-', guru_id: j.user_id, lama_belum_presensi: '-'
           }));
         setKelasKosong(kelasKosongList);

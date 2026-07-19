@@ -5,6 +5,7 @@ import {
   Search, Plus, Repeat, History,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { namaHari } from '../../lib/utils';
 import EmptyState from '../../components/EmptyState';
 import SearchableSelect from '../../components/SearchableSelect';
 import { useLembaga } from '../../hooks/useLembaga';
@@ -101,7 +102,7 @@ function PresensiUstazDetail({ showToast }: { showToast: ShowToast }) {
     setLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const dayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+      const dayName = namaHari[new Date().getDay()];
 
       const [profilesRes, presensiRes, jadwalRes, izinRes, lembagaRes] = await Promise.all([
         supabase.from('profiles').select('id, nama_lengkap, nama_panggilan, foto').in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap'),
@@ -255,7 +256,7 @@ function JadwalUstazHariIni({ showToast }: { showToast: ShowToast }) {
     setLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const dayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+      const dayName = namaHari[new Date().getDay()];
       const { data: jadwal } = await supabase.from('jadwal_mengajar').select('id, user_id, kelas, pelajaran, jam_mulai, jam_selesai, ruangan, lembaga_id, guru_pengganti_id').eq('hari', dayName).order('jam_mulai');
       if (!jadwal || jadwal.length === 0) { setRows([]); setLoading(false); return; }
 
