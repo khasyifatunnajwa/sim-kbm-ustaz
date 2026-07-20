@@ -323,7 +323,7 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden">
-              <img src="/icon/512x512.png" alt="Logo" className="w-full h-full object-cover" />
+              <img src="/icon/dsb.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <p className="font-bold text-lg">{greeting()}, Ustaz {profile?.nama_panggilan || profile?.nama_lengkap || ''}</p>
