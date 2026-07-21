@@ -13,96 +13,235 @@ CREATE EXTENSION IF NOT EXISTS "supabase_vault";
 -- 2. TABLES
 -- Table: absensi
 CREATE TABLE IF NOT EXISTS public.absensi (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     jadwal_id uuid,     murid_id uuid,     tanggal date NOT NULL,     status character varying(50),     keterangan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     lembaga_id uuid,     jam_datang timestamp with time zone,     menit_terlambat integer,     diubah_oleh uuid,     alasan text,     sumber_perubahan text DEFAULT 'ustaz'::text,     telat_menit integer,     alasan_ubah text,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    jadwal_id uuid,
+    murid_id uuid,
+    tanggal date NOT NULL,
+    status character varying(50),
+    keterangan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    lembaga_id uuid,
+    jam_datang timestamp with time zone,
+    menit_terlambat integer,
+    diubah_oleh uuid,
+    alasan text,
+    sumber_perubahan text DEFAULT 'ustaz'::text,
+    telat_menit integer,
+    alasan_ubah text,
     CONSTRAINT absensi_pkey PRIMARY KEY (id),
     CONSTRAINT absensi_status_check CHECK (((status)::text = ANY ((ARRAY['Hadir'::character varying, 'Izin'::character varying, 'Sakit'::character varying, 'Alfa'::character varying])::text[])))
 );
 
 -- Table: absensi_audit
 CREATE TABLE IF NOT EXISTS public.absensi_audit (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     absensi_id uuid,     status_lama text,     status_baru text,     jam_datang timestamp with time zone,     menit_terlambat integer,     diubah_oleh uuid,     nama_pengubah text,     sumber text DEFAULT 'ustaz'::text,     alasan text,     created_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    absensi_id uuid,
+    status_lama text,
+    status_baru text,
+    jam_datang timestamp with time zone,
+    menit_terlambat integer,
+    diubah_oleh uuid,
+    nama_pengubah text,
+    sumber text DEFAULT 'ustaz'::text,
+    alasan text,
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT absensi_audit_pkey PRIMARY KEY (id)
 );
 
 -- Table: agenda
 CREATE TABLE IF NOT EXISTS public.agenda (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     judul character varying(255) NOT NULL,     isi text,     tanggal date NOT NULL,     jam time without time zone,     selesai time without time zone,     warna character varying(20),     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    judul character varying(255) NOT NULL,
+    isi text,
+    tanggal date NOT NULL,
+    jam time without time zone,
+    selesai time without time zone,
+    warna character varying(20),
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
     CONSTRAINT agenda_pkey PRIMARY KEY (id),
     CONSTRAINT cek_jam_agenda_selesai CHECK ((selesai > jam))
 );
 
 -- Table: agenda_penting
 CREATE TABLE IF NOT EXISTS public.agenda_penting (
-    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     judul text,     catatan text,     jenis text DEFAULT 'Umum'::text,     tanggal date,     created_at timestamp with time zone DEFAULT now(),
+    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    judul text,
+    catatan text,
+    jenis text DEFAULT 'Umum'::text,
+    tanggal date,
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT agenda_penting_pkey PRIMARY KEY (id)
 );
 
 -- Table: audit_trail_absensi
 CREATE TABLE IF NOT EXISTS public.audit_trail_absensi (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     absensi_id uuid,     murid_id uuid,     jadwal_id uuid,     tanggal date NOT NULL,     status_lama text,     status_baru text NOT NULL,     jam_datang time without time zone,     telat_menit integer,     diubah_oleh uuid,     diubah_oleh_nama text,     alasan text,     tipe_perubahan text DEFAULT 'guru'::text,     created_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    absensi_id uuid,
+    murid_id uuid,
+    jadwal_id uuid,
+    tanggal date NOT NULL,
+    status_lama text,
+    status_baru text NOT NULL,
+    jam_datang time without time zone,
+    telat_menit integer,
+    diubah_oleh uuid,
+    diubah_oleh_nama text,
+    alasan text,
+    tipe_perubahan text DEFAULT 'guru'::text,
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT audit_trail_absensi_pkey PRIMARY KEY (id),
     CONSTRAINT audit_trail_absensi_tipe_perubahan_check CHECK ((tipe_perubahan = ANY (ARRAY['guru'::text, 'admin'::text, 'sistem'::text])))
 );
 
 -- Table: bank_soal
 CREATE TABLE IF NOT EXISTS public.bank_soal (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     pelajaran text,     kelas text,     batasan text,     isi_soal text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    pelajaran text,
+    kelas text,
+    batasan text,
+    isi_soal text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT bank_soal_pkey PRIMARY KEY (id)
 );
 
 -- Table: buku_saku
 CREATE TABLE IF NOT EXISTS public.buku_saku (
-    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     kelas_id bigint,     pelajaran text,     bab_terakhir text,     halaman_terakhir text,     catatan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    kelas_id bigint,
+    pelajaran text,
+    bab_terakhir text,
+    halaman_terakhir text,
+    catatan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT buku_saku_pkey PRIMARY KEY (id)
 );
 
 -- Table: capaian_hafalan
 CREATE TABLE IF NOT EXISTS public.capaian_hafalan (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     murid_id uuid,     capaian text,     tanggal date,     created_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    murid_id uuid,
+    capaian text,
+    tanggal date,
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT capaian_hafalan_pkey PRIMARY KEY (id)
 );
 
 -- Table: catatan_guru
 CREATE TABLE IF NOT EXISTS public.catatan_guru (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kategori character varying(50) NOT NULL,     judul character varying(255) NOT NULL,     isi text,     tanggal_waktu timestamp with time zone,     lokasi character varying(255),     status character varying(50) DEFAULT 'Belum Selesai'::character varying,     created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,     updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,     deleted_at timestamp with time zone,     is_active boolean DEFAULT true NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kategori character varying(50) NOT NULL,
+    judul character varying(255) NOT NULL,
+    isi text,
+    tanggal_waktu timestamp with time zone,
+    lokasi character varying(255),
+    status character varying(50) DEFAULT 'Belum Selesai'::character varying,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true NOT NULL,
     CONSTRAINT catatan_guru_pkey PRIMARY KEY (id)
 );
 
 -- Table: catatan_guru_notifikasi
 CREATE TABLE IF NOT EXISTS public.catatan_guru_notifikasi (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     catatan_guru_id uuid,     user_id uuid DEFAULT uid() NOT NULL,     dibaca boolean DEFAULT false NOT NULL,     created_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    catatan_guru_id uuid,
+    user_id uuid DEFAULT uid() NOT NULL,
+    dibaca boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT catatan_guru_notifikasi_pkey PRIMARY KEY (id)
 );
 
 -- Table: catatan_perilaku
 CREATE TABLE IF NOT EXISTS public.catatan_perilaku (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     murid_id uuid,     jenis text DEFAULT 'catatan'::text,     catatan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    murid_id uuid,
+    jenis text DEFAULT 'catatan'::text,
+    catatan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT catatan_perilaku_pkey PRIMARY KEY (id)
 );
 
 -- Table: detail_nilai
 CREATE TABLE IF NOT EXISTS public.detail_nilai (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     penilaian_id uuid,     murid_id uuid,     nilai numeric(5,2),     catatan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    penilaian_id uuid,
+    murid_id uuid,
+    nilai numeric(5,2),
+    catatan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
     CONSTRAINT detail_nilai_pkey PRIMARY KEY (id),
     CONSTRAINT detail_nilai_nilai_check CHECK (((nilai >= (0)::numeric) AND (nilai <= (100)::numeric)))
 );
 
 -- Table: guru_pengganti
 CREATE TABLE IF NOT EXISTS public.guru_pengganti (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     jadwal_asli_id uuid,     guru_asli_id uuid NOT NULL,     guru_pengganti_id uuid NOT NULL,     tanggal date NOT NULL,     kelas text,     mapel text,     jam_mulai text,     jam_selesai text,     alasan text,     status text DEFAULT 'berlangsung'::text NOT NULL,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    jadwal_asli_id uuid,
+    guru_asli_id uuid NOT NULL,
+    guru_pengganti_id uuid NOT NULL,
+    tanggal date NOT NULL,
+    kelas text,
+    mapel text,
+    jam_mulai text,
+    jam_selesai text,
+    alasan text,
+    status text DEFAULT 'berlangsung'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT guru_pengganti_pkey PRIMARY KEY (id),
     CONSTRAINT guru_pengganti_status_check CHECK ((status = ANY (ARRAY['berlangsung'::text, 'selesai'::text, 'dibatalkan'::text])))
 );
 
 -- Table: hari_belajar
 CREATE TABLE IF NOT EXISTS public.hari_belajar (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     nama_hari character varying NOT NULL,     urutan integer DEFAULT 0,     is_active boolean DEFAULT true,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    nama_hari character varying NOT NULL,
+    urutan integer DEFAULT 0,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT hari_belajar_pkey PRIMARY KEY (id)
 );
 
 -- Table: izin_mengajar
 CREATE TABLE IF NOT EXISTS public.izin_mengajar (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     nama_ustaz text NOT NULL,     jenis_izin text NOT NULL,     lama_izin text NOT NULL,     tanggal_mulai date NOT NULL,     tanggal_selesai date,     mata_pelajaran text NOT NULL,     kelas text NOT NULL,     guru_pengganti text,     catatan text,     status text DEFAULT 'diajukan'::text NOT NULL,     created_at timestamp with time zone DEFAULT now() NOT NULL,     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    nama_ustaz text NOT NULL,
+    jenis_izin text NOT NULL,
+    lama_izin text NOT NULL,
+    tanggal_mulai date NOT NULL,
+    tanggal_selesai date,
+    mata_pelajaran text NOT NULL,
+    kelas text NOT NULL,
+    guru_pengganti text,
+    catatan text,
+    status text DEFAULT 'diajukan'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT izin_mengajar_pkey PRIMARY KEY (id),
     CONSTRAINT izin_mengajar_lama_izin_check CHECK ((lama_izin = ANY (ARRAY['hari_ini'::text, 'beberapa_hari'::text]))),
     CONSTRAINT izin_mengajar_status_check CHECK ((status = ANY (ARRAY['diajukan'::text, 'disetujui'::text, 'ditolak'::text])))
@@ -110,7 +249,21 @@ CREATE TABLE IF NOT EXISTS public.izin_mengajar (
 
 -- Table: jadwal
 CREATE TABLE IF NOT EXISTS public.jadwal (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kelas_id uuid NOT NULL,     mapel_id uuid NOT NULL,     semester_id uuid NOT NULL,     tahun_ajaran_id uuid NOT NULL,     hari character varying(20) NOT NULL,     jam_mulai time without time zone NOT NULL,     jam_selesai time without time zone NOT NULL,     ruangan character varying(100),     warna character varying(20),     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kelas_id uuid NOT NULL,
+    mapel_id uuid NOT NULL,
+    semester_id uuid NOT NULL,
+    tahun_ajaran_id uuid NOT NULL,
+    hari character varying(20) NOT NULL,
+    jam_mulai time without time zone NOT NULL,
+    jam_selesai time without time zone NOT NULL,
+    ruangan character varying(100),
+    warna character varying(20),
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
     CONSTRAINT jadwal_pkey PRIMARY KEY (id),
     CONSTRAINT jadwal_check CHECK ((jam_selesai > jam_mulai)),
     CONSTRAINT jadwal_hari_check CHECK (((hari)::text = ANY ((ARRAY['Senin'::character varying, 'Selasa'::character varying, 'Rabu'::character varying, 'Kamis'::character varying, 'Jumat'::character varying, 'Sabtu'::character varying, 'Ahad'::character varying])::text[])))
@@ -118,44 +271,128 @@ CREATE TABLE IF NOT EXISTS public.jadwal (
 
 -- Table: jadwal_mengajar
 CREATE TABLE IF NOT EXISTS public.jadwal_mengajar (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     hari text,     jam_mulai text,     jam_selesai text,     kelas text,     pelajaran text,     ruangan text,     catatan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     lembaga_id uuid,     guru_pengganti_id uuid,     is_libur boolean DEFAULT false,     gender text,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    hari text,
+    jam_mulai text,
+    jam_selesai text,
+    kelas text,
+    pelajaran text,
+    ruangan text,
+    catatan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    lembaga_id uuid,
+    guru_pengganti_id uuid,
+    is_libur boolean DEFAULT false,
+    gender text,
     CONSTRAINT jadwal_mengajar_pkey PRIMARY KEY (id)
 );
 
 -- Table: jam_pelajaran
 CREATE TABLE IF NOT EXISTS public.jam_pelajaran (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     nama_jam character varying NOT NULL,     jam_mulai time without time zone,     jam_selesai time without time zone,     urutan integer DEFAULT 0,     is_active boolean DEFAULT true,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     batas_terlambat time without time zone,     batas_edit time without time zone,     batas_edit_absensi integer DEFAULT 40,     batas_terlambat_presensi integer DEFAULT 15,     batas_edit_presensi integer DEFAULT 40,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    nama_jam character varying NOT NULL,
+    jam_mulai time without time zone,
+    jam_selesai time without time zone,
+    urutan integer DEFAULT 0,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    batas_terlambat time without time zone,
+    batas_edit time without time zone,
+    batas_edit_absensi integer DEFAULT 40,
+    batas_terlambat_presensi integer DEFAULT 15,
+    batas_edit_presensi integer DEFAULT 40,
     CONSTRAINT jam_pelajaran_pkey PRIMARY KEY (id)
 );
 
 -- Table: jurnal_kbm
 CREATE TABLE IF NOT EXISTS public.jurnal_kbm (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     jadwal_id uuid,     tanggal date NOT NULL,     materi text,     target text,     realisasi text,     metode character varying(100),     catatan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     kelas text,     pelajaran text,     lembaga_id uuid,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    jadwal_id uuid,
+    tanggal date NOT NULL,
+    materi text,
+    target text,
+    realisasi text,
+    metode character varying(100),
+    catatan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    kelas text,
+    pelajaran text,
+    lembaga_id uuid,
     CONSTRAINT jurnal_kbm_pkey PRIMARY KEY (id)
 );
 
 -- Table: kbm_harian
 CREATE TABLE IF NOT EXISTS public.kbm_harian (
-    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     kelas_id bigint,     tanggal date,     pelajaran text,     materi text,     catatan text,     durasi integer,     selesai boolean DEFAULT false,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    kelas_id bigint,
+    tanggal date,
+    pelajaran text,
+    materi text,
+    catatan text,
+    durasi integer,
+    selesai boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT kbm_harian_pkey PRIMARY KEY (id)
 );
 
 -- Table: kelas
 CREATE TABLE IF NOT EXISTS public.kelas (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kode character varying(50),     nama_kelas character varying(100) NOT NULL,     tingkat character varying(50),     warna character varying(20),     keterangan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     aktif boolean DEFAULT true,     lembaga_id uuid,     gender text,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kode character varying(50),
+    nama_kelas character varying(100) NOT NULL,
+    tingkat character varying(50),
+    warna character varying(20),
+    keterangan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    aktif boolean DEFAULT true,
+    lembaga_id uuid,
+    gender text,
     CONSTRAINT kelas_pkey PRIMARY KEY (id),
     CONSTRAINT kelas_user_id_nama_kelas_key UNIQUE (user_id, nama_kelas)
 );
 
 -- Table: lembaga
 CREATE TABLE IF NOT EXISTS public.lembaga (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     nama_lembaga text NOT NULL,     alamat text,     telepon text,     user_id uuid DEFAULT uid() NOT NULL,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     email text,     website text,     logo_url text,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nama_lembaga text NOT NULL,
+    alamat text,
+    telepon text,
+    user_id uuid DEFAULT uid() NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    email text,
+    website text,
+    logo_url text,
     CONSTRAINT lembaga_pkey PRIMARY KEY (id)
 );
 
 -- Table: mata_pelajaran
 CREATE TABLE IF NOT EXISTS public.mata_pelajaran (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kode character varying(50),     nama_mapel character varying(100) NOT NULL,     kelompok character varying(50),     warna character varying(20),     keterangan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kode character varying(50),
+    nama_mapel character varying(100) NOT NULL,
+    kelompok character varying(50),
+    warna character varying(20),
+    keterangan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
     CONSTRAINT mata_pelajaran_pkey PRIMARY KEY (id),
     CONSTRAINT mata_pelajaran_kelompok_check CHECK (((kelompok)::text = ANY ((ARRAY['Diniyah'::character varying, 'Umum'::character varying, 'Bahasa'::character varying, 'Tahfidz'::character varying, 'Lainnya'::character varying])::text[]))),
     CONSTRAINT mata_pelajaran_user_id_nama_mapel_key UNIQUE (user_id, nama_mapel)
@@ -163,19 +400,58 @@ CREATE TABLE IF NOT EXISTS public.mata_pelajaran (
 
 -- Table: materi
 CREATE TABLE IF NOT EXISTS public.materi (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kelas_id uuid,     mapel_id uuid,     judul character varying(255) NOT NULL,     isi text,     lampiran text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kelas_id uuid,
+    mapel_id uuid,
+    judul character varying(255) NOT NULL,
+    isi text,
+    lampiran text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
     CONSTRAINT materi_pkey PRIMARY KEY (id)
 );
 
 -- Table: muhafadhoh
 CREATE TABLE IF NOT EXISTS public.muhafadhoh (
-    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     kelas_id bigint,     tanggal date,     materi text,     target_hafalan text,     catatan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    kelas_id bigint,
+    tanggal date,
+    materi text,
+    target_hafalan text,
+    catatan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT muhafadhoh_pkey PRIMARY KEY (id)
 );
 
 -- Table: murid
 CREATE TABLE IF NOT EXISTS public.murid (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kelas_id uuid,     nis character varying(50),     nama character varying(255) NOT NULL,     jenis_kelamin character varying(20),     tempat_lahir character varying(100),     tanggal_lahir date,     alamat text,     nama_wali character varying(255),     no_hp_wali character varying(20),     status character varying(50) DEFAULT 'Aktif'::character varying,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     kelas text,     status_aktif boolean DEFAULT true,     domisili text,     nomor_whatsapp text,     lembaga_id uuid,     gender_kelas text,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kelas_id uuid,
+    nis character varying(50),
+    nama character varying(255) NOT NULL,
+    jenis_kelamin character varying(20),
+    tempat_lahir character varying(100),
+    tanggal_lahir date,
+    alamat text,
+    nama_wali character varying(255),
+    no_hp_wali character varying(20),
+    status character varying(50) DEFAULT 'Aktif'::character varying,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    kelas text,
+    status_aktif boolean DEFAULT true,
+    domisili text,
+    nomor_whatsapp text,
+    lembaga_id uuid,
+    gender_kelas text,
     CONSTRAINT murid_pkey PRIMARY KEY (id),
     CONSTRAINT murid_status_check CHECK (((status)::text = ANY ((ARRAY['Aktif'::character varying, 'Lulus'::character varying, 'Pindah'::character varying, 'Keluar'::character varying, 'Cuti'::character varying])::text[]))),
     CONSTRAINT murid_user_id_nis_key UNIQUE (user_id, nis)
@@ -183,52 +459,149 @@ CREATE TABLE IF NOT EXISTS public.murid (
 
 -- Table: nilai
 CREATE TABLE IF NOT EXISTS public.nilai (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     murid_id uuid,     pelajaran text,     jenis_ujian text,     skor numeric,     tanggal date,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    murid_id uuid,
+    pelajaran text,
+    jenis_ujian text,
+    skor numeric,
+    tanggal date,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT nilai_pkey PRIMARY KEY (id)
 );
 
 -- Table: notifikasi
 CREATE TABLE IF NOT EXISTS public.notifikasi (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     judul character varying(255) NOT NULL,     pesan text NOT NULL,     dibaca boolean DEFAULT false,     created_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    judul character varying(255) NOT NULL,
+    pesan text NOT NULL,
+    dibaca boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT notifikasi_pkey PRIMARY KEY (id)
 );
 
 -- Table: pengaturan
 CREATE TABLE IF NOT EXISTS public.pengaturan (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     nama_sekolah character varying(255),     alamat text,     telepon character varying(50),     email character varying(255),     website character varying(255),     logo text,     tema character varying(50) DEFAULT 'Light'::character varying,     bahasa character varying(50) DEFAULT 'Indonesia'::character varying,     zona_waktu character varying(100) DEFAULT 'Asia/Jakarta'::character varying,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    nama_sekolah character varying(255),
+    alamat text,
+    telepon character varying(50),
+    email character varying(255),
+    website character varying(255),
+    logo text,
+    tema character varying(50) DEFAULT 'Light'::character varying,
+    bahasa character varying(50) DEFAULT 'Indonesia'::character varying,
+    zona_waktu character varying(100) DEFAULT 'Asia/Jakarta'::character varying,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT pengaturan_pkey PRIMARY KEY (id),
     CONSTRAINT pengaturan_user_id_key UNIQUE (user_id)
 );
 
 -- Table: pengumuman
 CREATE TABLE IF NOT EXISTS public.pengumuman (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     judul character varying(255) NOT NULL,     isi text,     prioritas character varying(50) DEFAULT 'Normal'::character varying,     aktif boolean DEFAULT true,     tanggal_mulai date,     tanggal_selesai date,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     kategori text,     tanggal date,     jenis text DEFAULT 'Pengumuman'::text,     status text DEFAULT 'Draft'::text,     lampiran text,     dibuat_oleh uuid DEFAULT uid(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    judul character varying(255) NOT NULL,
+    isi text,
+    prioritas character varying(50) DEFAULT 'Normal'::character varying,
+    aktif boolean DEFAULT true,
+    tanggal_mulai date,
+    tanggal_selesai date,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    kategori text,
+    tanggal date,
+    jenis text DEFAULT 'Pengumuman'::text,
+    status text DEFAULT 'Draft'::text,
+    lampiran text,
+    dibuat_oleh uuid DEFAULT uid(),
     CONSTRAINT pengumuman_pkey PRIMARY KEY (id)
 );
 
 -- Table: penilaian
 CREATE TABLE IF NOT EXISTS public.penilaian (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kelas_id uuid,     mapel_id uuid,     semester_id uuid,     tahun_ajaran_id uuid,     nama_penilaian character varying(255) NOT NULL,     jenis character varying(50),     bobot numeric(5,2) DEFAULT 100,     tanggal date NOT NULL,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     kelas text,     mapel text,     lembaga_id uuid,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kelas_id uuid,
+    mapel_id uuid,
+    semester_id uuid,
+    tahun_ajaran_id uuid,
+    nama_penilaian character varying(255) NOT NULL,
+    jenis character varying(50),
+    bobot numeric(5,2) DEFAULT 100,
+    tanggal date NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    kelas text,
+    mapel text,
+    lembaga_id uuid,
     CONSTRAINT penilaian_pkey PRIMARY KEY (id),
     CONSTRAINT penilaian_jenis_check CHECK (((jenis)::text = ANY ((ARRAY['Ulangan'::character varying, 'Ujian Tulis'::character varying, 'Ujian Lisan'::character varying, 'Tugas'::character varying, 'Hafalan'::character varying, 'Praktik'::character varying, 'Lainnya'::character varying])::text[])))
 );
 
 -- Table: presensi_guru
 CREATE TABLE IF NOT EXISTS public.presensi_guru (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     tanggal date NOT NULL,     jam_masuk time without time zone,     jam_keluar time without time zone,     lokasi text,     keterangan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     lembaga_id uuid,     foto_url text,     telat_menit integer DEFAULT 0,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    tanggal date NOT NULL,
+    jam_masuk time without time zone,
+    jam_keluar time without time zone,
+    lokasi text,
+    keterangan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    lembaga_id uuid,
+    foto_url text,
+    telat_menit integer DEFAULT 0,
     CONSTRAINT presensi_guru_pkey PRIMARY KEY (id)
 );
 
 -- Table: presensi_ustaz
 CREATE TABLE IF NOT EXISTS public.presensi_ustaz (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     guru_id uuid DEFAULT uid() NOT NULL,     kelas_id bigint,     jadwal_id uuid,     tanggal date DEFAULT CURRENT_DATE NOT NULL,     jam_server timestamp with time zone DEFAULT now() NOT NULL,     latitude numeric(10,7),     longitude numeric(10,7),     akurasi_gps numeric(10,2),     status text DEFAULT 'Hadir'::text NOT NULL,     photo_url text,     photo_expired boolean DEFAULT false NOT NULL,     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    guru_id uuid DEFAULT uid() NOT NULL,
+    kelas_id bigint,
+    jadwal_id uuid,
+    tanggal date DEFAULT CURRENT_DATE NOT NULL,
+    jam_server timestamp with time zone DEFAULT now() NOT NULL,
+    latitude numeric(10,7),
+    longitude numeric(10,7),
+    akurasi_gps numeric(10,2),
+    status text DEFAULT 'Hadir'::text NOT NULL,
+    photo_url text,
+    photo_expired boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT presensi_ustaz_pkey PRIMARY KEY (id),
     CONSTRAINT presensi_ustaz_status_check CHECK ((status = ANY (ARRAY['Hadir'::text, 'Terlambat'::text, 'Belum Presensi'::text])))
 );
 
 -- Table: profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id uuid NOT NULL,     nama_lengkap character varying(255),     nama_panggilan character varying(100),     email character varying(255),     nomor_whatsapp character varying(20),     foto text,     role character varying(50) DEFAULT 'ustaz'::character varying,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     id_login character varying(50),     status character varying DEFAULT 'Aktif'::character varying,     alamat text,     jenis_kelamin text,     boleh_mengajar text,     roles _text[] DEFAULT ARRAY['ustaz'::text],
+    id uuid NOT NULL,
+    nama_lengkap character varying(255),
+    nama_panggilan character varying(100),
+    email character varying(255),
+    nomor_whatsapp character varying(20),
+    foto text,
+    role character varying(50) DEFAULT 'ustaz'::character varying,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    id_login character varying(50),
+    status character varying DEFAULT 'Aktif'::character varying,
+    alamat text,
+    jenis_kelamin text,
+    boleh_mengajar text,
+    roles _text[] DEFAULT ARRAY['ustaz'::text],
     CONSTRAINT profiles_pkey PRIMARY KEY (id),
     CONSTRAINT profiles_role_check CHECK (((role)::text = ANY ((ARRAY['admin'::character varying, 'operator'::character varying, 'ustaz'::character varying])::text[]))),
     CONSTRAINT profiles_email_key UNIQUE (email),
@@ -237,26 +610,62 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- Table: rapor_final
 CREATE TABLE IF NOT EXISTS public.rapor_final (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     murid_id uuid,     semester_id uuid,     tahun_ajaran_id uuid,     nilai_akhir numeric(5,2),     predikat character varying(5),     deskripsi text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    murid_id uuid,
+    semester_id uuid,
+    tahun_ajaran_id uuid,
+    nilai_akhir numeric(5,2),
+    predikat character varying(5),
+    deskripsi text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT rapor_final_pkey PRIMARY KEY (id),
     CONSTRAINT rapor_final_murid_id_semester_id_tahun_ajaran_id_key UNIQUE (murid_id, semester_id, tahun_ajaran_id)
 );
 
 -- Table: ruangan
 CREATE TABLE IF NOT EXISTS public.ruangan (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     nama_ruangan text NOT NULL,     kode text,     kapasitas integer,     keterangan text,     is_active boolean DEFAULT true,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     lembaga_id uuid,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    nama_ruangan text NOT NULL,
+    kode text,
+    kapasitas integer,
+    keterangan text,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    lembaga_id uuid,
     CONSTRAINT ruangan_pkey PRIMARY KEY (id)
 );
 
 -- Table: semester
 CREATE TABLE IF NOT EXISTS public.semester (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     nama character varying(50) NOT NULL,     aktif boolean DEFAULT false,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nama character varying(50) NOT NULL,
+    aktif boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT semester_pkey PRIMARY KEY (id)
 );
 
 -- Table: sikap
 CREATE TABLE IF NOT EXISTS public.sikap (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     murid_id uuid,     tanggal date NOT NULL,     disiplin numeric(5,2),     adab numeric(5,2),     kerajinan numeric(5,2),     kejujuran numeric(5,2),     tanggung_jawab numeric(5,2),     catatan text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     lembaga_id uuid,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    murid_id uuid,
+    tanggal date NOT NULL,
+    disiplin numeric(5,2),
+    adab numeric(5,2),
+    kerajinan numeric(5,2),
+    kejujuran numeric(5,2),
+    tanggung_jawab numeric(5,2),
+    catatan text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    lembaga_id uuid,
     CONSTRAINT sikap_pkey PRIMARY KEY (id),
     CONSTRAINT sikap_adab_check CHECK (((adab >= (0)::numeric) AND (adab <= (100)::numeric))),
     CONSTRAINT sikap_disiplin_check CHECK (((disiplin >= (0)::numeric) AND (disiplin <= (100)::numeric))),
@@ -267,19 +676,40 @@ CREATE TABLE IF NOT EXISTS public.sikap (
 
 -- Table: soal
 CREATE TABLE IF NOT EXISTS public.soal (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid NOT NULL,     kelas_id uuid,     mapel_id uuid,     judul character varying(255) NOT NULL,     pertanyaan text NOT NULL,     jawaban text,     tingkat character varying(50),     lampiran text,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),     deleted_at timestamp with time zone,     is_active boolean DEFAULT true,     lembaga_id uuid,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kelas_id uuid,
+    mapel_id uuid,
+    judul character varying(255) NOT NULL,
+    pertanyaan text NOT NULL,
+    jawaban text,
+    tingkat character varying(50),
+    lampiran text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    lembaga_id uuid,
     CONSTRAINT soal_pkey PRIMARY KEY (id)
 );
 
 -- Table: tahun_ajaran
 CREATE TABLE IF NOT EXISTS public.tahun_ajaran (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     nama character varying(50) NOT NULL,     aktif boolean DEFAULT false,     created_at timestamp with time zone DEFAULT now(),     updated_at timestamp with time zone DEFAULT now(),
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nama character varying(50) NOT NULL,
+    aktif boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT tahun_ajaran_pkey PRIMARY KEY (id)
 );
 
 -- Table: user_settings
 CREATE TABLE IF NOT EXISTS public.user_settings (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,     user_id uuid DEFAULT uid() NOT NULL,     preferences jsonb DEFAULT '{}'::jsonb NOT NULL,     created_at timestamp with time zone DEFAULT now() NOT NULL,     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid DEFAULT uid() NOT NULL,
+    preferences jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT user_settings_pkey PRIMARY KEY (id),
     CONSTRAINT user_settings_user_id_key UNIQUE (user_id)
 );
