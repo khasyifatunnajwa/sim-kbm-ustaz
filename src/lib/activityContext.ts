@@ -5,7 +5,9 @@ const STORAGE_KEY = 'simkbm-active-jadwal';
 export interface ActivityContext {
   jadwal_id: string;
   kelas: string;
+  kelas_id?: string;
   pelajaran: string;
+  mapel_id?: string;
   jam_mulai: string;
   jam_selesai: string;
   ruangan?: string;
@@ -19,7 +21,9 @@ export function setActivityContext(jadwal: JadwalMengajar): void {
   const ctx: ActivityContext = {
     jadwal_id: jadwal.id,
     kelas: jadwal.kelas,
+    kelas_id: jadwal.kelas_id,
     pelajaran: jadwal.pelajaran,
+    mapel_id: jadwal.mapel_id,
     jam_mulai: jadwal.jam_mulai,
     jam_selesai: jadwal.jam_selesai,
     ruangan: jadwal.ruangan,

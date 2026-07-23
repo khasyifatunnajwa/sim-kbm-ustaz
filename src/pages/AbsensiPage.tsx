@@ -6,7 +6,7 @@ import {
   History, Lock, Info, ChevronRight, User,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getUstazScope } from '../lib/ustazData';
+import { useMasterData } from '../hooks/useMasterData';
 import { getActivityContext, clearActivityContext } from '../lib/activityContext';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
@@ -59,8 +59,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   });
 
   const [selectedLembagaId, setSelectedLembagaId] = useState<string>('');
-  const [selectedKelas, setSelectedKelas] = useState<string>('');
-  const [selectedMapel, setSelectedMapel] = useState<string>('');
+  const [selectedKelas, setSelectedKelas] = useState<string>(''); // stores kelas ID
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState<Record<string, Status>>({});
   const [saving, setSaving] = useState(false);
@@ -85,7 +84,8 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const { settings } = useSettings();
   const [filterGender, setFilterGender] = useState<string>('');
 
-  const isAdmin = profile?.role === 'admin';
+  const { kelasList, muridList, scope, isAdmin } = useMasterData(profile);
+
   const todayStr = new Date().toISOString().split('T')[0];
   const isToday = tanggal === todayStr;
   const nowTime = new Date().toTimeString().slice(0, 5);
@@ -107,7 +107,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   useEffect(() => {
     const ctx = getActivityContext();
     if (ctx) {
-      if (ctx.kelas) setSelectedKelas(ctx.kelas);
+      if (ctx.kelas_id) setSelectedKelas(ctx.kelas_id);
       if (ctx.lembaga_id) setSelectedLembagaId(ctx.lembaga_id);
       setTab('input');
       clearActivityContext();
@@ -120,21 +120,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     window.history.pushState(null, '', hash);
   };
 
-  const { data: scopeData, isLoading: loadingScope } = useQuery({
-    queryKey: ['absensi-scope', profile?.id],
-    queryFn: async () => {
-      const scope = await getUstazScope(profile);
-      const { data } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
-      let murid = (data ?? []) as Murid[];
-      if (!scope.isAdmin && scope.kelasList.length > 0) {
-        murid = murid.filter(m => scope.kelasList.includes(m.kelas || ''));
-      }
-      return { scope, murid };
-    },
-    enabled: !!profile,
-    staleTime: 5 * 60 * 1000,
-  });
-
   // Fetch jam pelajaran for edit lock
   const { data: jamPelajaranList = [] } = useQuery<JamPelajaran[]>({
     queryKey: ['jam-pelajaran'],
@@ -145,32 +130,36 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     staleTime: 10 * 60 * 1000,
   });
 
-  const muridList = scopeData?.murid ?? [];
-  const kelasOptions = scopeData?.scope.kelasList ?? [];
-  const mapelOptions = scopeData?.scope.mapelList ?? [];
-
-  useEffect(() => {
-    if (kelasOptions.length > 0 && !selectedKelas) setSelectedKelas(kelasOptions[0]);
-    if (mapelOptions.length > 0 && !selectedMapel) setSelectedMapel(mapelOptions[0]);
-  }, [kelasOptions, mapelOptions]);
-
+  // Filter kelas by lembaga and scope (ID-based)
   const kelasOptionsFiltered = useMemo(() => {
-    if (!selectedLembagaId) return kelasOptions;
-    const kelasSet = new Set<string>();
-    muridList.filter(m => m.lembaga_id === selectedLembagaId).forEach(m => { if (m.kelas) kelasSet.add(m.kelas); });
-    return Array.from(kelasSet).sort();
-  }, [kelasOptions, muridList, selectedLembagaId]);
+    let result = kelasList as Array<{ id: string; nama_kelas: string; lembaga_id?: string }>;
+    if (selectedLembagaId) {
+      result = result.filter(k => k.lembaga_id === selectedLembagaId);
+    }
+    if (!isAdmin && scope && scope.kelasIds.length > 0) {
+      result = result.filter(k => scope.kelasIds.includes(k.id));
+    }
+    return result;
+  }, [kelasList, selectedLembagaId, isAdmin, scope]);
 
+  // Auto-select first kelas
   useEffect(() => {
-    if (selectedLembagaId && kelasOptionsFiltered.length > 0 && !kelasOptionsFiltered.includes(selectedKelas)) {
-      setSelectedKelas(kelasOptionsFiltered[0]);
+    if (kelasOptionsFiltered.length > 0 && !kelasOptionsFiltered.some(k => k.id === selectedKelas)) {
+      setSelectedKelas(kelasOptionsFiltered[0].id);
     }
     if (selectedLembagaId && kelasOptionsFiltered.length === 0) setSelectedKelas('');
-  }, [selectedLembagaId, kelasOptionsFiltered]);
+  }, [selectedLembagaId, kelasOptionsFiltered, selectedKelas]);
 
+  // Derive display name for selected kelas
+  const selectedKelasNama = useMemo(() => {
+    const k = (kelasList as Array<{ id: string; nama_kelas: string }>).find(k => k.id === selectedKelas);
+    return k?.nama_kelas ?? '';
+  }, [kelasList, selectedKelas]);
+
+  // Filter murid by kelas_id (ID-based, not name-based)
   const muridFiltered = useMemo(() =>
     muridList.filter(m =>
-      m.kelas === selectedKelas &&
+      m.kelas_id === selectedKelas &&
       (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
       (!filterGender || m.gender_kelas === filterGender)
     ),
@@ -180,17 +169,15 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   // Determine if absensi is locked based on jam_pelajaran batas_edit_absensi
   const isEditLocked = useMemo(() => {
     if (isAdmin) return false;
-    if (!isToday) return true; // Past/future dates always locked for non-admin
+    if (!isToday) return true;
     if (!nowTime) return false;
-    // Check if any jam pelajaran's edit deadline has passed
     const nowMin = getServerMinutes(nowTime);
     for (const jam of jamPelajaranList) {
       const mulaiMin = getServerMinutes(jam.jam_mulai);
       const batasEdit = jam.batas_edit_absensi ?? 40;
       const deadlineMin = mulaiMin + batasEdit;
-      if (nowMin >= mulaiMin && nowMin <= deadlineMin) return false; // Still within edit window
+      if (nowMin >= mulaiMin && nowMin <= deadlineMin) return false;
     }
-    // If no jam matches current time, check localStorage fallback
     const savedJam = localStorage.getItem('simkbm-jam-settings');
     if (savedJam) {
       try {
@@ -200,7 +187,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
         if (nowMin <= batas) return false;
       } catch { /* ignore */ }
     }
-    return false; // Default: not locked (conservative)
+    return false;
   }, [isAdmin, isToday, nowTime, jamPelajaranList]);
 
   const { data: fetchedAttendance, isLoading: loadingAbsensi, refetch: refetchAbsensi } = useQuery({
@@ -259,7 +246,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     setSaving(true);
     try {
       const muridIds = muridFiltered.map(m => m.id);
-      // Fetch current absensi for audit trail
       let currentMap: Record<string, { id: string; status: string }> = {};
       {
         let q = supabase.from('absensi').select('id, murid_id, status').eq('tanggal', tanggal).in('murid_id', muridIds);
@@ -268,13 +254,13 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
         (data ?? []).forEach((a: any) => { if (a.murid_id) currentMap[a.murid_id] = { id: a.id, status: a.status }; });
       }
 
-      // Delete + insert
       let deleteQuery = supabase.from('absensi').delete().eq('tanggal', tanggal).in('murid_id', muridIds);
       if (selectedLembagaId) deleteQuery = deleteQuery.eq('lembaga_id', selectedLembagaId);
       await deleteQuery;
 
       const records = muridFiltered.map(m => ({
         murid_id: m.id,
+        kelas_id: selectedKelas,
         tanggal,
         status: attendance[m.id] ?? 'Hadir',
         ...(selectedLembagaId ? { lembaga_id: selectedLembagaId } : {}),
@@ -282,7 +268,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
       const { data: inserted, error } = await supabase.from('absensi').insert(records).select('id, murid_id, status');
       if (error) { showToast(error.message, 'error'); return; }
 
-      // Write audit trail for changed statuses
       const auditRows = (inserted ?? [])
         .filter((a: any) => {
           const prev = currentMap[a.murid_id];
@@ -298,6 +283,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
           diubah_oleh_nama: profile?.nama_lengkap ?? profile?.email,
           tipe_perubahan: isAdmin ? 'admin' : 'guru',
         }));
+
       if (auditRows.length > 0) await supabase.from('audit_trail_absensi').insert(auditRows);
 
       showToast('Absensi berhasil disimpan!', 'success');
@@ -319,14 +305,12 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     if (!telatMurid) return;
     setTelatSaving(true);
     try {
-      // Find current absensi record
       const { data: existing } = await supabase.from('absensi')
         .select('id, status')
         .eq('tanggal', tanggal)
         .eq('murid_id', telatMurid.id)
         .maybeSingle();
 
-      // Find jam masuk from jam_pelajaran or settings
       let jamMasuk = '07:00';
       if (jamPelajaranList.length > 0) jamMasuk = jamPelajaranList[0].jam_mulai;
       else {
@@ -337,6 +321,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
 
       const payload: any = {
         murid_id: telatMurid.id,
+        kelas_id: selectedKelas || null,
         tanggal,
         status: 'Telat',
         jam_datang: telatJamDatang,
@@ -394,7 +379,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
     queryKey: ['absensi-rekap', selectedKelas, selectedLembagaId, rekapType, rekapBulan, rekapTahun],
     queryFn: async () => {
       const muridKelas = muridList.filter(m =>
-        m.kelas === selectedKelas &&
+        m.kelas_id === selectedKelas &&
         (!selectedLembagaId || m.lembaga_id === selectedLembagaId)
       );
       const muridIds = muridKelas.map(m => m.id);
@@ -445,14 +430,14 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
       const pct = total > 0 ? (((d.Hadir + d.Telat) / total) * 100).toFixed(1) : '0';
       return [i + 1, m.nama, d.Hadir, d.Telat, d.Izin, d.Sakit, d.Alfa, `${pct}%`];
     });
-    generatePDF(`Rekap Absensi ${selectedKelas}`, headers, body, [`Periode: ${periode}`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]);
+    generatePDF(`Rekap Absensi ${selectedKelasNama}`, headers, body, [`Periode: ${periode}`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]);
   };
 
   const shareRekapWA = () => {
     const periode = rekapType === 'bulanan'
       ? new Date(rekapTahun, rekapBulan - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
       : `Tahun ${rekapTahun}`;
-    let text = `Rekap Absensi Kelas ${selectedKelas} - ${periode}\n\n`;
+    let text = `Rekap Absensi Kelas ${selectedKelasNama} - ${periode}\n\n`;
     muridFiltered.forEach((m, i) => {
       const d = rekapData[m.id] ?? { Hadir: 0, Telat: 0, Izin: 0, Sakit: 0, Alfa: 0, 'Belum Hadir': 0 };
       const total = d.Hadir + d.Telat + d.Izin + d.Sakit + d.Alfa;
@@ -465,8 +450,18 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
-  const isLoadingInput = loadingScope || loadingAbsensi;
-  const isLoadingRekap = loadingScope || loadingRekapData;
+  const isLoadingInput = loadingAbsensi;
+  const isLoadingRekap = loadingRekapData;
+
+  const kelasSelectEl = (cls: string) => (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas</label>
+      <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
+        <option value="">Pilih Kelas</option>
+        {kelasOptionsFiltered.map(k => <option key={k.id} value={k.id}>{k.nama_kelas}</option>)}
+      </select>
+    </div>
+  );
 
   const filterSection = (
     <div className="card p-4 mb-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
@@ -478,13 +473,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
           options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
           placeholder="Semua Lembaga"
         />
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas</label>
-          <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
-            <option value="">Pilih Kelas</option>
-            {kelasOptionsFiltered.map(k => <option key={k} value={k}>{k}</option>)}
-          </select>
-        </div>
+        {kelasSelectEl('input')}
         {settings.genderEnabled && (
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
@@ -571,7 +560,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                         <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm flex-1 min-w-0 truncate">{m.nama}</p>
                         <span className={`badge text-[9px] flex-shrink-0 ${STATUS_BADGE[status]}`}>{status}</span>
                       </div>
-                      {/* Status buttons */}
                       {!isEditLocked && (
                         <div className="grid grid-cols-5 gap-1.5 mb-1.5">
                           {STATUS_LIST_INPUT.map(s => {
@@ -589,7 +577,6 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                           })}
                         </div>
                       )}
-                      {/* Telat quick action */}
                       {!isEditLocked && (isBelum || isLate) && (
                         <button
                           onClick={() => openTelatModal(m)}
@@ -637,13 +624,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                 options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
                 placeholder="Semua Lembaga"
               />
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas</label>
-                <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
-                  <option value="">Pilih</option>
-                  {kelasOptionsFiltered.map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
-              </div>
+              {kelasSelectEl('rekap')}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jenis</label>
                 <select value={rekapType} onChange={e => setRekapType(e.target.value as any)} className="input-field text-sm">
@@ -687,10 +668,9 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
             <EmptyState title="Tidak ada santri" description="Belum ada santri di kelas ini." icon={<BarChart3 className="w-8 h-8 text-slate-300" />} />
           ) : (
             <div className="space-y-3">
-              {/* Class summary */}
               <div className="card p-4 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-900/20 dark:to-slate-800 border-emerald-100 dark:border-emerald-800">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Kehadiran Kelas {selectedKelas}</span>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Kehadiran Kelas {selectedKelasNama}</span>
                   <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                     {(() => {
                       let h = 0, t = 0;
@@ -763,13 +743,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
         <>
           <div className="card p-4 mb-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas</label>
-                <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
-                  <option value="">Pilih Kelas</option>
-                  {kelasOptionsFiltered.map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
-              </div>
+              {kelasSelectEl('audit')}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tanggal</label>
                 <input type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} className="input-field text-sm" />

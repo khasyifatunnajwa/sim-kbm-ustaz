@@ -91,6 +91,8 @@ export interface Kelas {
   gender?: GenderKelas;
   warna?: string;
   keterangan?: string;
+  lembaga_id?: string;
+  aktif?: boolean;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -185,6 +187,7 @@ export interface Absensi {
   user_id: string;
   jadwal_id?: string;
   murid_id?: string;
+  kelas_id?: string;
   tanggal: string;
   status?: StatusAbsensi;
   keterangan?: string;
@@ -555,6 +558,8 @@ export interface JadwalMengajar {
   jam_selesai: string;
   kelas: string;
   pelajaran: string;
+  kelas_id?: string;
+  mapel_id?: string;
   ruangan?: string;
   catatan?: string;
   lembaga_id?: string;
