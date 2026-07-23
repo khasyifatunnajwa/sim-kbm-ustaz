@@ -7,7 +7,7 @@ import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { useSettings } from '../store/useSettings';
-import type { Murid, Sikap, ShowToast, Profile } from '../types';
+import type { Murid, Sikap, ShowToast, Profile, Kelas } from '../types';
 import { getUstazScope } from '../lib/ustazData';
 
 const SIKAP_FIELDS = [
@@ -23,6 +23,7 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
   const { settings } = useSettings();
   const [filterGender, setFilterGender] = useState('');
   const [muridList, setMuridList] = useState<Murid[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [sikapList, setSikapList] = useState<Sikap[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,28 +48,31 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
     [lembagaList]
   );
 
-  // Kelas dropdown filters by selected lembaga
+  // Kelas dropdown filters by selected lembaga - sourced from kelas table (single source of truth)
   const kelasOptions = useMemo(() => {
-    const source = filterLembaga
-      ? muridList.filter(m => m.lembaga_id === filterLembaga)
-      : muridList;
-    return [...new Set(source.map(m => m.kelas).filter(Boolean))].sort();
-  }, [muridList, filterLembaga]);
+    let result = kelasList;
+    if (filterLembaga) result = result.filter(k => !k.lembaga_id || k.lembaga_id === filterLembaga);
+    return result.map(k => ({ value: k.id, label: k.nama_kelas }));
+  }, [kelasList, filterLembaga]);
 
   const muridFiltered = useMemo(
-    () => muridList.filter(m => (!filterKelas || m.kelas === filterKelas) && (!filterGender || m.gender_kelas === filterGender)),
+    () => muridList.filter(m => (!filterKelas || m.kelas_id === filterKelas) && (!filterGender || m.gender_kelas === filterGender)),
     [muridList, filterKelas, filterGender]
   );
 
   const fetchData = async () => {
     setLoading(true);
     const scope = await getUstazScope(profile);
+    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas, lembaga_id').eq('aktif', true).order('nama_kelas');
+    if (kelasData) setKelasList(kelasData as Kelas[]);
+
     let muridQuery = supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
-    if (!scope.isAdmin && scope.kelasList.length > 0) {
-      muridQuery = muridQuery.in('kelas', scope.kelasList);
-    }
     const { data: muridData } = await muridQuery;
-    if (muridData) setMuridList(muridData as Murid[]);
+    let murid = (muridData ?? []) as Murid[];
+    if (!scope.isAdmin && scope.kelasIds.length > 0) {
+      murid = murid.filter(m => m.kelas_id != null && scope.kelasIds.includes(m.kelas_id));
+    }
+    setMuridList(murid);
     setLoading(false);
   };
 
@@ -187,8 +191,7 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
               onChange={e => { setFilterKelas(e.target.value); setSelectedMurid(''); }}
             >
               <option value="">Semua Kelas</option>
-              {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
+              {kelasOptions.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}            </select>
           </div>
 
           {settings.genderEnabled && (

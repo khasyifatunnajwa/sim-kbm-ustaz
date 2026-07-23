@@ -19,7 +19,7 @@ export function useMasterData(profile: Profile | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kelas')
-        .select('id, nama_kelas, tingkat, aktif')
+        .select('id, nama_kelas, tingkat, aktif, lembaga_id, gender')
         .eq('aktif', true)
         .order('nama_kelas');
       if (error) throw error;
@@ -64,8 +64,8 @@ export function useMasterData(profile: Profile | null) {
       const { data, error } = await q;
       if (error) throw error;
       const murid = (data ?? []) as Murid[];
-      if (!isAdmin && scope && scope.kelasList.length > 0) {
-        return murid.filter(m => scope.kelasList.includes(m.kelas || ''));
+      if (!isAdmin && scope && scope.kelasIds.length > 0) {
+        return murid.filter(m => m.kelas_id != null && scope.kelasIds.includes(m.kelas_id));
       }
       return murid;
     },

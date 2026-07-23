@@ -55,7 +55,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
 
   const [form, setForm] = useState({
     hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00',
-    kelas: '', pelajaran: '', ruangan: '', catatan: '',
+    kelas: '', kelas_id: '', pelajaran: '', mapel_id: '', ruangan: '', catatan: '',
     lembaga_id: '',
   });
 
@@ -173,7 +173,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
   // 4. MENDORONG HASH SAAT BUKA MODAL TAMBAH
   const openAdd = () => {
     setEditingId(null);
-    setForm({ hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00', kelas: '', pelajaran: '', ruangan: '', catatan: '', lembaga_id: '' });
+    setForm({ hari: 'Senin', jam_mulai: '14:00', jam_selesai: '15:00', kelas: '', kelas_id: '', pelajaran: '', mapel_id: '', ruangan: '', catatan: '', lembaga_id: '' });
     setShowModal(true);
     window.history.pushState(null, '', '#jadwal/form');
   };
@@ -183,7 +183,8 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     setEditingId(j.id);
     setForm({
       hari: j.hari, jam_mulai: j.jam_mulai.slice(0, 5), jam_selesai: j.jam_selesai.slice(0, 5),
-      kelas: j.kelas, pelajaran: j.pelajaran, ruangan: j.ruangan ?? '', catatan: j.catatan ?? '',
+      kelas: j.kelas, kelas_id: (j as any).kelas_id ?? '', pelajaran: j.pelajaran, mapel_id: (j as any).mapel_id ?? '',
+      ruangan: j.ruangan ?? '', catatan: j.catatan ?? '',
       lembaga_id: (j as any).lembaga_id ?? '',
     });
     setShowModal(true);
@@ -192,11 +193,12 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.kelas || !form.pelajaran) { showToast('Kelas dan pelajaran wajib diisi', 'error'); return; }
+    if (!form.kelas_id || !form.mapel_id) { showToast('Kelas dan pelajaran wajib diisi', 'error'); return; }
     setSaving(true);
     const payload = {
       hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai,
-      kelas: form.kelas, pelajaran: form.pelajaran,
+      kelas: form.kelas, kelas_id: form.kelas_id,
+      pelajaran: form.pelajaran, mapel_id: form.mapel_id,
       ruangan: form.ruangan || null, catatan: form.catatan || null,
       lembaga_id: form.lembaga_id || null,
     };
@@ -454,17 +456,17 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
-              <select value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" required>
+              <select value={form.kelas_id} onChange={e => { const k = kelasFilteredByLembaga.find(k => k.id === e.target.value); setForm(p => ({ ...p, kelas_id: e.target.value, kelas: k?.nama_kelas ?? '' })); }} className="input-field text-sm" required>
                 <option value="">Pilih Kelas</option>
-                {kelasFilteredByLembaga.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
+                {kelasFilteredByLembaga.map(k => <option key={k.id} value={k.id}>{k.nama_kelas}</option>)}
               </select>
             </div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mata Pelajaran</label>
-            <select value={form.pelajaran} onChange={e => setForm(p => ({ ...p, pelajaran: e.target.value }))} className="input-field text-sm" required>
+            <select value={form.mapel_id} onChange={e => { const m = mapelList.find(m => m.id === e.target.value); setForm(p => ({ ...p, mapel_id: e.target.value, pelajaran: m?.nama_mapel ?? '' })); }} className="input-field text-sm" required>
               <option value="">Pilih Pelajaran</option>
-              {mapelList.map(m => <option key={m.id} value={m.nama_mapel}>{m.nama_mapel}</option>)}
+              {mapelList.map(m => <option key={m.id} value={m.id}>{m.nama_mapel}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">

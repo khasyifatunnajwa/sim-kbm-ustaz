@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ClipboardCheck, Save, CheckCircle, AlertCircle, XCircle, Clock,
-  FileText, Share2, Calendar, BarChart3, Pencil, AlertTriangle,
-  History, Lock, Info, ChevronRight, User,
+  FileText, Share2, BarChart3, Pencil, AlertTriangle,
+  History, Lock, ChevronRight, User,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useMasterData } from '../hooks/useMasterData';
@@ -14,7 +14,7 @@ import Modal from '../components/Modal';
 import { useLembaga } from '../hooks/useLembaga';
 import { useSettings } from '../store/useSettings';
 import { generatePDF, shareWA } from '../lib/pdf';
-import type { Murid, Absensi, AuditTrailAbsensi, Profile, ShowToast, GenderKelas, JamPelajaran } from '../types';
+import type { Murid, Absensi, AuditTrailAbsensi, Profile, ShowToast, JamPelajaran } from '../types';
 
 type Status = 'Hadir' | 'Izin' | 'Sakit' | 'Alfa' | 'Belum Hadir' | 'Telat';
 type Tab = 'input' | 'rekap' | 'audit';
@@ -453,7 +453,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
   const isLoadingInput = loadingAbsensi;
   const isLoadingRekap = loadingRekapData;
 
-  const kelasSelectEl = (cls: string) => (
+  const kelasSelectEl = () => (
     <div>
       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas</label>
       <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="input-field text-sm">
@@ -473,7 +473,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
           options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
           placeholder="Semua Lembaga"
         />
-        {kelasSelectEl('input')}
+        {kelasSelectEl()}
         {settings.genderEnabled && (
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
@@ -624,7 +624,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
                 options={lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga }))}
                 placeholder="Semua Lembaga"
               />
-              {kelasSelectEl('rekap')}
+              {kelasSelectEl()}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Jenis</label>
                 <select value={rekapType} onChange={e => setRekapType(e.target.value as any)} className="input-field text-sm">
@@ -743,7 +743,7 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
         <>
           <div className="card p-4 mb-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {kelasSelectEl('audit')}
+              {kelasSelectEl()}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tanggal</label>
                 <input type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} className="input-field text-sm" />

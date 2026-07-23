@@ -9,12 +9,12 @@ import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { useSettings } from '../store/useSettings';
 import { generateRaporPDF, shareWA } from '../lib/pdf';
-import type { Murid, Nilai, Absensi, CatatanPerilaku, CapaianHafalan, Sikap, ShowToast } from '../types';
+import type { Murid, Nilai, Absensi, CatatanPerilaku, CapaianHafalan, Sikap, ShowToast, Kelas } from '../types';
 
 export default function RaporPage({ showToast }: { showToast: ShowToast }) {
   const { settings } = useSettings();
   const [muridList, setMuridList] = useState<Murid[]>([]);
-  const [kelasOptions, setKelasOptions] = useState<string[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [selectedLembagaId, setSelectedLembagaId] = useState('');
   const [selectedKelas, setSelectedKelas] = useState('');
   
@@ -40,41 +40,39 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
 
   const fetchMurid = async () => {
     setLoading(true);
+    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas, lembaga_id').eq('aktif', true).order('nama_kelas');
+    if (kelasData) setKelasList(kelasData as Kelas[]);
     const { data } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
     if (data) {
-      const murid = data as Murid[];
-      setMuridList(murid);
-      const kelas = [...new Set(murid.map(m => m.kelas).filter((k): k is string => Boolean(k)))].sort();
-      setKelasOptions(kelas);
-      if (kelas.length) setSelectedKelas(kelas[0]);
+      setMuridList(data as Murid[]);
     }
     setLoading(false);
   };
 
-  // Filter kelas based on selected lembaga
+  // Filter kelas based on selected lembaga - from kelas table (single source of truth)
   const kelasFiltered = useMemo(() => {
-    if (!selectedLembagaId) return kelasOptions;
-    const kelasSet = new Set<string>();
-    muridList
-      .filter(m => m.lembaga_id === selectedLembagaId)
-      .forEach(m => { if (m.kelas) kelasSet.add(m.kelas); });
-    return Array.from(kelasSet).sort();
-  }, [kelasOptions, muridList, selectedLembagaId]);
+    let result = kelasList;
+    if (selectedLembagaId) result = result.filter(k => !k.lembaga_id || k.lembaga_id === selectedLembagaId);
+    return result.map(k => ({ value: k.id, label: k.nama_kelas }));
+  }, [kelasList, selectedLembagaId]);
 
   // When lembaga changes, reset kelas to first available class in that lembaga
   useEffect(() => {
     if (selectedLembagaId) {
-      if (kelasFiltered.length && !kelasFiltered.includes(selectedKelas)) {
-        setSelectedKelas(kelasFiltered[0]);
+      if (kelasFiltered.length && !kelasFiltered.some(k => k.value === selectedKelas)) {
+        setSelectedKelas(kelasFiltered[0].value ?? '');
         setSelectedMuridId('');
       }
+    } else if (kelasFiltered.length && !kelasFiltered.some(k => k.value === selectedKelas)) {
+      setSelectedKelas(kelasFiltered[0].value ?? '');
+      setSelectedMuridId('');
     }
   }, [selectedLembagaId, kelasFiltered, selectedKelas]);
 
   const muridFiltered = useMemo(
     () => muridList.filter(m =>
       (!selectedLembagaId || m.lembaga_id === selectedLembagaId) &&
-      (!selectedKelas || m.kelas === selectedKelas) &&
+      (!selectedKelas || m.kelas_id === selectedKelas) &&
       (!filterGender || m.gender_kelas === filterGender)
     ),
     [muridList, selectedLembagaId, selectedKelas, filterGender]
@@ -163,7 +161,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
       generateRaporPDF(
         {
           nama: selectedMurid.nama,
-          kelas: selectedMurid.kelas || '-',
+          kelas: kelasList.find(k => k.id === selectedKelas)?.nama_kelas ?? selectedMurid?.kelas ?? '-',
           domisili: selectedMurid.domisili,
           alamat: selectedMurid.alamat,
         },
@@ -185,7 +183,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
     const m = selectedMurid;
     let text = `*RAPOR SANTRI*\n\n`;
     text += `Nama: ${m.nama}\n`;
-    text += `Kelas: ${m.kelas || '-'}\n`;
+    text += `Kelas: ${kelasList.find(k => k.id === selectedKelas)?.nama_kelas ?? m.kelas ?? '-'}\n`;
     if (m.domisili) text += `Domisili: ${m.domisili}\n`;
     text += `\n*Rekap Kehadiran:*\n`;
     text += `Hadir: ${absenSummary.hadir} | Telat: ${absenSummary.telat} | Izin: ${absenSummary.izin} | Sakit: ${absenSummary.sakit} | Alpha: ${absenSummary.alpha} | Belum: ${absenSummary.belumHadir}\n`;
@@ -246,10 +244,10 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
         {kelasFiltered.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-1 flex-1">
             {kelasFiltered.map(k => (
-              <button key={k} onClick={() => { setSelectedKelas(k); setSelectedMuridId(''); }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
+              <button key={k.value} onClick={() => { setSelectedKelas(k.value); setSelectedMuridId(''); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border flex-shrink-0 transition-all ${selectedKelas === k.value ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'}`}
               >
-                {k}
+                {k.label}
               </button>
             ))}
           </div>
@@ -277,7 +275,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
                     className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all border ${selectedMuridId === m.id ? 'bg-emerald-600 text-white font-bold border-emerald-600 shadow-sm' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-100'}`}
                   >
                     <span className="block truncate">{m.nama}</span>
-                    {m.kelas && <span className={`text-[10px] ${selectedMuridId === m.id ? 'text-emerald-100' : 'text-slate-400'}`}>Kelas {m.kelas}</span>}
+                    {m.kelas && <span className={`text-[10px] ${selectedMuridId === m.id ? 'text-emerald-100' : 'text-slate-400'}`}>Kelas {kelasList.find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas}</span>}
                   </button>
                 ))}
               </div>

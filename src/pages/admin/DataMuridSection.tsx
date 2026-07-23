@@ -19,7 +19,7 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
   const [page, setPage] = useState(1);
   const [filterLembaga, setFilterLembaga] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
-  const [kelasOptions, setKelasOptions] = useState<string[]>([]);
+  const [kelasOptions, setKelasOptions] = useState<{id: string; nama_kelas: string}[]>([]);
   const { data: lembagaList } = useLembaga();
 
   const subTabs = [
@@ -44,13 +44,14 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
         q = q.eq('status_aktif', true);
       }
       if (filterLembaga) q = q.eq('lembaga_id', filterLembaga);
-      if (filterKelas) q = q.eq('kelas', filterKelas);
+      if (filterKelas) q = q.eq('kelas_id', filterKelas);
       if (!isAdmin) q = q.eq('user_id', profile?.id || '');
       const { data, error } = await q;
       if (error) throw error;
       setList((data || []) as Murid[]);
-      const kelasSet = [...new Set((data || []).map(m => m.kelas).filter(Boolean))].sort();
-      setKelasOptions(kelasSet);
+      // Fetch kelas options from kelas table (single source of truth)
+      const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('is_active', true).order('nama_kelas');
+      if (kelasData) setKelasOptions(kelasData.map((k: any) => ({ id: k.id, nama_kelas: k.nama_kelas })));
     } catch (err: any) {
       showToast('Gagal memuat data murid: ' + (err?.message || ''), 'error');
     } finally {
@@ -87,7 +88,7 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
 
       <div className="grid grid-cols-3 gap-2">
         <SearchableSelect value={filterLembaga} onChange={v => { setFilterLembaga(v); setFilterKelas(''); }} options={lembagaOptions} placeholder="Semua Lembaga" />
-        <SearchableSelect value={filterKelas} onChange={v => setFilterKelas(v)} options={kelasOptions.map(k => ({ value: k, label: k }))} placeholder="Semua Kelas" />
+        <SearchableSelect value={filterKelas} onChange={v => setFilterKelas(v)} options={kelasOptions.map(k => ({ value: k.id, label: k.nama_kelas }))} placeholder="Semua Kelas" />
         <div className="relative">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama..." className="input-field text-xs pl-8" />
@@ -110,7 +111,7 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{m.nama}</p>
                   <div className="flex flex-wrap items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400">
-                    <span className="badge badge-info text-[9px]">{m.kelas}</span>
+                    <span className="badge badge-info text-[9px]">{kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '-'}</span>
                     {lembagaName && <span className="truncate">{lembagaName}</span>}
                     {m.status_aktif === false && <span className="text-rose-500">Non-aktif</span>}
                   </div>

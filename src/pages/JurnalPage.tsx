@@ -9,14 +9,14 @@ import { getActivityContext, clearActivityContext } from '../lib/activityContext
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
-import { useLembaga, useLembagaKelas } from '../hooks/useLembaga';
+import { useLembaga } from '../hooks/useLembaga';
 import type { JurnalKBM, Profile, ShowToast } from '../types';
 
 type FilterTab = 'semua' | 'hari_ini' | 'minggu_ini';
 
 export default function JurnalPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [jurnalList, setJurnalList] = useState<JurnalKBM[]>([]);
-  const [kelasList, setKelasList] = useState<string[]>([]);
+  const [kelasList, setKelasList] = useState<{id: string; nama_kelas: string}[]>([]);
   const [mapelList, setMapelList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,6 +42,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
 
   const [form, setForm] = useState({
     kelas: '',
+    kelas_id: '',
     pelajaran: '',
     tanggal: today,
     materi: '',
@@ -59,6 +60,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
       setForm(f => ({
         ...f,
         kelas: ctx.kelas || f.kelas,
+        kelas_id: ctx.kelas_id || f.kelas_id,
         pelajaran: ctx.pelajaran || f.pelajaran,
         tanggal: today,
         lembaga_id: ctx.lembaga_id || f.lembaga_id,
@@ -70,7 +72,6 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
   }, []);
 
   // Kelas yang difilter berdasarkan lembaga yang dipilih di form
-  const { data: formKelasList = [] } = useLembagaKelas(form.lembaga_id || undefined);
 
   // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
   useEffect(() => {
@@ -104,13 +105,14 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
   useEffect(() => {
     (async () => {
       const scope = await getUstazScope(profile);
-      setKelasList(scope.kelasList);
+      const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('aktif', true).order('nama_kelas');
+      if (kelasData) setKelasList(kelasData as {id: string; nama_kelas: string}[]);
       setMapelList(scope.mapelList);
-      fetchJurnal(scope);
+      fetchJurnal();
     })();
   }, [profile]);
 
-  const fetchJurnal = async (scope?: { isAdmin: boolean; kelasList: string[] }) => {
+  const fetchJurnal = async () => {
   if (!profile?.id && profile?.role !== 'admin') {
   console.log('Profil belum siap, membatalkan fetch...');
   return;
@@ -151,6 +153,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     setEditingId(null);
     setForm({
       kelas: '',
+      kelas_id: '',
       pelajaran: mapelList[0] || '',
       tanggal: today,
       materi: '',
@@ -169,6 +172,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     setEditingId(j.id);
     setForm({
       kelas: j.kelas || '',
+      kelas_id: (j as any).kelas_id ?? '',
       pelajaran: j.pelajaran || '',
       tanggal: j.tanggal,
       materi: j.materi || '',
@@ -192,6 +196,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
     setSaving(true);
     const payload = {
       kelas: form.kelas,
+      kelas_id: form.kelas_id || null,
       pelajaran: form.pelajaran,
       tanggal: form.tanggal,
       materi: form.materi || null,
@@ -246,9 +251,11 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
 
   // Daftar kelas untuk dropdown di form: filter berdasarkan lembaga jika dipilih
   const formKelasOptions = useMemo(() => {
-    if (form.lembaga_id) return formKelasList;
+    if (form.lembaga_id) {
+      return kelasList.filter(k => !('lembaga_id' in k) || !k.lembaga_id || k.lembaga_id === form.lembaga_id);
+    }
     return kelasList;
-  }, [form.lembaga_id, formKelasList, kelasList]);
+  }, [form.lembaga_id, kelasList]);
 
   return (
     <div>
@@ -280,7 +287,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
         >
           <option value="">Semua Kelas</option>
           {kelasList.map(k => (
-            <option key={k} value={k}>{k}</option>
+            <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>
           ))}
         </select>
       </div>
@@ -389,7 +396,7 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
             >
               <option value="">Pilih Kelas</option>
               {formKelasOptions.map(k => (
-                <option key={k} value={k}>{k}</option>
+                <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>
               ))}
             </select>
           </div>

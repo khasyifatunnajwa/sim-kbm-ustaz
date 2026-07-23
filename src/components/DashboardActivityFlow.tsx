@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Bell, CheckCircle, AlertTriangle, Clock, Timer, Camera,
-  ClipboardCheck, FileText, ChevronRight, BookOpen, Users,
-  AlertCircle, Sparkles, X, PlayCircle,
+  Bell, CheckCircle, Clock, Timer, Camera,
+  ClipboardCheck, FileText, BookOpen,
+  AlertCircle, Sparkles,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { setActivityContext } from '../lib/activityContext';
@@ -79,12 +79,23 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
     queryKey: ['activity-absensi', todayDate, targetJadwal?.kelas, targetJadwal?.id],
     queryFn: async () => {
       if (!targetJadwal) return null;
-      const { data: muridIds } = await supabase
-        .from('murid')
-        .select('id')
-        .eq('kelas', targetJadwal.kelas)
-        .eq('status_aktif', true);
-      const ids = (muridIds || []).map(m => m.id);
+      let muridIds: { id: string }[] = [];
+      if (targetJadwal.kelas_id) {
+        const { data } = await supabase
+          .from('murid')
+          .select('id')
+          .eq('kelas_id', targetJadwal.kelas_id)
+          .eq('status_aktif', true);
+        muridIds = data ?? [];
+      } else {
+        const { data } = await supabase
+          .from('murid')
+          .select('id')
+          .eq('kelas', targetJadwal.kelas)
+          .eq('status_aktif', true);
+        muridIds = data ?? [];
+      }
+      const ids = muridIds.map(m => m.id);
       if (ids.length === 0) return { total: 0, hadir: 0, telat: 0, izin: 0, sakit: 0, alfa: 0, belum: 0 };
       const { data: absen } = await supabase
         .from('absensi')

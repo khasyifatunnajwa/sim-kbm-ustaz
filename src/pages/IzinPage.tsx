@@ -21,7 +21,7 @@ const STATUS_STYLE: Record<string, string> = {
 export default function IzinPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const { data: lembagaList = [] } = useLembaga();
   const [list, setList] = useState<IzinMengajar[]>([]);
-  const [kelasList, setKelasList] = useState<string[]>([]);
+  const [kelasList, setKelasList] = useState<{id: string; nama_kelas: string}[]>([]);
   const [mapelList, setMapelList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,6 +43,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     tanggal_selesai: '',
     mata_pelajaran: '',
     kelas: '',
+    kelas_id: '',
     guru_pengganti: '',
     catatan: '',
   });
@@ -53,29 +54,24 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     [lembagaList]
   );
 
-  // Kelas dropdown filters by selected lembaga
+  // Kelas dropdown filters by selected lembaga - from kelas table
   const kelasFiltered = useMemo(() => {
-    if (!form.lembaga_id) return kelasList;
-    // Query murid by lembaga_id to get classes for that lembaga
-    // kelasList is the full scope; we additionally filter via murid if possible.
-    // Since kelasList comes from scope, we filter client-side by murid lembaga_id when available.
-    return kelasList; // fallback: show all; refined below via async fetch
+    let result = kelasList;
+    if (form.lembaga_id) result = result.filter(k => !('lembaga_id' in k) || !k.lembaga_id || k.lembaga_id === form.lembaga_id);
+    return result;
   }, [kelasList, form.lembaga_id]);
 
-  // Refetch kelas options when lembaga changes (query murid by lembaga_id to get classes)
+  // Refetch kelas options when lembaga changes - from kelas table
   useEffect(() => {
     if (!form.lembaga_id) return;
     (async () => {
       const { data } = await supabase
-        .from('murid')
-        .select('kelas')
-        .eq('status_aktif', true)
-        .eq('lembaga_id', form.lembaga_id);
-      if (data) {
-        const kelasSet = new Set<string>();
-        (data as any[]).forEach((m) => { if (m.kelas) kelasSet.add(m.kelas); });
-        setKelasList(Array.from(kelasSet).sort());
-      }
+        .from('kelas')
+        .select('id, nama_kelas, lembaga_id')
+        .eq('aktif', true)
+        .eq('lembaga_id', form.lembaga_id)
+        .order('nama_kelas');
+      if (data) setKelasList(data as {id: string; nama_kelas: string}[]);
     })();
   }, [form.lembaga_id]);
 
@@ -120,7 +116,8 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
   useEffect(() => {
     (async () => {
       const scope = await getUstazScope(profile);
-      setKelasList(scope.kelasList);
+      const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('aktif', true).order('nama_kelas');
+      if (kelasData) setKelasList(kelasData as {id: string; nama_kelas: string}[]);
       setMapelList(scope.mapelList);
       fetchList();
     })();
@@ -137,6 +134,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       tanggal_selesai: '',
       mata_pelajaran: mapelList[0] || '',
       kelas: '',
+      kelas_id: '',
       guru_pengganti: '',
       catatan: '',
     });
@@ -170,6 +168,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       tanggal_selesai: form.lama_izin === 'hari_ini' ? form.tanggal_mulai : (form.tanggal_selesai || null),
       mata_pelajaran: form.mata_pelajaran,
       kelas: form.kelas,
+      kelas_id: form.kelas_id || null,
       guru_pengganti: form.guru_pengganti || null,
       catatan: form.catatan || null,
       status: 'diajukan',
@@ -194,6 +193,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
         keterangan,
         mata_pelajaran: form.mata_pelajaran,
         kelas: form.kelas,
+        kelas_id: form.kelas_id || null,
       });
     } catch (err) {
       // presensi update is best-effort; don't block the flow
@@ -444,9 +444,9 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas *</label>
-              <select value={form.kelas} onChange={e => setForm(p => ({ ...p, kelas: e.target.value }))} className="input-field text-sm" required>
+              <select value={form.kelas} onChange={e => { const k = kelasFiltered.find(k => k.nama_kelas === e.target.value); setForm(p => ({ ...p, kelas: e.target.value, kelas_id: k?.id ?? '' })); }} className="input-field text-sm" required>
                 <option value="">Pilih</option>
-                {kelasFiltered.map(k => <option key={k} value={k}>{k}</option>)}
+                {kelasFiltered.map(k => <option key={k.id} value={k.nama_kelas}>{k.nama_kelas}</option>)}
               </select>
             </div>
           </div>

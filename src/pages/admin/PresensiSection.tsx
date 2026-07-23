@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, GraduationCap, CheckCircle, Clock, UserX, FileText,
-  ChevronUp, ChevronDown, User, MapPin, Calendar, Building2,
-  Search, Plus, Repeat, History,
+  ChevronUp, ChevronDown, User, Calendar, Building2,
+  Plus, Repeat, History,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { namaHari } from '../../lib/utils';
@@ -347,13 +347,15 @@ function PresensiMurid({ showToast }: { showToast: ShowToast }) {
     setLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      let muridQuery = supabase.from('murid').select('id, nama, kelas, lembaga_id, status_aktif').eq('status_aktif', true);
+      let muridQuery = supabase.from('murid').select('id, nama, kelas, kelas_id, lembaga_id, status_aktif').eq('status_aktif', true);
       if (filterLembagaId) muridQuery = muridQuery.eq('lembaga_id', filterLembagaId);
-      if (filterKelas) muridQuery = muridQuery.eq('kelas', filterKelas);
+      if (filterKelas) muridQuery = muridQuery.eq('kelas_id', filterKelas);
       const { data: muridData } = await muridQuery.order('kelas').order('nama');
       if (!muridData || muridData.length === 0) { setMuridByKelas([]); setKelasOptions([]); setLoading(false); return; }
 
-      setKelasOptions([...new Set(muridData.map(m => m.kelas).filter(Boolean))].sort());
+      // Build kelas options from kelas table (single source of truth)
+      const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('aktif', true).order('nama_kelas');
+      if (kelasData) setKelasOptions(kelasData.map((k: any) => k.nama_kelas));
       const muridIds = muridData.map(m => m.id);
       const { data: absensiData } = await supabase.from('absensi').select('murid_id, status').eq('tanggal', today).in('murid_id', muridIds);
       const absensiMap = new Map((absensiData || []).map(a => [a.murid_id, a.status]));

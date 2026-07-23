@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
-import type { Murid, Profile, ShowToast } from '../types';
+import type { Murid, Profile, ShowToast, Kelas } from '../types';
 
 export default function MuridPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
   const [muridList, setMuridList] = useState<Murid[]>([]);
@@ -47,6 +47,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   const [form, setForm] = useState({
     nama: '',
     kelas: '',
+    kelas_id: '',
     domisili: '',
     alamat: '',
     nomor_whatsapp: '',
@@ -54,7 +55,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     lembaga_id: '',
   });
 
-  const [kelasList, setKelasList] = useState<string[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -102,7 +103,16 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     setLoading(true);
     try {
       const scope = await getUstazScope(profile);
-      setKelasList(scope.kelasList);
+      setKelasList(scope.kelasList as unknown as Kelas[]);
+
+      // Fetch kelas objects with IDs
+      const { data: kelasData } = await supabase
+        .from('kelas')
+        .select('id, nama_kelas, lembaga_id, aktif, gender')
+        .eq('aktif', true)
+        .order('nama_kelas');
+      const kelasObjList = (kelasData ?? []) as Kelas[];
+      setKelasList(kelasObjList);
 
       const { data, error } = await supabase
         .from('murid')
@@ -112,8 +122,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       if (error) throw error;
       if (data) {
         let muridData = data as Murid[];
-        if (!scope.isAdmin && scope.kelasList.length > 0) {
-          muridData = muridData.filter(m => scope.kelasList.includes(m.kelas || ''));
+        if (!scope.isAdmin && scope.kelasIds.length > 0) {
+          muridData = muridData.filter(m => m.kelas_id != null && scope.kelasIds.includes(m.kelas_id));
         }
         setMuridList(muridData);
       }
@@ -129,31 +139,31 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   }, []);
 
   const kelasOptions = useMemo(() => {
+    let result = kelasList as Kelas[];
     if (form.lembaga_id) {
-      const kelasFromMurid = [...new Set(muridList.filter(m => m.lembaga_id === form.lembaga_id).map(m => m.kelas).filter(Boolean))].sort();
-      return kelasFromMurid.length > 0 ? kelasFromMurid : (kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort());
+      result = result.filter(k => !k.lembaga_id || k.lembaga_id === form.lembaga_id);
     }
-    return kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort();
-  }, [kelasList, muridList, form.lembaga_id]);
+    return result;
+  }, [kelasList, form.lembaga_id]);
 
   const formKelasOptions = useMemo(() => {
+    let result = kelasList as Kelas[];
     if (form.lembaga_id) {
-      const kelasFromMurid = [...new Set(muridList.filter(m => m.lembaga_id === form.lembaga_id).map(m => m.kelas).filter(Boolean))].sort();
-      return kelasFromMurid.length > 0 ? kelasFromMurid : (kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort());
+      result = result.filter(k => !k.lembaga_id || k.lembaga_id === form.lembaga_id);
     }
-    return kelasList.length > 0 ? kelasList : [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort();
-  }, [kelasList, muridList, form.lembaga_id]);
+    return result;
+  }, [kelasList, form.lembaga_id]);
 
   // Memfilter pilihan kelas di form input berdasarkan ketikan user
   const filteredFormKelasOptions = useMemo(() => {
-    return formKelasOptions.filter(kelas => 
-      kelas.toLowerCase().includes(kelasSearchInput.toLowerCase())
+    return formKelasOptions.filter(k => 
+      k.nama_kelas.toLowerCase().includes(kelasSearchInput.toLowerCase())
     );
   }, [formKelasOptions, kelasSearchInput]);
 
   // Cek apakah ada kecocokan teks yang persis sama antara input ketikan dengan kelas yang sudah ada
   const hasExactKelasMatch = useMemo(() => {
-    return formKelasOptions.some(kelas => kelas.toLowerCase() === kelasSearchInput.toLowerCase().trim());
+    return formKelasOptions.some(k => k.nama_kelas.toLowerCase() === kelasSearchInput.toLowerCase().trim());
   }, [formKelasOptions, kelasSearchInput]);
 
   const filteredMuridList = useMemo(() => {
@@ -161,7 +171,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       const matchesSearch = 
         m.nama.toLowerCase().includes(search.toLowerCase()) ||
         (m.domisili && m.domisili.toLowerCase().includes(search.toLowerCase()));
-      const matchesKelas = filterKelas === 'all' || m.kelas === filterKelas;
+      const matchesKelas = filterKelas === 'all' || m.kelas_id === filterKelas;
       return matchesSearch && matchesKelas;
     });
   }, [muridList, search, filterKelas]);
@@ -173,6 +183,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     setForm({
       nama: '',
       kelas: '',
+      kelas_id: '',
       domisili: '',
       alamat: '',
       nomor_whatsapp: '',
@@ -183,10 +194,12 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
   const openEdit = (murid: any) => {
     setEditingId(murid.id);
-    setKelasSearchInput(murid.kelas || '');
+    const kelasNama = (kelasList as Kelas[]).find(k => k.id === murid.kelas_id)?.nama_kelas ?? murid.kelas ?? '';
+    setKelasSearchInput(kelasNama);
     setForm({
       nama: murid.nama || '',
-      kelas: murid.kelas || '',
+      kelas: kelasNama,
+      kelas_id: murid.kelas_id || '',
       domisili: murid.domisili || '',
       alamat: murid.alamat || '',
       nomor_whatsapp: murid.nomor_whatsapp || '',
@@ -199,7 +212,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nama || !form.kelas) {
+    if (!form.nama || !form.kelas_id) {
       showToast('Nama dan Kelas wajib diisi!', 'error');
       return;
     }
@@ -209,12 +222,13 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       const payload = {
         nama: form.nama,
         kelas: form.kelas,
+        kelas_id: form.kelas_id,
         domisili: form.domisili,
         alamat: form.alamat,
         nomor_whatsapp: form.nomor_whatsapp,
         status_aktif: form.status_aktif,
         lembaga_id: form.lembaga_id || null,
-        ustaz_id: profile?.id, // PRIVASI: Mengikat data kelas/santri ke ID ustaz pembuat
+        ustaz_id: profile?.id,
       };
 
       if (editingId) {
@@ -313,8 +327,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
             className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs md:text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           >
             <option value="all">Semua Kelas</option>
-            {kelasOptions.map(kelas => (
-              <option key={kelas} value={kelas}>Kelas {kelas}</option>
+            {kelasOptions.map(k => (
+              <option key={k.id} value={k.id}>Kelas {k.nama_kelas}</option>
             ))}
           </select>
         </div>
@@ -351,7 +365,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] font-semibold text-emerald-600 mt-1">Kelas {murid.kelas}</p>
+                  <p className="text-[11px] font-semibold text-emerald-600 mt-1">Kelas {(kelasList as Kelas[]).find(k => k.id === murid.kelas_id)?.nama_kelas ?? murid.kelas ?? '-'}</p>
                   {lembagaNama && (
                     <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-sky-50 text-sky-700 border border-sky-100">
                       {lembagaNama}
@@ -446,7 +460,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                   value={kelasSearchInput}
                   onChange={(e) => {
                     setKelasSearchInput(e.target.value);
-                    setForm(p => ({ ...p, kelas: e.target.value }));
+                    setForm(p => ({ ...p, kelas: e.target.value, kelas_id: '' }));
                     setIsKelasDropdownOpen(true);
                   }}
                   onFocus={() => setIsKelasDropdownOpen(true)}
@@ -462,17 +476,17 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                   <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto p-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
                     {filteredFormKelasOptions.map(k => (
                       <button
-                        key={k}
+                        key={k.id}
                         type="button"
                         onClick={() => {
-                          setForm(p => ({ ...p, kelas: k }));
-                          setKelasSearchInput(k);
+                          setForm(p => ({ ...p, kelas: k.nama_kelas, kelas_id: k.id }));
+                          setKelasSearchInput(k.nama_kelas);
                           setIsKelasDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors flex items-center justify-between ${form.kelas === k ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'}`}
+                        className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors flex items-center justify-between ${form.kelas_id === k.id ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'}`}
                       >
-                        <span>Kelas {k}</span>
-                        {form.kelas === k && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                        <span>Kelas {k.nama_kelas}</span>
+                        {form.kelas_id === k.id && <Check className="w-3.5 h-3.5 text-emerald-600" />}
                       </button>
                     ))}
 
@@ -482,10 +496,10 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                         type="button"
                         onClick={() => {
                           const newKelas = kelasSearchInput.trim();
-                          setForm(p => ({ ...p, kelas: newKelas }));
+                          setForm(p => ({ ...p, kelas: newKelas, kelas_id: '' }));
                           setKelasSearchInput(newKelas);
                           setIsKelasDropdownOpen(false);
-                          showToast(`Kelas "${newKelas}" ditambahkan ke formulir`, 'success');
+                          showToast(`Kelas "${newKelas}" ditambahkan ke formulir. Pilih kelas yang ada atau hubungi admin untuk membuat kelas baru.`, 'success');
                         }}
                         className="w-full text-left px-3 py-2 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 transition-colors sticky bottom-0 shadow-md"
                       >

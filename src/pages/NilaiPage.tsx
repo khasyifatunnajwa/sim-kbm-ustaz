@@ -10,7 +10,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { useSettings } from '../store/useSettings';
 import { generatePDF, shareWA } from '../lib/pdf';
-import type { Murid, Penilaian, DetailNilai, Profile, ShowToast } from '../types';
+import type { Murid, Penilaian, DetailNilai, Profile, ShowToast, Kelas } from '../types';
 
 type Tab = 'input' | 'riwayat' | 'rapor';
 type JenisUjian = 'Ulangan' | 'Ujian Tulis' | 'Ujian Lisan' | 'Baca Kitab' | 'Tugas' | 'Hafalan' | 'Praktik' | 'Lainnya';
@@ -31,6 +31,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
   const [tab, setTab] = useState<Tab>('input');
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [mapelOptions, setMapelOptions] = useState<string[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [selectedLembaga, setSelectedLembaga] = useState('');
   const [selectedKelas, setSelectedKelas] = useState('');
   const [loading, setLoading] = useState(true);
@@ -92,34 +93,37 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     setMapelOptions(scope.mapelList);
     if (scope.mapelList.length) setInputMapel(scope.mapelList[0]);
 
+    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas, lembaga_id').eq('aktif', true).order('nama_kelas');
+    const kelasObjList = (kelasData ?? []) as Kelas[];
+    setKelasList(kelasObjList);
+
     const { data: muridData } = await supabase.from('murid').select('*').eq('status_aktif', true).order('nama');
     let murid = (muridData ?? []) as Murid[];
-    if (!scope.isAdmin && scope.kelasList.length > 0) {
-      murid = murid.filter(m => scope.kelasList.includes(m.kelas || ''));
+    if (!scope.isAdmin && scope.kelasIds.length > 0) {
+      murid = murid.filter(m => m.kelas_id != null && scope.kelasIds.includes(m.kelas_id));
     }
     setMuridList(murid);
     setLoading(false);
   };
 
   // Kelas options filtered by selected lembaga (query murid by lembaga_id to get classes)
-  const kelasOptionsFiltered: string[] = useMemo(() => {
-    const source = selectedLembaga
-      ? muridList.filter(m => m.lembaga_id === selectedLembaga)
-      : muridList;
-    return Array.from(new Set(source.map(m => m.kelas).filter((k): k is string => Boolean(k)))).sort();
-  }, [muridList, selectedLembaga]);
+  const kelasOptionsFiltered: {value: string; label: string}[] = useMemo(() => {
+    let result = kelasList;
+    if (selectedLembaga) result = result.filter(k => !k.lembaga_id || k.lembaga_id === selectedLembaga);
+    return result.map(k => ({ value: k.id, label: k.nama_kelas }));
+  }, [kelasList, selectedLembaga]);
 
   // Reset selectedKelas when lembaga changes, pick first available
   useEffect(() => {
-    if (kelasOptionsFiltered.length > 0 && !kelasOptionsFiltered.includes(selectedKelas)) {
-      setSelectedKelas(kelasOptionsFiltered[0] ?? '');
+    if (kelasOptionsFiltered.length > 0 && !kelasOptionsFiltered.some(k => k.value === selectedKelas)) {
+      setSelectedKelas(kelasOptionsFiltered[0].value ?? '');
     } else if (kelasOptionsFiltered.length === 0) {
       setSelectedKelas('');
     }
   }, [kelasOptionsFiltered]);
 
   const muridFiltered = useMemo(
-    () => muridList.filter(m => m.kelas === selectedKelas && (!filterGender || m.gender_kelas === filterGender)),
+    () => muridList.filter(m => m.kelas_id === selectedKelas && (!filterGender || m.gender_kelas === filterGender)),
     [muridList, selectedKelas, filterGender]
   );
 
@@ -127,8 +131,8 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     if (selectedKelas) loadPenilaianKelas(selectedKelas);
   }, [selectedKelas]);
 
-  const loadPenilaianKelas = async (kelas: string) => {
-    let query = supabase.from('penilaian').select('*').eq('kelas', kelas).order('tanggal', { ascending: false });
+  const loadPenilaianKelas = async (kelasId: string) => {
+    let query = supabase.from('penilaian').select('*').eq('kelas_id', kelasId).order('tanggal', { ascending: false });
     if (profile?.role !== 'admin') {
       query = query.eq('user_id', profile?.id ?? '');
     }
@@ -186,7 +190,8 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
       const { data: penilaianData, error: penilaianError } = await supabase
         .from('penilaian')
         .insert([{
-          kelas: selectedKelas,
+          kelas: kelasList.find(k => k.id === selectedKelas)?.nama_kelas ?? '',
+          kelas_id: selectedKelas,
           mapel: inputMapel,
           nama_penilaian: inputNama,
           jenis: inputJenis,
@@ -241,7 +246,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
       return [i + 1, murid?.nama || '-', d.nilai || 0];
     });
     generatePDF(
-      `${penilaian.nama_penilaian} - ${penilaian.mapel} (${penilaian.kelas})`,
+      `${penilaian.nama_penilaian} - ${penilaian.mapel} (${kelasList.find(k => k.id === selectedKelas)?.nama_kelas ?? penilaian.kelas ?? '-'})`,
       headers, body,
       [`Tanggal: ${formatDate(penilaian.tanggal)}`, `Jenis: ${penilaian.jenis}`, `Bobot: ${penilaian.bobot}%`]
     );
@@ -254,7 +259,8 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     const details = detailNilaiMap[selectedPenilaian] || [];
     let text = `*HASIL ${penilaian.nama_penilaian}*\n\n`;
     text += `Mata Pelajaran: ${penilaian.mapel}\n`;
-    text += `Kelas: ${penilaian.kelas}\n`;
+    const kelasNama = kelasList.find(k => k.id === selectedKelas)?.nama_kelas ?? penilaian.kelas ?? '-';
+    text += `Kelas: ${kelasNama}\n`;
     text += `Tanggal: ${formatDate(penilaian.tanggal)}\n\n`;
     text += `*Daftar Nilai:*\n`;
     details.forEach((d, i) => {
@@ -272,11 +278,10 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
 
   // Kelas options for SearchableSelect inside modal (filtered by inputLembagaId)
   const modalKelasOptions = useMemo(() => {
-    if (!inputLembagaId) {
-      return [...new Set(muridList.map(m => m.kelas).filter(Boolean))].sort().map(k => ({ value: k, label: k }));
-    }
-    return [...new Set(muridList.filter(m => m.lembaga_id === inputLembagaId).map(m => m.kelas).filter(Boolean))].sort().map(k => ({ value: k, label: k }));
-  }, [muridList, inputLembagaId]);
+    let result = kelasList;
+    if (inputLembagaId) result = result.filter(k => !k.lembaga_id || k.lembaga_id === inputLembagaId);
+    return result.map(k => ({ value: k.id, label: k.nama_kelas }));
+  }, [kelasList, inputLembagaId]);
 
 
   return (
@@ -323,8 +328,8 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
         >
           {kelasOptionsFiltered.length === 0 && <option value="">Belum ada kelas</option>}
           {kelasOptionsFiltered.map((k) => (
-            <option key={k} value={k}>
-              Pilihan Kelas: {k}
+            <option key={k.value} value={k.value}>
+              {k.label}
             </option>
           ))}
         </select>

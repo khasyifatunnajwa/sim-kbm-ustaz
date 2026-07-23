@@ -14,7 +14,7 @@ import { generatePDF } from '../../lib/pdf';
 import type {
   ShowToast, Profile, KelompokMapel, Lembaga,
 } from '../../types';
-import DataSiswaPage from '../DataSiswaPage';
+// DataSiswaPage import removed - unused
 import DataUstazPage from '../DataUstazPage';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useSettings } from '../../store/useSettings';
@@ -326,7 +326,7 @@ function KelolaLembaga({ showToast, profile }: { showToast: ShowToast; profile: 
 }
 
 // ====== Kelola Data Murid (full CRUD + import/export) ======
-function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile | null }) {
   const { data: lembagaList = [] } = useLembaga();
   const { confirm, dialog } = useConfirm();
   const { settings } = useSettings();
@@ -340,9 +340,9 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
   const [filterKelas, setFilterKelas] = useState('');
   const [filterLembaga, setFilterLembaga] = useState('');
   const [page, setPage] = useState(1);
-  const [kelasOptions, setKelasOptions] = useState<string[]>([]);
+  const [kelasOptions, setKelasOptions] = useState<{id: string; nama_kelas: string}[]>([]);
   const [dbKelasOptions, setDbKelasOptions] = useState<{ value: string; label: string }[]>([]);
-  const [form, setForm] = useState({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '' as 'L' | 'P' | '', gender_kelas: '' as GenderKelas | '' });
+  const [form, setForm] = useState({ nama: '', kelas: '', kelas_id: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '' as 'L' | 'P' | '', gender_kelas: '' as GenderKelas | '' });
 
   const lembagaOptions = useMemo(() => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
@@ -350,10 +350,11 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
 
   const fetchKelasFromDB = async () => {
     try {
-      const { data, error } = await supabase.from('kelas').select('nama_kelas').eq('is_active', true).order('nama_kelas');
+      const { data, error } = await supabase.from('kelas').select('id, nama_kelas, lembaga_id').eq('is_active', true).order('nama_kelas');
       if (error) throw error;
       if (data) {
-        setDbKelasOptions(data.map((k: any) => ({ value: k.nama_kelas, label: k.nama_kelas })));
+        setDbKelasOptions(data.map((k: any) => ({ value: k.id, label: k.nama_kelas })));
+        setKelasOptions(data.map((k: any) => ({ id: k.id, nama_kelas: k.nama_kelas })));
       }
     } catch (err: any) {
       console.error('Gagal memuat opsi kelas:', err.message);
@@ -367,8 +368,9 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
       if (error) throw error;
       const murid = (data || []) as any[];
       setList(murid);
-      const kelas = [...new Set(murid.map(m => m.kelas).filter(Boolean))].sort();
-      setKelasOptions(kelas as string[]);
+      // Build kelas options from kelas table, not from murid names
+      const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('is_active', true).order('nama_kelas');
+      if (kelasData) setKelasOptions(kelasData.map((k: any) => ({ id: k.id, nama_kelas: k.nama_kelas })));
     } catch (err: any) { showToast('Gagal memuat data: ' + err.message, 'error'); } finally { setLoading(false); }
   };
 
@@ -378,20 +380,20 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
       const q = search.toLowerCase();
       result = result.filter(m => [m.nama, m.kelas, m.domisili].filter(Boolean).join(' ').toLowerCase().includes(q));
     }
-    if (filterKelas) result = result.filter(m => m.kelas === filterKelas);
+    if (filterKelas) result = result.filter(m => m.kelas_id === filterKelas);
     if (filterLembaga) result = result.filter(m => m.lembaga_id === filterLembaga);
     return result;
   }, [list, search, filterKelas, filterLembaga]);
 
-  const resetForm = () => { setForm({ nama: '', kelas: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '', gender_kelas: '' }); setEditingId(null); };
+  const resetForm = () => { setForm({ nama: '', kelas: '', kelas_id: '', lembaga_id: '', domisili: '', alamat: '', nomor_whatsapp: '', status_aktif: true, jenis_kelamin: '', gender_kelas: '' }); setEditingId(null); };
   const openAdd = () => { resetForm(); fetchKelasFromDB(); setShowModal(true); };
-  const openEdit = (m: any) => { setEditingId(m.id); fetchKelasFromDB(); setForm({ nama: m.nama || '', kelas: m.kelas || '', lembaga_id: m.lembaga_id || '', domisili: m.domisili || '', alamat: m.alamat || '', nomor_whatsapp: m.nomor_whatsapp || '', status_aktif: m.status_aktif !== false, jenis_kelamin: m.jenis_kelamin || '', gender_kelas: m.gender_kelas || '' }); setShowModal(true); };
+  const openEdit = (m: any) => { setEditingId(m.id); fetchKelasFromDB(); const kelasNama = kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? ''; setForm({ nama: m.nama || '', kelas: kelasNama, kelas_id: m.kelas_id || '', lembaga_id: m.lembaga_id || '', domisili: m.domisili || '', alamat: m.alamat || '', nomor_whatsapp: m.nomor_whatsapp || '', status_aktif: m.status_aktif !== false, jenis_kelamin: m.jenis_kelamin || '', gender_kelas: m.gender_kelas || '' }); setShowModal(true); };
 
   const handleSave = async () => {
-    if (!form.nama || !form.kelas) { showToast('Nama dan kelas wajib diisi', 'error'); return; }
+    if (!form.nama || !form.kelas_id) { showToast('Nama dan kelas wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload = { nama: form.nama, kelas: form.kelas, lembaga_id: form.lembaga_id || null, domisili: form.domisili || null, alamat: form.alamat || null, nomor_whatsapp: form.nomor_whatsapp || null, status_aktif: form.status_aktif, jenis_kelamin: form.jenis_kelamin || null, gender_kelas: form.gender_kelas || null };
+      const payload = { nama: form.nama, kelas: form.kelas, kelas_id: form.kelas_id, lembaga_id: form.lembaga_id || null, domisili: form.domisili || null, alamat: form.alamat || null, nomor_whatsapp: form.nomor_whatsapp || null, status_aktif: form.status_aktif, jenis_kelamin: form.jenis_kelamin || null, gender_kelas: form.gender_kelas || null };
       if (editingId) {
         const { error } = await supabase.from('murid').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -437,9 +439,12 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
     for (const row of rows) {
       const [nama, kelas, domisili, alamat, nomor_whatsapp, jenis_kelamin, gender_kelas] = row;
       if (!nama || !kelas) continue;
+      // Look up kelas_id by name
+      const kelasMatch = kelasOptions.find(k => k.nama_kelas.toLowerCase() === kelas.trim().toLowerCase());
       await supabase.from('murid').insert({
         nama: nama.trim(),
         kelas: kelas.trim(),
+        kelas_id: kelasMatch?.id || null,
         domisili: domisili?.trim() || null,
         alamat: alamat?.trim() || null,
         nomor_whatsapp: nomor_whatsapp?.trim() || null,
@@ -463,7 +468,7 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
         </div>
         <select value={filterKelas} onChange={e => setFilterKelas(e.target.value)} className="input-field text-xs py-2 w-28">
           <option value="">Semua Kelas</option>
-          {kelasOptions.map(k => <option key={k} value={k}>{k}</option>)}
+          {kelasOptions.map(k => <option key={k.id} value={k.id}>{k.nama_kelas}</option>)}
         </select>
         <select value={filterLembaga} onChange={e => setFilterLembaga(e.target.value)} className="input-field text-xs py-2 w-32">
           <option value="">Semua Lembaga</option>
@@ -492,7 +497,7 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{m.nama}</p>
                     <div className="flex flex-wrap items-center gap-1 text-[9px] text-slate-500">
-                      <span className="badge badge-success text-[9px]">{m.kelas}</span>
+                      <span className="badge badge-success text-[9px]">{kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '-'}</span>
                       {lembagaNama && <span className="truncate">{lembagaNama}</span>}
                       {m.status_aktif === false && <span className="text-rose-500">Non-aktif</span>}
                     </div>
@@ -516,7 +521,7 @@ function KelolaDataMurid({ showToast, profile }: { showToast: ShowToast; profile
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
-                <SearchableSelect value={form.kelas} onChange={v => setForm({ ...form, kelas: v })} options={dbKelasOptions} placeholder="Pilih kelas" />
+                <SearchableSelect value={form.kelas_id} onChange={v => { const k = kelasOptions.find(k => k.id === v); setForm({ ...form, kelas_id: v, kelas: k?.nama_kelas ?? '' }); }} options={dbKelasOptions} placeholder="Pilih kelas" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>

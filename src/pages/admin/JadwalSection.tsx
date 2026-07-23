@@ -168,7 +168,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
   const [form, setForm] = useState({
     user_id: '', hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:30',
-    kelas: '', pelajaran: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false,
+    kelas: '', kelas_id: '', pelajaran: '', mapel_id: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false,
     gender: '' as GenderKelas | '',
   });
 
@@ -180,22 +180,26 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
   const lembagaOptions = useMemo(() => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
+  const [dbKelasOptions, setDbKelasOptions] = useState<{value: string; label: string}[]>([]);
+  const [dbMapelOptions, setDbMapelOptions] = useState<{value: string; label: string}[]>([]);
+
   // Menggabungkan list standar dengan data unik yang sudah ada di database
   const kelasOptions = useMemo(() => {
-    const defaultKelas = ['Kelas 1', 'Kelas 2', 'Kelas 3', 'Kelas 4', 'Kelas 5', 'Kelas 6', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', '1A', '1B'];
-    const existingKelas = list.map(item => item.kelas).filter(Boolean);
-    const uniqueKelas = Array.from(new Set([...defaultKelas, ...existingKelas]));
-    return uniqueKelas.sort().map(k => ({ value: k, label: k }));
-  }, [list]);
+    return dbKelasOptions.length > 0 ? dbKelasOptions : [{ value: '', label: 'Pilih kelas' }];
+  }, [dbKelasOptions]);
 
   const pelajaranOptions = useMemo(() => {
-    const defaultPelajaran = ['Al-Qur\'an Hadits', 'Akidah Akhlak', 'Fiqih', 'Sejarah Kebudayaan Islam', 'Bahasa Arab', 'Tahfidz', 'Tematik', 'Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPA', 'IPS'];
-    const existingPelajaran = list.map(item => item.pelajaran).filter(Boolean);
-    const uniquePelajaran = Array.from(new Set([...defaultPelajaran, ...existingPelajaran]));
-    return uniquePelajaran.sort().map(p => ({ value: p, label: p }));
-  }, [list]);
+    return dbMapelOptions.length > 0 ? dbMapelOptions : [{ value: '', label: 'Pilih pelajaran' }];
+  }, [dbMapelOptions]);
 
-  useEffect(() => { fetchList(); fetchUstaz(); }, []);
+  useEffect(() => { fetchList(); fetchUstaz(); fetchKelasMapel(); }, []);
+
+  const fetchKelasMapel = async () => {
+    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('is_active', true).order('nama_kelas');
+    if (kelasData) setDbKelasOptions(kelasData.map((k: any) => ({ value: k.id, label: k.nama_kelas })));
+    const { data: mapelData } = await supabase.from('mata_pelajaran').select('id, nama_mapel').eq('is_active', true).order('nama_mapel');
+    if (mapelData) setDbMapelOptions(mapelData.map((m: any) => ({ value: m.id, label: m.nama_mapel })));
+  };
 
   const fetchUstaz = async () => {
     const { data } = await supabase.from('profiles').select('id, nama_lengkap').in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap');
@@ -215,22 +219,22 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   };
 
   const resetForm = () => {
-    setForm({ user_id: isAdmin ? '' : (profile?.id || ''), hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:30', kelas: '', pelajaran: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false, gender: '' });
+    setForm({ user_id: isAdmin ? '' : (profile?.id || ''), hari: 'Senin', jam_mulai: '07:00', jam_selesai: '08:30', kelas: '', kelas_id: '', pelajaran: '', mapel_id: '', ruangan: '', lembaga_id: '', guru_pengganti_id: '', is_libur: false, gender: '' });
     setEditingId(null);
   };
 
   const openAdd = () => { resetForm(); setShowModal(true); };
   const openEdit = (j: JadwalMengajar) => {
     setEditingId(j.id);
-    setForm({ user_id: j.user_id || '', hari: j.hari || 'Senin', jam_mulai: j.jam_mulai?.slice(0, 5) || '07:00', jam_selesai: j.jam_selesai?.slice(0, 5) || '08:30', kelas: j.kelas || '', pelajaran: j.pelajaran || '', ruangan: j.ruangan || '', lembaga_id: (j as any).lembaga_id || '', guru_pengganti_id: (j as any).guru_pengganti_id || '', is_libur: (j as any).is_libur ?? false, gender: (j as any).gender || '' });
+    setForm({ user_id: j.user_id || '', hari: j.hari || 'Senin', jam_mulai: j.jam_mulai?.slice(0, 5) || '07:00', jam_selesai: j.jam_selesai?.slice(0, 5) || '08:30', kelas: j.kelas || '', kelas_id: (j as any).kelas_id ?? '', pelajaran: j.pelajaran || '', mapel_id: (j as any).mapel_id ?? '', ruangan: j.ruangan || '', lembaga_id: (j as any).lembaga_id || '', guru_pengganti_id: (j as any).guru_pengganti_id || '', is_libur: (j as any).is_libur ?? false, gender: (j as any).gender || '' });
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.user_id || !form.kelas || !form.pelajaran || !form.hari) { showToast('Ustaz, kelas, pelajaran, dan hari wajib diisi', 'error'); return; }
+    if (!form.user_id || !form.kelas_id || !form.mapel_id || !form.hari) { showToast('Ustaz, kelas, pelajaran, dan hari wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload: any = { user_id: form.user_id, hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai || null, kelas: form.kelas, pelajaran: form.pelajaran, ruangan: form.ruangan || null, lembaga_id: form.lembaga_id || null, guru_pengganti_id: form.guru_pengganti_id || null, is_libur: form.is_libur, gender: form.gender || null };
+      const payload: any = { user_id: form.user_id, hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai || null, kelas: form.kelas, kelas_id: form.kelas_id, pelajaran: form.pelajaran, mapel_id: form.mapel_id, ruangan: form.ruangan || null, lembaga_id: form.lembaga_id || null, guru_pengganti_id: form.guru_pengganti_id || null, is_libur: form.is_libur, gender: form.gender || null };
       if (editingId) {
         const { error } = await supabase.from('jadwal_mengajar').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -258,7 +262,10 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     for (const row of rows) {
       const [user_id, hari, jam_mulai, jam_selesai, kelas, pelajaran, ruangan] = row;
       if (!user_id || !hari || !kelas || !pelajaran) continue;
-      await supabase.from('jadwal_mengajar').insert({ user_id: user_id.trim(), hari: hari.trim(), jam_mulai: jam_mulai?.trim() || '07:00', jam_selesai: jam_selesai?.trim() || null, kelas: kelas.trim(), pelajaran: pelajaran.trim(), ruangan: ruangan?.trim() || null });
+      // Look up kelas_id and mapel_id by name
+      const kelasMatch = dbKelasOptions.find(k => k.label.toLowerCase() === kelas.trim().toLowerCase());
+      const mapelMatch = dbMapelOptions.find(m => m.label.toLowerCase() === pelajaran.trim().toLowerCase());
+      await supabase.from('jadwal_mengajar').insert({ user_id: user_id.trim(), hari: hari.trim(), jam_mulai: jam_mulai?.trim() || '07:00', jam_selesai: jam_selesai?.trim() || null, kelas: kelas.trim(), kelas_id: kelasMatch?.value || null, pelajaran: pelajaran.trim(), mapel_id: mapelMatch?.value || null, ruangan: ruangan?.trim() || null });
       count++;
     }
     showToast(`${count} jadwal berhasil diimpor`, 'success');
@@ -516,20 +523,20 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
-                <SearchableSelect 
-                  value={form.kelas} 
-                  onChange={v => setForm({ ...form, kelas: v })} 
-                  options={kelasOptions} 
-                  placeholder="Pilih kelas" 
+                <SearchableSelect
+                  value={form.kelas_id}
+                  onChange={v => { const k = dbKelasOptions.find(o => o.value === v); setForm({ ...form, kelas_id: v, kelas: k?.label ?? '' }); }}
+                  options={kelasOptions}
+                  placeholder="Pilih kelas"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Mata Pelajaran *</label>
-                <SearchableSelect 
-                  value={form.pelajaran} 
-                  onChange={v => setForm({ ...form, pelajaran: v })} 
-                  options={pelajaranOptions} 
-                  placeholder="Pilih pelajaran" 
+                <SearchableSelect
+                  value={form.mapel_id}
+                  onChange={v => { const m = dbMapelOptions.find(o => o.value === v); setForm({ ...form, mapel_id: v, pelajaran: m?.label ?? '' }); }}
+                  options={pelajaranOptions}
+                  placeholder="Pilih pelajaran"
                 />
               </div>
             </div>
