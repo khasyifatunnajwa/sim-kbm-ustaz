@@ -207,6 +207,18 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
       : await supabase.from('jadwal_mengajar').insert(payload);
     setSaving(false);
     if (error) { showToast(error.message, 'error'); return; }
+
+    if (!editingId && profile?.role !== 'admin') {
+      await supabase.from('admin_notifications').insert({
+        type: 'new_jadwal',
+        title: 'Jadwal Baru Ditambahkan',
+        message: `Ustaz ${profile?.nama_lengkap || profile?.nama_panggilan || 'Unknown'} menambahkan jadwal: ${form.pelajaran} - Kelas ${form.kelas} (${form.hari} ${form.jam_mulai}-${form.jam_selesai})`,
+        data: { pelajaran: form.pelajaran, kelas: form.kelas, hari: form.hari },
+        created_by: profile?.id,
+        created_by_name: profile?.nama_lengkap || profile?.nama_panggilan,
+      });
+    }
+
     showToast(editingId ? 'Jadwal diperbarui!' : 'Jadwal ditambahkan!', 'success');
     
     // PERUBAHAN: Gunakan handleCloseModal

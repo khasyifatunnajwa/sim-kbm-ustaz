@@ -36,7 +36,7 @@ export default function SearchableSelect({
 
   const selected = options.find(o => o.value === value);
   const filtered = options.filter(o =>
-    o.label.toLowerCase().includes(search.toLowerCase())
+    (o.label ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -91,14 +91,14 @@ export default function SearchableSelect({
               {filtered.length === 0 ? (
                 <div className="py-3 px-2">
                   <p className="text-xs text-slate-400 text-center mb-2">Tidak ada data ditemukan</p>
-                  {onAddNew && searchText.trim() && (
+                  {onAddNew && search.trim() && (
                     <button
                       type="button"
-                      onClick={() => { onAddNew(searchText.trim()); setSearchText(''); setShowDropdown(false); }}
+                      onClick={() => { onAddNew(search.trim()); setSearch(''); setOpen(false); }}
                       className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-xs font-bold transition-colors border border-emerald-200"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      {addNewLabel}: "{searchText.trim()}"
+                      {addNewLabel}: "{search.trim()}"
                     </button>
                   )}
                 </div>

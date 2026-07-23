@@ -103,7 +103,6 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     setLoading(true);
     try {
       const scope = await getUstazScope(profile);
-      setKelasList(scope.kelasList as unknown as Kelas[]);
 
       // Fetch kelas objects with IDs
       const { data: kelasData } = await supabase
@@ -122,8 +121,12 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       if (error) throw error;
       if (data) {
         let muridData = data as Murid[];
-        if (!scope.isAdmin && scope.kelasIds.length > 0) {
-          muridData = muridData.filter(m => m.kelas_id != null && scope.kelasIds.includes(m.kelas_id));
+        if (!scope.isAdmin) {
+          // Show murid in ustaz's classes OR murid they personally added
+          muridData = muridData.filter(m =>
+            (m.kelas_id != null && scope.kelasIds.includes(m.kelas_id)) ||
+            m.user_id === profile?.id
+          );
         }
         setMuridList(muridData);
       }
@@ -147,23 +150,23 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   }, [kelasList, form.lembaga_id]);
 
   const formKelasOptions = useMemo(() => {
-    let result = kelasList as Kelas[];
+    const result = kelasList as Kelas[];
     if (form.lembaga_id) {
-      result = result.filter(k => !k.lembaga_id || k.lembaga_id === form.lembaga_id);
+      return result.filter(k => !k.lembaga_id || k.lembaga_id === form.lembaga_id);
     }
     return result;
   }, [kelasList, form.lembaga_id]);
 
   // Memfilter pilihan kelas di form input berdasarkan ketikan user
   const filteredFormKelasOptions = useMemo(() => {
-    return formKelasOptions.filter(k => 
-      k.nama_kelas.toLowerCase().includes(kelasSearchInput.toLowerCase())
+    return formKelasOptions.filter(k =>
+      (k.nama_kelas ?? '').toLowerCase().includes(kelasSearchInput.toLowerCase())
     );
   }, [formKelasOptions, kelasSearchInput]);
 
   // Cek apakah ada kecocokan teks yang persis sama antara input ketikan dengan kelas yang sudah ada
   const hasExactKelasMatch = useMemo(() => {
-    return formKelasOptions.some(k => k.nama_kelas.toLowerCase() === kelasSearchInput.toLowerCase().trim());
+    return formKelasOptions.some(k => (k.nama_kelas ?? '').toLowerCase() === kelasSearchInput.toLowerCase().trim());
   }, [formKelasOptions, kelasSearchInput]);
 
   const filteredMuridList = useMemo(() => {
@@ -204,7 +207,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       alamat: murid.alamat || '',
       nomor_whatsapp: murid.nomor_whatsapp || '',
       status_aktif: murid.status_aktif !== undefined ? murid.status_aktif : true,
-      lembaga_id: murid.lembaga_id || '',
+      lembaga_id: murid.lembaga || '',
     });
     setShowModal(true);
     window.history.pushState(null, '', '#murid/form');
@@ -222,13 +225,12 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       const payload = {
         nama: form.nama,
         kelas: form.kelas,
-        kelas_id: form.kelas_id,
+        kelas_id: form.kelas_id || null,
         domisili: form.domisili,
         alamat: form.alamat,
         nomor_whatsapp: form.nomor_whatsapp,
         status_aktif: form.status_aktif,
-        lembaga_id: form.lembaga_id || null,
-        ustaz_id: profile?.id,
+        lembaga: form.lembaga_id || null,
       };
 
       if (editingId) {
@@ -240,11 +242,25 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         if (error) throw error;
         showToast('Data santri berhasil diperbarui', 'success');
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from('murid')
-          .insert([payload]);
+          .insert([payload])
+          .select('id')
+          .maybeSingle();
 
         if (error) throw error;
+
+        // Send admin notification when non-admin ustaz adds a new murid
+        if (profile?.role !== 'admin') {
+          await supabase.from('admin_notifications').insert({
+            type: 'new_murid',
+            title: 'Santri Baru Ditambahkan',
+            message: `Ustaz ${profile?.nama_lengkap || profile?.nama_panggilan || 'Unknown'} menambahkan santri baru: ${form.nama} (Kelas: ${form.kelas || '-'})`,
+            data: { murid_id: inserted?.id, nama: form.nama, kelas: form.kelas, lembaga: form.lembaga_id },
+            created_by: profile?.id,
+            created_by_name: profile?.nama_lengkap || profile?.nama_panggilan,
+          });
+        }
         showToast('Santri baru berhasil ditambahkan', 'success');
       }
 
@@ -259,6 +275,12 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
   const handleDelete = async () => {
     if (!deletingId) return;
+    const targetMurid = muridList.find(m => m.id === deletingId);
+    if (targetMurid && profile?.role !== 'admin' && targetMurid.user_id !== profile?.id) {
+      showToast('Anda hanya bisa menghapus santri yang Anda tambahkan sendiri', 'error');
+      handleCloseDeleteModal();
+      return;
+    }
     try {
       const { error } = await supabase
         .from('murid')
@@ -348,7 +370,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filteredMuridList.map((murid: any) => {
-            const lembagaNama = murid.lembaga_id ? lembagaNameById[murid.lembaga_id] : undefined;
+            const lembagaNama = murid.lembaga ? lembagaNameById[murid.lembaga] : undefined;
+            const isOwner = profile?.role === 'admin' || murid.user_id === profile?.id;
             return (
             <div key={murid.id} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-all group relative">
               <div className="flex items-start justify-between gap-2">
@@ -364,6 +387,11 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                         <CheckCircle className="w-2.5 h-2.5" /> Aktif
                       </span>
                     )}
+                    {!isOwner && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-slate-50 text-slate-400 border border-slate-200">
+                        Hanya lihat
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] font-semibold text-emerald-600 mt-1">Kelas {(kelasList as Kelas[]).find(k => k.id === murid.kelas_id)?.nama_kelas ?? murid.kelas ?? '-'}</p>
                   {lembagaNama && (
@@ -373,6 +401,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                   )}
                 </div>
 
+                {isOwner && (
                 <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => openEdit(murid)}
@@ -393,6 +422,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
+                )}
               </div>
 
               <div className="mt-2.5 pt-2.5 border-t border-slate-100 space-y-1.5 text-[11px] text-slate-600">

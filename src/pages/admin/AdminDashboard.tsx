@@ -5,7 +5,7 @@ import {
   ChevronRight, LayoutDashboard, CheckCircle,
   School, Layers, Award, ArrowRight,
   Clock, XCircle, Heart, Activity,
-  BookUser, TrendingUp,
+  BookUser, TrendingUp, Bell,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { namaHari } from '../../lib/utils';
@@ -59,6 +59,7 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
   const [kbmBelum, setKbmBelum] = useState(0);
   const [pengumumanCount, setPengumumanCount] = useState(0);
   const [agendaCount, setAgendaCount] = useState(0);
+  const [adminNotifications, setAdminNotifications] = useState<any[]>([]);
 
   useEffect(() => { fetchDashboardData(); }, []);
 
@@ -149,6 +150,13 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
       } else {
         setKelasKosong([]);
       }
+
+      const { data: notifData } = await supabase
+        .from('admin_notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setAdminNotifications(notifData || []);
     } catch (err) {
       console.error('Error fetching dashboard:', err);
     } finally {
@@ -349,6 +357,41 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
               })}
             </div>
           </div>
+
+          {/* Admin Notifications from Ustaz */}
+          {adminNotifications.length > 0 && (
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Notifikasi dari Ustaz</span>
+                </div>
+                {adminNotifications.filter((n: any) => !n.is_read).length > 0 && (
+                  <span className="badge badge-warning text-[10px]">{adminNotifications.filter((n: any) => !n.is_read).length} baru</span>
+                )}
+              </div>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                {adminNotifications.map((n: any) => (
+                  <div key={n.id} className={`flex items-start gap-2.5 p-2.5 rounded-xl ${
+                    n.is_read ? 'bg-slate-50 dark:bg-slate-700/30' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800'
+                  }`}>
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                      n.is_read ? 'bg-slate-200 dark:bg-slate-600' : 'bg-amber-100 dark:bg-amber-900/40'
+                    }`}>
+                      <Bell className={`w-3 h-3 ${n.is_read ? 'text-slate-400' : 'text-amber-600 dark:text-amber-400'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 truncate">{n.title}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2">{n.message}</p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">
+                        {new Date(n.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Presensi Ustaz Detail Breakdown */}
           {presensiUstaz && (presensiUstaz.hadir > 0 || presensiUstaz.terlambat > 0 || monitoring.ustazBelumPresensi > 0 || monitoring.ustazIzin > 0 || monitoring.ustazSakit > 0 || monitoring.ustazAlfa > 0) && (
