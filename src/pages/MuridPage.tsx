@@ -207,7 +207,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       alamat: murid.alamat || '',
       nomor_whatsapp: murid.nomor_whatsapp || '',
       status_aktif: murid.status_aktif !== undefined ? murid.status_aktif : true,
-      lembaga_id: murid.lembaga || '',
+      lembaga_id: murid.lembaga_id || murid.lembaga || '',
     });
     setShowModal(true);
     window.history.pushState(null, '', '#murid/form');
@@ -230,7 +230,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         alamat: form.alamat,
         nomor_whatsapp: form.nomor_whatsapp,
         status_aktif: form.status_aktif,
-        lembaga: form.lembaga_id || null,
+        lembaga_id: form.lembaga_id || null,
       };
 
       if (editingId) {
@@ -256,7 +256,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
             type: 'new_murid',
             title: 'Santri Baru Ditambahkan',
             message: `Ustaz ${profile?.nama_lengkap || profile?.nama_panggilan || 'Unknown'} menambahkan santri baru: ${form.nama} (Kelas: ${form.kelas || '-'})`,
-            data: { murid_id: inserted?.id, nama: form.nama, kelas: form.kelas, lembaga: form.lembaga_id },
+            data: { murid_id: inserted?.id, nama: form.nama, kelas: form.kelas, lembaga_id: form.lembaga_id },
             created_by: profile?.id,
             created_by_name: profile?.nama_lengkap || profile?.nama_panggilan,
           });
@@ -370,7 +370,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filteredMuridList.map((murid: any) => {
-            const lembagaNama = murid.lembaga ? lembagaNameById[murid.lembaga] : undefined;
+            const lembagaNama = (murid.lembaga_id || murid.lembaga) ? lembagaNameById[murid.lembaga_id || murid.lembaga] : undefined;
             const isOwner = profile?.role === 'admin' || murid.user_id === profile?.id;
             return (
             <div key={murid.id} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-all group relative">
@@ -524,12 +524,43 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                     {kelasSearchInput.trim() !== '' && !hasExactKelasMatch && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           const newKelas = kelasSearchInput.trim();
-                          setForm(p => ({ ...p, kelas: newKelas, kelas_id: '' }));
-                          setKelasSearchInput(newKelas);
-                          setIsKelasDropdownOpen(false);
-                          showToast(`Kelas "${newKelas}" ditambahkan ke formulir. Pilih kelas yang ada atau hubungi admin untuk membuat kelas baru.`, 'success');
+                          try {
+                            const { data: newKelasRec, error: kelasError } = await supabase
+                              .from('kelas')
+                              .insert({
+                                nama_kelas: newKelas,
+                                is_active: true,
+                                aktif: true,
+                                lembaga_id: form.lembaga_id || null,
+                              })
+                              .select('id, nama_kelas')
+                              .maybeSingle();
+
+                            if (kelasError) throw kelasError;
+
+                            setForm(p => ({ ...p, kelas: newKelas, kelas_id: newKelasRec?.id ?? '' }));
+                            setKelasSearchInput(newKelas);
+                            setIsKelasDropdownOpen(false);
+
+                            await fetchKelasList();
+
+                            if (profile?.role !== 'admin') {
+                              await supabase.from('admin_notifications').insert({
+                                type: 'new_kelas',
+                                title: 'Kelas Baru Ditambahkan',
+                                message: `Ustaz ${profile?.nama_lengkap || profile?.nama_panggilan || 'Unknown'} menambahkan kelas baru: ${newKelas}`,
+                                data: { kelas_id: newKelasRec?.id, nama_kelas: newKelas, lembaga_id: form.lembaga_id },
+                                created_by: profile?.id,
+                                created_by_name: profile?.nama_lengkap || profile?.nama_panggilan,
+                              });
+                            }
+
+                            showToast(`Kelas "${newKelas}" berhasil dibuat`, 'success');
+                          } catch (err: any) {
+                            showToast(err.message || 'Gagal membuat kelas baru', 'error');
+                          }
                         }}
                         className="w-full text-left px-3 py-2 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 transition-colors sticky bottom-0 shadow-md"
                       >
