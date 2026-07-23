@@ -8,14 +8,26 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { useSettings } from '../store/useSettings';
 import type { Murid, Profile, ShowToast, Kelas } from '../types';
 
 export default function MuridPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
+  const fuzzyMatch = (query: string, text: string): boolean => {
+    const q = query.toLowerCase().trim();
+    const t = (text || '').toLowerCase();
+    if (t.includes(q)) return true;
+    let qi = 0;
+    for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+      if (t[ti] === q[qi]) qi++;
+    }
+    return qi === q.length;
+  };
   const [muridList, setMuridList] = useState<Murid[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const { data: lembagaList = [] } = useLembaga();
+  const { settings } = useSettings();
   const lembagaOptions = useMemo(
     () => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })),
     [lembagaList]
@@ -39,6 +51,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState<string>('all');
+  const [filterLembaga, setFilterLembaga] = useState<string>(settings.selectedLembaga || 'all');
+  const [filterGender, setFilterGender] = useState<string>('');
 
   // State Baru untuk kontrol Dropdown Modern Kelas
   const [kelasSearchInput, setKelasSearchInput] = useState('');
@@ -171,13 +185,14 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
 
   const filteredMuridList = useMemo(() => {
     return muridList.filter(m => {
-      const matchesSearch = 
-        m.nama.toLowerCase().includes(search.toLowerCase()) ||
-        (m.domisili && m.domisili.toLowerCase().includes(search.toLowerCase()));
+      const matchesSearch = search.trim() === '' || fuzzyMatch(search, m.nama) || (m.domisili && fuzzyMatch(search, m.domisili));
       const matchesKelas = filterKelas === 'all' || m.kelas_id === filterKelas;
-      return matchesSearch && matchesKelas;
+      const matchesLembaga = filterLembaga === 'all' || m.lembaga_id === filterLembaga;
+      const kelasObj = kelasList.find(k => k.id === m.kelas_id);
+      const matchesGender = !filterGender || (kelasObj && kelasObj.gender === filterGender);
+      return matchesSearch && matchesKelas && matchesLembaga && matchesGender;
     });
-  }, [muridList, search, filterKelas]);
+  }, [muridList, search, filterKelas, filterLembaga, filterGender, kelasList]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -324,21 +339,35 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       </div>
 
       {/* Filter Toolbar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <div className="relative sm:col-span-2">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama santri atau domisili..."
-            className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-              <X className="w-4 h-4" />
-            </button>
-          )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="relative">
+          <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <select
+            value={filterLembaga}
+            onChange={(e) => { setFilterLembaga(e.target.value); setFilterKelas('all'); setFilterGender(''); }}
+            className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs md:text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+          >
+            <option value="all">Semua Lembaga</option>
+            {lembagaList.map((l: any) => (
+              <option key={l.id} value={l.id}>{l.nama_lembaga}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="relative">
+          <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <select
+            value={filterGender}
+            onChange={(e) => setFilterGender(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs md:text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+          >
+            <option value="">Semua Gender</option>
+            {settings.genderOptions.map(g => (
+              <option key={g} value={g}>
+                {g === 'Banin' ? settings.genderLabelBanin : g === 'Banat' ? settings.genderLabelBanat : settings.genderLabelCampuran}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="relative">
@@ -349,10 +378,30 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
             className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs md:text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           >
             <option value="all">Semua Kelas</option>
-            {kelasOptions.map(k => (
-              <option key={k.id} value={k.id}>Kelas {k.nama_kelas}</option>
-            ))}
+            {kelasOptions
+              .filter(k => filterLembaga === 'all' || !k.lembaga_id || k.lembaga_id === filterLembaga)
+              .filter(k => !filterGender || !k.gender || k.gender === filterGender)
+              .map(k => (
+                <option key={k.id} value={k.id}>Kelas {k.nama_kelas}</option>
+              ))}
           </select>
+        </div>
+
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={filterLembaga !== 'all' && filterKelas !== 'all' ? "Cari nama santri..." : "Pilih lembaga & kelas dulu"}
+            disabled={filterLembaga === 'all' || filterKelas === 'all'}
+            className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -365,7 +414,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
       ) : filteredMuridList.length === 0 ? (
         <EmptyState
           title="Tidak ada data santri"
-          description={search || filterKelas !== 'all' ? "Tidak ada hasil yang cocok dengan filter pencarian Anda." : "Belum ada data santri yang ditambahkan."}
+          description={search || filterKelas !== 'all' || filterLembaga !== 'all' || filterGender ? "Tidak ada hasil yang cocok dengan filter pencarian Anda." : "Belum ada data santri yang ditambahkan."}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -544,7 +593,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
                             setKelasSearchInput(newKelas);
                             setIsKelasDropdownOpen(false);
 
-                            await fetchKelasList();
+                            await fetchMurid();
 
                             if (profile?.role !== 'admin') {
                               await supabase.from('admin_notifications').insert({

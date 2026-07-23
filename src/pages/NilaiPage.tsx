@@ -50,7 +50,9 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
   const [inputLembagaId, setInputLembagaId] = useState('');
   const [inputMapel, setInputMapel] = useState('');
   const [inputJenis, setInputJenis] = useState<JenisUjian>('Ulangan');
+  const [inputJenisLain, setInputJenisLain] = useState('');
   const [inputNama, setInputNama] = useState('');
+  const [inputNamaLain, setInputNamaLain] = useState('');
   const [inputBobot, setInputBobot] = useState(100);
   const [inputTanggal, setInputTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [batchNilai, setBatchNilai] = useState<Record<string, string>>({});
@@ -163,7 +165,9 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     setInputLembagaId(selectedLembaga || (lembagaList[0]?.id ?? ''));
     setInputMapel(mapelOptions[0] || '');
     setInputJenis('Ulangan');
+    setInputJenisLain('');
     setInputNama('');
+    setInputNamaLain('');
     setInputBobot(100);
     setInputTanggal(today);
     const init: Record<string, string> = {};
@@ -175,7 +179,9 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
 
   const handleSaveBatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMapel || !inputNama) {
+    const finalNama = inputNama === 'Lainnya' ? inputNamaLain.trim() : inputNama;
+    const finalJenis = inputJenis === 'Lainnya' ? inputJenisLain.trim() : inputJenis;
+    if (!inputMapel || !finalNama) {
       showToast('Lengkapi mata pelajaran dan nama penilaian', 'error');
       return;
     }
@@ -193,8 +199,8 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
           kelas: kelasList.find(k => k.id === selectedKelas)?.nama_kelas ?? '',
           kelas_id: selectedKelas,
           mapel: inputMapel,
-          nama_penilaian: inputNama,
-          jenis: inputJenis,
+          nama_penilaian: finalNama,
+          jenis: finalJenis,
           bobot: inputBobot,
           tanggal: inputTanggal,
           lembaga_id: inputLembagaId || null,
@@ -500,6 +506,13 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
             </div>
           </div>
 
+          {inputJenis === 'Lainnya' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Keterangan Jenis Penilaian *</label>
+              <input type="text" value={inputJenisLain} onChange={e => setInputJenisLain(e.target.value)} className="input-field text-sm" placeholder="Ketik jenis penilaian lainnya..." required />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Penilaian</label>
@@ -513,6 +526,13 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
               <input type="number" min="0" max="100" value={inputBobot} onChange={e => setInputBobot(Number(e.target.value))} className="input-field text-sm" />
             </div>
           </div>
+
+          {inputNama === 'Lainnya' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Keterangan Nama Penilaian *</label>
+              <input type="text" value={inputNamaLain} onChange={e => setInputNamaLain(e.target.value)} className="input-field text-sm" placeholder="Ketik nama penilaian lainnya..." required />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tanggal</label>

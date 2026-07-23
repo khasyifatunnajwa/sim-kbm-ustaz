@@ -36,6 +36,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
   // Word-like soal editor state
   const [autoNumber, setAutoNumber] = useState(true);
   const [fontSize, setFontSize] = useState(16);
+  const [textDir, setTextDir] = useState<'ltr' | 'rtl'>('ltr');
   const soalTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // 2. SINKRONISASI MODAL DENGAN TOMBOL BACK HP
@@ -192,11 +193,9 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
       const end = textarea.selectionEnd;
       const content = form.isi_soal;
       const nextNumber = countNumbers(content) + 1;
-      // Insert "\n{nextNumber}. \n.....\n" at cursor position
-      const insert = `\n${nextNumber}. \n.....\n  `;
+      const insert = `\n${nextNumber}. \n`;
       const newContent = content.slice(0, start) + insert + content.slice(end);
       setForm(p => ({ ...p, isi_soal: newContent }));
-      // Move cursor after the inserted block (after "  " indent)
       requestAnimationFrame(() => {
         if (soalTextareaRef.current) {
           const pos = start + insert.length;
@@ -211,9 +210,8 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
   const handleTambahSoal = () => {
     const nextNumber = countNumbers(form.isi_soal) + 1;
     const prefix = form.isi_soal && !form.isi_soal.endsWith('\n') ? '\n' : '';
-    const newBlock = `${prefix}${nextNumber}. \n.....\n  `;
+    const newBlock = `${prefix}${nextNumber}. \n`;
     setForm(p => ({ ...p, isi_soal: p.isi_soal + newBlock }));
-    // Focus textarea and move cursor to end
     requestAnimationFrame(() => {
       if (soalTextareaRef.current) {
         const ta = soalTextareaRef.current;
@@ -371,6 +369,16 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
                 <span>Auto-No</span>
               </button>
 
+              {/* RTL/LTR toggle */}
+              <button
+                type="button"
+                onClick={() => setTextDir(d => d === 'ltr' ? 'rtl' : 'ltr')}
+                className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors ${textDir === 'rtl' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-500 border-slate-200'}`}
+                title={textDir === 'rtl' ? 'Mode Arab (RTL). Klik untuk Latin (LTR)' : 'Mode Latin (LTR). Klik untuk Arab (RTL)'}
+              >
+                {textDir === 'rtl' ? <span className="text-xs font-bold">RTL</span> : <span className="text-xs font-bold">LTR</span>}
+              </button>
+
               {/* Tambah Soal button */}
               <button
                 type="button"
@@ -388,8 +396,8 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
               ref={soalTextareaRef}
               rows={14}
               className="w-full min-h-[400px] p-6 text-base leading-loose font-serif bg-slate-50 border-2 border-dashed border-slate-200 rounded-b-xl resize-y outline-none focus:border-emerald-400 transition-colors text-slate-800"
-              style={{ fontSize: `${fontSize}px` }}
-              placeholder={`1. \n.....\n2. \n.....\n3. \n.....`}
+              style={{ fontSize: `${fontSize}px`, direction: textDir, textAlign: textDir === 'rtl' ? 'right' : 'left' }}
+              placeholder="(Ketik di sini...)"
               value={form.isi_soal}
               onChange={e => setForm(p => ({ ...p, isi_soal: e.target.value }))}
               onKeyDown={handleSoalKeyDown}
@@ -397,8 +405,9 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
             />
             <p className="text-[10px] text-slate-400 mt-1.5 italic">
               {autoNumber
-                ? 'Mode auto-numbering aktif. Tekan Enter untuk menambah nomor soal otomatis dengan garis titik.'
+                ? 'Mode auto-numbering aktif. Tekan Enter untuk menambah nomor soal otomatis.'
                 : 'Mode auto-numbering nonaktif. Aktifkan untuk penomoran otomatis saat menekan Enter.'}
+              {textDir === 'rtl' && ' • Mode Arab (RTL).'}
             </p>
           </div>
 

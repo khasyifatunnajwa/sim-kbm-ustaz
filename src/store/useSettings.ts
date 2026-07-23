@@ -69,6 +69,8 @@ export interface AppSettings {
   genderLabelBanin: string;
   genderLabelBanat: string;
   genderLabelCampuran: string;
+
+  selectedLembaga: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -119,6 +121,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   genderLabelBanin: 'Banin',
   genderLabelBanat: 'Banat',
   genderLabelCampuran: 'Campuran',
+
+  selectedLembaga: 'all',
 };
 
 interface SettingsState {

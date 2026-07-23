@@ -5,14 +5,16 @@ import {
   Sun, Moon, Monitor, ChevronRight, Trash2, RefreshCw,
   Download, Eye, KeyRound, LogOut,
   HardDrive, Loader2, Save, ArrowUp, ArrowDown, GripVertical,
-  Code2, Users,
+  Code2, Users, Building2,
 } from 'lucide-react';
 import { useSettings, DEFAULT_SETTINGS } from '../store/useSettings';
 import type { DashboardWidgetId, ThemeColor, FontSize, FontWeight, LineSpacing, TableSize, IconSize, RefreshInterval, ThemeMode } from '../store/useSettings';
 import type { ShowToast, Profile } from '../types';
 import { supabase } from '../lib/supabase';
+import { useLembaga } from '../hooks/useLembaga';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import SearchableSelect from '../components/SearchableSelect';
 import {
   SettingsSection, SettingsRow, Toggle, OptionGroup,
   SettingsSlider, SettingsAction, ColorSwatchPicker,
@@ -71,6 +73,12 @@ const REFRESH_OPTIONS: { label: string; value: RefreshInterval }[] = [
 
 export default function PengaturanPage({ showToast }: PengaturanPageProps) {
   const { settings, updateSetting, resetSettings, resetPersonalData } = useSettings();
+  const { data: lembagaList = [] } = useLembaga();
+
+  const lembagaOptions = [
+    { value: 'all', label: 'Semua Lembaga' },
+    ...lembagaList.map((l: any) => ({ value: l.id, label: l.nama_lembaga })),
+  ];
   const [showResetSettings, setShowResetSettings] = useState(false);
   const [showResetPersonal, setShowResetPersonal] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -187,7 +195,103 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         </div>
       </div>
 
-      {/* ====== Tampilan ====== */}
+      {/* ====== A. Pilih Lembaga ====== */}
+      <SettingsSection icon={Building2} title="Pilih Lembaga" desc="Filter data yang ditampilkan berdasarkan lembaga." accent="text-primary-600 bg-primary-50">
+        <SettingsRow title="Lembaga Aktif" desc="Pilih lembaga untuk memfilter data. Dashboard & Jadwal tetap menampilkan semua lembaga.">
+          <div className="w-48 flex-shrink-0">
+            <SearchableSelect
+              value={settings.selectedLembaga}
+              onChange={(v) => updateSetting('selectedLembaga', v)}
+              options={lembagaOptions}
+              placeholder="Pilih Lembaga"
+            />
+          </div>
+        </SettingsRow>
+      </SettingsSection>
+
+      {/* ====== B. Pengaturan Gender ====== */}
+      <SettingsSection icon={Users} title="Pengaturan Gender" desc="Pisahkan kelas menjadi Banin/Banat/Campuran." accent="text-emerald-600 bg-emerald-50">
+        <SettingsRow title="Aktifkan Sistem Gender" desc="Pisahkan kelas menjadi Banin/Banat">
+          <Toggle checked={settings.genderEnabled} onChange={v => updateSetting('genderEnabled', v)} />
+        </SettingsRow>
+        {settings.genderEnabled && (
+          <>
+            <SettingsRow title="Pilihan Gender" desc="Pilih gender yang digunakan">
+            </SettingsRow>
+            <div className="px-4 pb-2 flex flex-wrap gap-2">
+              {(['Banin', 'Banat', 'Campuran'] as const).map(g => {
+                const active = settings.genderOptions.includes(g);
+                return (
+                  <button
+                    key={g}
+                    onClick={() => {
+                      const opts = active
+                        ? settings.genderOptions.filter(x => x !== g)
+                        : [...settings.genderOptions, g];
+                      if (opts.length > 0) updateSetting('genderOptions', opts);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      active
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                );
+              })}
+            </div>
+            <SettingsRow title="Pisahkan Dashboard" desc="Tampilkan statistik terpisah berdasarkan gender">
+              <Toggle checked={settings.genderDashboardSplit} onChange={v => updateSetting('genderDashboardSplit', v)} />
+            </SettingsRow>
+            <SettingsRow title="Pisahkan Laporan" desc="Pisahkan laporan berdasarkan gender">
+              <Toggle checked={settings.genderReportSplit} onChange={v => updateSetting('genderReportSplit', v)} />
+            </SettingsRow>
+            <SettingsRow title="Istilah Banin" desc="Nama istilah untuk Banin">
+              <input
+                type="text"
+                value={settings.genderLabelBanin}
+                onChange={e => updateSetting('genderLabelBanin', e.target.value)}
+                className="input-field text-xs w-32"
+              />
+            </SettingsRow>
+            <SettingsRow title="Istilah Banat" desc="Nama istilah untuk Banat">
+              <input
+                type="text"
+                value={settings.genderLabelBanat}
+                onChange={e => updateSetting('genderLabelBanat', e.target.value)}
+                className="input-field text-xs w-32"
+              />
+            </SettingsRow>
+            <SettingsRow title="Istilah Campuran" desc="Nama istilah untuk Campuran">
+              <input
+                type="text"
+                value={settings.genderLabelCampuran}
+                onChange={e => updateSetting('genderLabelCampuran', e.target.value)}
+                className="input-field text-xs w-32"
+              />
+            </SettingsRow>
+          </>
+        )}
+      </SettingsSection>
+
+      {/* ====== C. Penyimpanan ====== */}
+      <SettingsSection icon={Database} title="Penyimpanan" desc="Manajemen cache dan data offline." accent="text-emerald-600 bg-emerald-50">
+        {cacheInfo && (
+          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 mb-2">
+            <div className="flex items-center gap-2">
+              <HardDrive className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">{cacheInfo}</p>
+            </div>
+          </div>
+        )}
+        <SettingsAction icon={Eye} title="Lihat Ukuran Cache" onClick={handleViewCache} rightIcon={ChevronRight} />
+        <SettingsAction icon={Trash2} title="Hapus Cache" desc="Bersihkan data cache aplikasi." onClick={handleClearCache} variant="danger" rightIcon={ChevronRight} />
+        <SettingsAction icon={RefreshCw} title="Sinkronisasi Ulang Data" desc="Muat ulang semua data dari server." onClick={handleSyncData} rightIcon={ChevronRight} />
+        <SettingsAction icon={Download} title="Download Data Offline" onClick={handleDownloadOffline} rightIcon={ChevronRight} />
+      </SettingsSection>
+
+      {/* ====== D. Tampilan ====== */}
       <SettingsSection icon={Palette} title="Tampilan" desc="Mode tampilan, warna tema, dan kepadatan layout.">
         <SettingsRow title="Mode Tampilan">
           <div className="flex gap-1.5">
@@ -380,23 +484,7 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         </SettingsRow>
       </SettingsSection>
 
-      {/* ====== Penyimpanan ====== */}
-      <SettingsSection icon={Database} title="Penyimpanan" desc="Manajemen cache dan data offline." accent="text-emerald-600 bg-emerald-50">
-        {cacheInfo && (
-          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 mb-2">
-            <div className="flex items-center gap-2">
-              <HardDrive className="w-4 h-4 text-slate-400 flex-shrink-0" />
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">{cacheInfo}</p>
-            </div>
-          </div>
-        )}
-        <SettingsAction icon={Eye} title="Lihat Ukuran Cache" onClick={handleViewCache} rightIcon={ChevronRight} />
-        <SettingsAction icon={Trash2} title="Hapus Cache" desc="Bersihkan data cache aplikasi." onClick={handleClearCache} variant="danger" rightIcon={ChevronRight} />
-        <SettingsAction icon={RefreshCw} title="Sinkronisasi Ulang Data" desc="Muat ulang semua data dari server." onClick={handleSyncData} rightIcon={ChevronRight} />
-        <SettingsAction icon={Download} title="Download Data Offline" onClick={handleDownloadOffline} rightIcon={ChevronRight} />
-      </SettingsSection>
-
-      {/* ====== Privasi & Keamanan ====== */}
+      {/* ====== E. Privasi & Keamanan ====== */}
       <SettingsSection icon={Shield} title="Privasi & Keamanan" desc="Keamanan akun dan kontrol perangkat." accent="text-slate-600 bg-slate-100">
         <SettingsAction icon={KeyRound} title="Ubah Password" desc="Ganti kata sandi akun Anda." onClick={() => setShowChangePassword(true)} rightIcon={ChevronRight} />
         <div className="border-t border-slate-100 dark:border-slate-700 my-2" />
@@ -425,72 +513,6 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         <SettingsAction icon={Shield} title="Kebijakan Privasi" onClick={() => setShowPrivacy(true)} rightIcon={ChevronRight} />
         <SettingsAction icon={Info} title="Syarat Penggunaan" onClick={() => setShowTerms(true)} rightIcon={ChevronRight} />
         <SettingsAction icon={Code2} title="Tim Pengembang" onClick={() => setShowAbout(true)} rightIcon={ChevronRight} />
-      </SettingsSection>
-
-      {/* ====== Pengaturan Gender ====== */}
-      <SettingsSection title="Pengaturan Gender" icon={Users}>
-        <SettingsRow label="Aktifkan Sistem Gender" desc="Pisahkan kelas menjadi Banin/Banat">
-          <Toggle checked={settings.genderEnabled} onChange={v => updateSetting('genderEnabled', v)} />
-        </SettingsRow>
-        {settings.genderEnabled && (
-          <>
-            <SettingsRow label="Pilihan Gender" desc="Pilih gender yang digunakan">
-            </SettingsRow>
-            <div className="px-4 pb-2 flex flex-wrap gap-2">
-              {(['Banin', 'Banat', 'Campuran'] as const).map(g => {
-                const active = settings.genderOptions.includes(g);
-                return (
-                  <button
-                    key={g}
-                    onClick={() => {
-                      const opts = active
-                        ? settings.genderOptions.filter(x => x !== g)
-                        : [...settings.genderOptions, g];
-                      if (opts.length > 0) updateSetting('genderOptions', opts);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      active
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
-                    }`}
-                  >
-                    {g}
-                  </button>
-                );
-              })}
-            </div>
-            <SettingsRow label="Pisahkan Dashboard" desc="Tampilkan statistik terpisah berdasarkan gender">
-              <Toggle checked={settings.genderDashboardSplit} onChange={v => updateSetting('genderDashboardSplit', v)} />
-            </SettingsRow>
-            <SettingsRow label="Pisahkan Laporan" desc="Pisahkan laporan berdasarkan gender">
-              <Toggle checked={settings.genderReportSplit} onChange={v => updateSetting('genderReportSplit', v)} />
-            </SettingsRow>
-            <SettingsRow label="Istilah Banin" desc="Nama istilah untuk Banin">
-              <input
-                type="text"
-                value={settings.genderLabelBanin}
-                onChange={e => updateSetting('genderLabelBanin', e.target.value)}
-                className="input-field text-xs w-32"
-              />
-            </SettingsRow>
-            <SettingsRow label="Istilah Banat" desc="Nama istilah untuk Banat">
-              <input
-                type="text"
-                value={settings.genderLabelBanat}
-                onChange={e => updateSetting('genderLabelBanat', e.target.value)}
-                className="input-field text-xs w-32"
-              />
-            </SettingsRow>
-            <SettingsRow label="Istilah Campuran" desc="Nama istilah untuk Campuran">
-              <input
-                type="text"
-                value={settings.genderLabelCampuran}
-                onChange={e => updateSetting('genderLabelCampuran', e.target.value)}
-                className="input-field text-xs w-32"
-              />
-            </SettingsRow>
-          </>
-        )}
       </SettingsSection>
 
       {/* ====== Reset ====== */}
