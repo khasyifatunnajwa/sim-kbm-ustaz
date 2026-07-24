@@ -31,6 +31,11 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
   const [rankCategory, setRankCategory] = useState<RankCategory>('terbaik');
   const [allStats, setAllStats] = useState<UstazStats[]>([]);
 
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const [periodeAwal, setPeriodeAwal] = useState(firstOfMonth.toISOString().split('T')[0]);
+  const [periodeAkhir, setPeriodeAkhir] = useState(today.toISOString().split('T')[0]);
+
   // Detail data
   const [presensiList, setPresensiList] = useState<PresensiGuru[]>([]);
   // const [izinList, setIzinList] = useState<IzinMengajar[]>([]);
@@ -75,19 +80,23 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
   };
 
   useEffect(() => {
-    if (selectedUstazId) fetchDetail(selectedUstazId);
+    if (selectedUstazId) fetchDetail(selectedUstazId, periodeAwal, periodeAkhir);
     else clearDetail();
-  }, [selectedUstazId]);
+  }, [selectedUstazId, periodeAwal, periodeAkhir]);
 
   const clearDetail = () => {
     setPresensiList([]); setJadwalList([]); setJurnalList([]);
   };
 
-  const fetchDetail = async (id: string) => {
-    const [p, i, j, jur] = await Promise.all([
-      supabase.from('presensi_guru').select('*').eq('user_id', id).order('tanggal', { ascending: false }).limit(100),
+  const fetchDetail = async (id: string, dari: string, sampai: string) => {
+    const [p, j, jur] = await Promise.all([
+      supabase.from('presensi_guru').select('*').eq('user_id', id)
+        .gte('tanggal', dari).lte('tanggal', sampai)
+        .order('tanggal', { ascending: false }).limit(500),
       supabase.from('jadwal_mengajar').select('*').eq('user_id', id).order('hari'),
-      supabase.from('jurnal_kbm').select('*').eq('user_id', id).eq('is_active', true).order('tanggal', { ascending: false }).limit(50),
+      supabase.from('jurnal_kbm').select('*').eq('user_id', id).eq('is_active', true)
+        .gte('tanggal', dari).lte('tanggal', sampai)
+        .order('tanggal', { ascending: false }).limit(200),
     ]);
     if (p.data) setPresensiList(p.data as PresensiGuru[]);
     if (j.data) setJadwalList(j.data as JadwalMengajar[]);
@@ -137,13 +146,33 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
   const maxChartVal = Math.max(...chartData.map(d => d.val), 1);
 
   const handleShareWA = () => {
-    if (!selectedUstaz || !selectedStats) return;
-    let text = `*RAPOR USTAZ*\n\n`;
-    text += `Nama: ${selectedUstaz.nama_lengkap || selectedUstaz.nama_panggilan}\n`;
-    text += `\n*Rekap Presensi:*\n`;
-    text += `Hadir: ${selectedStats.hadir}\nTerlambat: ${selectedStats.terlambat}\nIzin: ${selectedStats.izin}\nSakit: ${selectedStats.sakit}\nAlfa: ${selectedStats.alfa}\n`;
-    text += `\n*Jadwal Mengajar:* ${selectedStats.totalJadwal}\n`;
-    text += `*Jurnal KBM:* ${selectedStats.totalJurnal}\n`;
+    if (!selectedUstaz) return;
+    const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const fmt = (d: string) => {
+      const dt = new Date(d);
+      return `${dt.getDate()} ${namaBulan[dt.getMonth()]} ${dt.getFullYear()}`;
+    };
+    const hadir = presensiList.filter(p => p.status_presensi === 'Hadir').length;
+    const terlambat = presensiList.filter(p => p.status_presensi === 'Terlambat').length;
+    const izin = presensiList.filter(p => p.status_presensi === 'Izin').length;
+    const sakit = presensiList.filter(p => p.status_presensi === 'Sakit').length;
+    const alfa = presensiList.filter(p => p.status_presensi === 'Alfa').length;
+    const totalPresensi = hadir + terlambat + izin + sakit + alfa;
+    const persen = totalPresensi > 0
+      ? (((hadir + terlambat) / totalPresensi) * 100).toFixed(1)
+      : '0';
+    const nama = selectedUstaz.nama_lengkap || selectedUstaz.nama_panggilan || 'Ustaz';
+    let text = `*Presensi Kehadiran*\n`;
+    text += `${nama}\n`;
+    text += `Periode :\n`;
+    text += `${fmt(periodeAwal)} s.d. ${fmt(periodeAkhir)}\n\n`;
+    text += `*Rekap Presensi*\n`;
+    text += `Hadir        : ${hadir}\n`;
+    text += `Izin         : ${izin}\n`;
+    text += `Sakit        : ${sakit}\n`;
+    text += `Alpha        : ${alfa}\n`;
+    text += `Terlambat    : ${terlambat}\n`;
+    text += `Persentase Kehadiran : ${persen}%\n`;
     shareWA(text);
   };
 
@@ -186,6 +215,17 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
 
       {/* Ranking categories */}
       <div className="mb-4">
+        {/* Period filter for detail data */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Periode Awal</label>
+            <input type="date" value={periodeAwal} onChange={e => setPeriodeAwal(e.target.value)} className="input-field text-xs py-1.5" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Periode Akhir</label>
+            <input type="date" value={periodeAkhir} onChange={e => setPeriodeAkhir(e.target.value)} className="input-field text-xs py-1.5" />
+          </div>
+        </div>
         <p className="text-xs font-semibold text-slate-600 mb-2">Ranking Kategori</p>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           {rankConfig.map(r => {

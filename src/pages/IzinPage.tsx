@@ -159,7 +159,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
     const namaUstaz = profile?.nama_panggilan || profile?.nama_lengkap || 'Ustaz';
     setSaving(true);
 
-    // a. Save the izin data to izin_mengajar table including lembaga_id
+    // a. Save the izin data to izin_mengajar table
     const payload = {
       nama_ustaz: namaUstaz,
       jenis_izin: getJenisLabel(),
@@ -172,7 +172,6 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       guru_pengganti: form.guru_pengganti || null,
       catatan: form.catatan || null,
       status: 'diajukan',
-      lembaga_id: form.lembaga_id || null,
       user_id: profile?.id ?? null,
     };
     const { error: izinError } = await supabase.from('izin_mengajar').insert(payload);
@@ -187,7 +186,6 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
       const keterangan = form.catatan || getJenisLabel();
       await supabase.from('presensi_guru').insert({
         user_id: profile?.id ?? null,
-        lembaga_id: form.lembaga_id || null,
         tanggal: form.tanggal_mulai,
         status: 'Izin',
         keterangan,

@@ -290,36 +290,38 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   const handleShareWA = () => {
     if (filtered.length === 0) { showToast('Tidak ada jadwal untuk dibagikan', 'error'); return; }
 
+    const lembagaNamaHeader = filterLembagaId
+      ? (lembagaList.find(l => l.id === filterLembagaId)?.nama_lembaga || 'Madrasah')
+      : 'Madrasah';
+
+    const now = new Date();
+    const namaHariIndonesia = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const namaBulanIndonesia = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const tanggalHeader = `${namaHariIndonesia[now.getDay()]}, ${now.getDate()} ${namaBulanIndonesia[now.getMonth()]} ${now.getFullYear()}`;
+
+    let text = `*Jadwal Mengajar ${lembagaNamaHeader}*\n`;
+    text += `_${tanggalHeader}_\n\n`;
+
     const grouped: Record<string, JadwalMengajar[]> = {};
     filtered.forEach(j => {
       if (!grouped[j.hari]) grouped[j.hari] = [];
       grouped[j.hari].push(j);
     });
 
-    const filterDesc: string[] = [];
-    if (filterHari) filterDesc.push(`Hari: ${filterHari}`);
-    if (filterUstazId) filterDesc.push(`Ustaz: ${ustazOptions.find(o => o.value === filterUstazId)?.label || '-'}`);
-    if (filterLembagaId) filterDesc.push(`Lembaga: ${lembagaList.find(l => l.id === filterLembagaId)?.nama_lembaga || '-'}`);
-
-    let text = `*JADWAL MENGAJAR*\n`;
-    if (filterDesc.length > 0) text += `Filter: ${filterDesc.join(' | ')}\n`;
-    text += `\n`;
-
     hariOptions.forEach(hari => {
       const items = grouped[hari];
       if (!items || items.length === 0) return;
+      // Sort each hari's items by jam_mulai ascending
+      const sorted = [...items].sort((a, b) => (a.jam_mulai || '').localeCompare(b.jam_mulai || ''));
       text += `*${hari}*\n`;
-      items.forEach(j => {
+      sorted.forEach(j => {
         const ustazNama = ustazOptions.find(o => o.value === j.user_id)?.label || '-';
-        const waktu = `${j.jam_mulai?.slice(0, 5)}-${j.jam_selesai?.slice(0, 5)}`;
-        text += `  • ${waktu} | ${j.pelajaran} | ${j.kelas}`;
-        if (j.ruangan) text += ` | ${j.ruangan}`;
-        text += ` | ${ustazNama}\n`;
+        const jamMulai = j.jam_mulai?.slice(0, 5) || '-';
+        text += `${jamMulai} | ${ustazNama} | ${j.pelajaran}\n`;
       });
       text += '\n';
     });
 
-    text += `Total: ${filtered.length} jadwal\nDibuat: ${new Date().toLocaleDateString('id-ID')}`;
     shareWA(text);
   };
 

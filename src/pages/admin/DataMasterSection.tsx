@@ -723,8 +723,8 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
         </div>
       )}
       <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tingkat</label><input type="number" value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="input-field text-xs" min={1} max={12} /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div></div>
-      <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Lembaga', 'Tingkat', 'Kode', 'Gender']} note="Nama Kelas wajib. Lembaga: nama lembaga sesuai data. Tingkat: angka. Gender: Banin/Banat/Campuran." />
     </CrudList>
+    <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Lembaga', 'Tingkat', 'Kode', 'Gender']} note="Nama Kelas wajib. Lembaga: nama lembaga sesuai data. Tingkat: angka. Gender: Banin/Banat/Campuran." />
     {dialog}
     </>
   );
@@ -876,8 +876,8 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
           <SearchableSelect value={form.kelompok} onChange={v => setForm({ ...form, kelompok: v as KelompokMapel })} options={['Diniyah', 'Umum', 'Bahasa', 'Tahfidz', 'Lainnya'].map(k => ({ value: k, label: k }))} placeholder="Pilih kelompok" />
         </div>
       </div>
-      <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Mata Pelajaran" columns={['Nama Mapel', 'Kelompok', 'Kode']} note="Kelompok: Diniyah / Umum / Bahasa / Tahfidz / Lainnya. Kode boleh kosong." />
     </CrudList>
+    <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Mata Pelajaran" columns={['Nama Mapel', 'Kelompok', 'Kode']} note="Kelompok: Diniyah / Umum / Bahasa / Tahfidz / Lainnya. Kode boleh kosong." />
     {dialog}
     </>
   );
