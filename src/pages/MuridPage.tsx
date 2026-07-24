@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check
+  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check,
+  FileText, Share2, Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
@@ -9,6 +10,7 @@ import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { useSettings } from '../store/useSettings';
+import { generatePDF, shareWA } from '../lib/pdf';
 import type { Murid, Profile, ShowToast, Kelas } from '../types';
 
 export default function MuridPage({ showToast, profile }: { showToast: ShowToast; profile: Profile | null }) {
@@ -288,6 +290,58 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     }
   };
 
+  const handleExportPDF = () => {
+    const headers = ['No', 'Nama', 'Kelas', 'Lembaga', 'Domisili', 'No. WA', 'Status'];
+    const body = filteredMuridList.map((m, i) => [
+      i + 1,
+      m.nama,
+      (kelasList as Kelas[]).find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '-',
+      lembagaNameById[m.lembaga_id ?? ''] ?? '-',
+      m.domisili ?? '-',
+      m.nomor_whatsapp ?? '-',
+      m.status_aktif !== false ? 'Aktif' : 'Non-aktif',
+    ]);
+    const filterInfo: string[] = [];
+    if (filterLembaga !== 'all') filterInfo.push(`Lembaga: ${lembagaNameById[filterLembaga] ?? filterLembaga}`);
+    if (filterKelas !== 'all') filterInfo.push(`Kelas: ${(kelasList as Kelas[]).find(k => k.id === filterKelas)?.nama_kelas ?? filterKelas}`);
+    filterInfo.push(`Cetak: ${new Date().toLocaleDateString('id-ID')}`);
+    generatePDF(`Data Santri (${filteredMuridList.length})`, headers, body, filterInfo);
+    showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const handleExportCSV = () => {
+    const header = 'No,Nama,Kelas,Lembaga,Domisili,No HP,Status';
+    const rows = filteredMuridList.map((m, i) => {
+      const kelasNama = (kelasList as Kelas[]).find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '-';
+      const lembagaNama = lembagaNameById[m.lembaga_id ?? ''] ?? '-';
+      return `${i + 1},"${m.nama}","${kelasNama}","${lembagaNama}","${m.domisili ?? ''}","${m.nomor_whatsapp ?? ''}","${m.status_aktif !== false ? 'Aktif' : 'Non-aktif'}"`;
+    });
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `data_santri_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV berhasil diunduh', 'success');
+  };
+
+  const handleShareWAMurid = () => {
+    if (!filteredMuridList.length) return;
+    let text = `*DATA SANTRI*\n`;
+    if (filterLembaga !== 'all') text += `Lembaga: ${lembagaNameById[filterLembaga] ?? filterLembaga}\n`;
+    if (filterKelas !== 'all') text += `Kelas: ${(kelasList as Kelas[]).find(k => k.id === filterKelas)?.nama_kelas ?? filterKelas}\n`;
+    text += `Total: ${filteredMuridList.length} santri\n\n`;
+    filteredMuridList.forEach((m, i) => {
+      const kelasNama = (kelasList as Kelas[]).find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '-';
+      text += `${i + 1}. ${m.nama} | ${kelasNama}`;
+      if (m.domisili) text += ` | ${m.domisili}`;
+      text += '\n';
+    });
+    shareWA(text);
+  };
+
   const handleDelete = async () => {
     if (!deletingId) return;
     const targetMurid = muridList.find(m => m.id === deletingId);
@@ -315,7 +369,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm" id="murid-header">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
             <Users className="w-5 h-5" />
@@ -325,17 +379,32 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
             <p className="text-[11px] text-slate-500">Total: {filteredMuridList.length} Santri</p>
           </div>
         </div>
-        <button
-          onClick={() => { 
-            resetForm(); 
-            setShowModal(true); 
-            window.history.pushState(null, '', '#murid/form');
-          }}
-          className="btn-primary flex items-center justify-center gap-2 text-xs font-semibold py-2"
-        >
-          <Plus className="w-4 h-4" />
-          Tambah Santri
-        </button>
+        <div className="flex items-center gap-1.5">
+          {filteredMuridList.length > 0 && (
+            <>
+              <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                <FileText className="w-3.5 h-3.5" /> PDF
+              </button>
+              <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
+              <button onClick={handleShareWAMurid} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                <Share2 className="w-3.5 h-3.5" /> WA
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => { 
+              resetForm(); 
+              setShowModal(true); 
+              window.history.pushState(null, '', '#murid/form');
+            }}
+            className="btn-primary flex items-center justify-center gap-2 text-xs font-semibold py-2"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Santri
+          </button>
+        </div>
       </div>
 
       {/* Filter Toolbar */}

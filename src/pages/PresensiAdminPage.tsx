@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Camera, CheckCircle, Clock, AlertCircle, MapPin, X, Loader2,
   Calendar, Users, BarChart3, TrendingUp, Search, Filter, Image as ImageIcon,
-  Navigation, User, BookOpen
+  Navigation, User, BookOpen, FileText, Download, Share2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { namaHari } from '../lib/utils';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
+import { generatePDF, shareWA } from '../lib/pdf';
 import type { Profile, ShowToast, PresensiUstaz, JadwalMengajar } from '../types';
 
 const BULAN_LIST = [
@@ -152,6 +153,60 @@ export default function PresensiAdminPage({ showToast, profile }: { showToast: S
 
   const maxWeekly = Math.max(...weeklyData.map(d => d.hadir + d.terlambat), 1);
   const maxMonthly = Math.max(...monthlyData.map(d => d.total), 1);
+
+  const handleExportCSV = () => {
+    if (filteredPresensi.length === 0) { showToast('Tidak ada data untuk diekspor', 'error'); return; }
+    const periode = `${BULAN_LIST[filterBulan - 1].label} ${filterTahun}`;
+    const header = 'No,Nama Guru,Mata Pelajaran,Kelas,Tanggal,Jam Presensi,Status';
+    const rows = filteredPresensi.map((p, i) =>
+      `${i + 1},"${p.guru?.nama_lengkap || p.guru?.nama_panggilan || '-'}","${p.jadwal?.pelajaran || '-'}","${p.jadwal?.kelas || '-'}","${new Date(p.jam_server).toLocaleDateString('id-ID')}","${new Date(p.jam_server).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}","${p.status}"`
+    );
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `presensi_ustaz_${filterBulan}_${filterTahun}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV berhasil diunduh', 'success');
+  };
+
+  const handleExportPDF = () => {
+    if (filteredPresensi.length === 0) { showToast('Tidak ada data untuk diekspor', 'error'); return; }
+    const periode = `${BULAN_LIST[filterBulan - 1].label} ${filterTahun}`;
+    const headers = ['No', 'Nama Guru', 'Mata Pelajaran', 'Kelas', 'Tanggal', 'Jam', 'Status'];
+    const body = filteredPresensi.map((p, i) => [
+      i + 1,
+      p.guru?.nama_lengkap || p.guru?.nama_panggilan || '-',
+      p.jadwal?.pelajaran || '-',
+      p.jadwal?.kelas || '-',
+      new Date(p.jam_server).toLocaleDateString('id-ID'),
+      new Date(p.jam_server).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      p.status,
+    ]);
+    generatePDF(`Presensi Ustaz - ${periode}`, headers, body, [
+      `Periode: ${periode}`,
+      `Total: ${filteredPresensi.length} presensi`,
+      `Cetak: ${new Date().toLocaleDateString('id-ID')}`,
+    ]);
+    showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const handleShareWA = () => {
+    if (filteredPresensi.length === 0) { showToast('Tidak ada data untuk dibagikan', 'error'); return; }
+    const periode = `${BULAN_LIST[filterBulan - 1].label} ${filterTahun}`;
+    const hadir = filteredPresensi.filter(p => p.status === 'Hadir').length;
+    const terlambat = filteredPresensi.filter(p => p.status === 'Terlambat').length;
+    let text = `*REKAP PRESENSI USTAZ*\nPeriode: ${periode}\n\n`;
+    text += `Hadir: ${hadir}\nTerlambat: ${terlambat}\nTotal: ${filteredPresensi.length}\n\n`;
+    text += `*Detail:*\n`;
+    filteredPresensi.slice(0, 50).forEach((p, i) => {
+      const jam = new Date(p.jam_server).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const tgl = new Date(p.jam_server).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      text += `${i + 1}. ${p.guru?.nama_lengkap || '-'} | ${p.status} | ${tgl} ${jam}\n`;
+    });
+    if (filteredPresensi.length > 50) text += `...dan ${filteredPresensi.length - 50} lainnya\n`;
+    shareWA(text);
+  };
 
   if (loading) {
     return (
@@ -310,6 +365,19 @@ export default function PresensiAdminPage({ showToast, profile }: { showToast: S
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Export & Share Buttons */}
+      <div className="flex flex-wrap gap-1.5">
+        <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+          <FileText className="w-3.5 h-3.5" /> Export PDF
+        </button>
+        <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
+        <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+          <Share2 className="w-3.5 h-3.5" /> Share WA
+        </button>
       </div>
 
       {/* Filters */}

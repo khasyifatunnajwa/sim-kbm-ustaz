@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, Users, TrendingUp
+  Plus, Trash2, Pencil, Users, TrendingUp, FileText, Share2, Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { useSettings } from '../store/useSettings';
+import { generatePDF, shareWA } from '../lib/pdf';
 import type { Murid, Sikap, ShowToast, Profile, Kelas } from '../types';
 import { getUstazScope } from '../lib/ustazData';
 
@@ -91,6 +92,39 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
     if (!isAdmin) q = q.eq('user_id', profile?.id ?? '');
     const { data } = await q.order('tanggal', { ascending: false });
     if (data) setSikapList(data as Sikap[]);
+  };
+
+  const exportSikapPDF = () => {
+    if (!selectedMuridData || sikapList.length === 0) return;
+    const headers = ['Tanggal', 'Disiplin', 'Adab', 'Kerajinan', 'Kejujuran', 'Tg.Jawab', 'Rata-rata', 'Catatan'];
+    const body = sikapList.map(s => {
+      const scores = [s.disiplin, s.adab, s.kerajinan, s.kejujuran, s.tanggung_jawab].filter((v): v is number => v != null);
+      const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '-';
+      return [
+        new Date(s.tanggal).toLocaleDateString('id-ID'),
+        s.disiplin ?? '-', s.adab ?? '-', s.kerajinan ?? '-', s.kejujuran ?? '-', s.tanggung_jawab ?? '-',
+        avg, s.catatan || '-',
+      ];
+    });
+    generatePDF(
+      `Nilai Sikap - ${selectedMuridData.nama}`,
+      headers, body,
+      [`Kelas: ${selectedMuridData.kelas || '-'}`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]
+    );
+    showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const shareSikapWA = () => {
+    if (!selectedMuridData || sikapList.length === 0) return;
+    let text = `*NILAI SIKAP SANTRI*\n\nNama: ${selectedMuridData.nama}\nKelas: ${selectedMuridData.kelas || '-'}\n\n`;
+    sikapList.forEach((s, i) => {
+      const scores = [s.disiplin, s.adab, s.kerajinan, s.kejujuran, s.tanggung_jawab].filter((v): v is number => v != null);
+      const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '-';
+      text += `${i + 1}. ${new Date(s.tanggal).toLocaleDateString('id-ID')} | Rata-rata: ${avg}\n`;
+      text += `   D:${s.disiplin ?? '-'} A:${s.adab ?? '-'} Kr:${s.kerajinan ?? '-'} Kj:${s.kejujuran ?? '-'} TJ:${s.tanggung_jawab ?? '-'}\n`;
+      if (s.catatan) text += `   Catatan: ${s.catatan}\n`;
+    });
+    shareWA(text);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -313,10 +347,22 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
 
               {/* History */}
               <div className="card p-5">
-                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm">
-                  <TrendingUp className="w-4 h-4 text-slate-400" />
-                  Histori Penilaian Sikap
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-slate-700 flex items-center gap-2 text-sm">
+                    <TrendingUp className="w-4 h-4 text-slate-400" />
+                    Histori Penilaian Sikap
+                  </h3>
+                  {sikapList.length > 0 && (
+                    <div className="flex gap-1.5">
+                      <button onClick={exportSikapPDF} className="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                        <FileText className="w-3 h-3" /> PDF
+                      </button>
+                      <button onClick={shareSikapWA} className="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                        <Share2 className="w-3 h-3" /> WA
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {sikapList.length === 0 ? (
                   <EmptyState title="Belum ada penilaian" description="Belum ada penilaian sikap tercatat." />
                 ) : (

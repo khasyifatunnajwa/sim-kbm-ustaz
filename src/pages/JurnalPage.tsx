@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, BookOpen, Calendar, Target, Save
+  Plus, Trash2, Pencil, BookOpen, Calendar, Target, Save, FileText, Share2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { namaHari } from '../lib/utils';
@@ -10,6 +10,7 @@ import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { generatePDF, shareWA } from '../lib/pdf';
 import type { JurnalKBM, Profile, ShowToast } from '../types';
 
 type FilterTab = 'semua' | 'hari_ini' | 'minggu_ini';
@@ -250,6 +251,44 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
   ];
 
   // Daftar kelas untuk dropdown di form: filter berdasarkan lembaga jika dipilih
+  const exportJurnalPDF = () => {
+    if (filteredJurnal.length === 0) return;
+    const headers = ['No', 'Tanggal', 'Kelas', 'Pelajaran', 'Materi', 'Target', 'Realisasi'];
+    const body = filteredJurnal.map((j, i) => [
+      i + 1,
+      new Date(j.tanggal).toLocaleDateString('id-ID'),
+      j.kelas || '-',
+      j.pelajaran || '-',
+      j.materi || '-',
+      j.target || '-',
+      j.realisasi || '-',
+    ]);
+    generatePDF(
+      'Jurnal KBM',
+      headers, body,
+      [
+        filterTab !== 'semua' ? `Filter: ${filterTab === 'hari_ini' ? 'Hari Ini' : 'Minggu Ini'}` : 'Semua Periode',
+        `Cetak: ${new Date().toLocaleDateString('id-ID')}`,
+      ]
+    );
+    showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const shareJurnalWA = () => {
+    if (filteredJurnal.length === 0) return;
+    let text = `*JURNAL KBM*\n`;
+    if (filterTab !== 'semua') text += `Filter: ${filterTab === 'hari_ini' ? 'Hari Ini' : 'Minggu Ini'}\n`;
+    text += `\n`;
+    filteredJurnal.forEach((j, i) => {
+      text += `${i + 1}. ${new Date(j.tanggal).toLocaleDateString('id-ID')} | ${j.pelajaran} | Kelas ${j.kelas}\n`;
+      if (j.materi) text += `   Materi: ${j.materi}\n`;
+      if (j.target) text += `   Target: ${j.target}\n`;
+      if (j.realisasi) text += `   Realisasi: ${j.realisasi}\n`;
+    });
+    text += `\nTotal: ${filteredJurnal.length} jurnal`;
+    shareWA(text);
+  };
+
   const formKelasOptions = useMemo(() => {
     if (form.lembaga_id) {
       return kelasList.filter(k => !('lembaga_id' in k) || !k.lembaga_id || k.lembaga_id === form.lembaga_id);
@@ -264,10 +303,22 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
           <h2 className="section-title">Jurnal KBM</h2>
           <p className="section-subtitle">Catatan kegiatan belajar mengajar</p>
         </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          <span>Tambah</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {filteredJurnal.length > 0 && (
+            <>
+              <button onClick={exportJurnalPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                <FileText className="w-3.5 h-3.5" /> PDF
+              </button>
+              <button onClick={shareJurnalWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                <Share2 className="w-3.5 h-3.5" /> WA
+              </button>
+            </>
+          )}
+          <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            <span>Tambah</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2 mb-4">

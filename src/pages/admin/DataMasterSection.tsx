@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock,
   Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download, FileText,
-  X, AlertCircle, RefreshCw,
+  X, AlertCircle, RefreshCw, Share2,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
@@ -10,7 +10,7 @@ import EmptyState from '../../components/EmptyState';
 import Pagination from '../../components/Pagination';
 import SearchableSelect from '../../components/SearchableSelect';
 import { useLembaga } from '../../hooks/useLembaga';
-import { generatePDF } from '../../lib/pdf';
+import { generatePDF, shareWA } from '../../lib/pdf';
 import type {
   ShowToast, Profile, KelompokMapel, Lembaga,
 } from '../../types';
@@ -416,8 +416,12 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
   };
 
   const handleExportCSV = () => {
-    const header = 'Nama,Kelas,Domisili,Alamat,No HP';
-    const rows = filtered.map(m => `"${m.nama}","${m.kelas || ''}","${m.domisili || ''}","${m.alamat || ''}","${m.nomor_whatsapp || ''}"`);
+    const header = 'Nama,Lembaga,Kelas,Gender Kelas,Domisili,Alamat,No HP';
+    const rows = filtered.map(m => {
+      const lembagaNama = lembagaList.find(l => l.id === m.lembaga_id)?.nama_lembaga || '';
+      const kelasNama = kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas || m.kelas || '';
+      return `"${m.nama}","${lembagaNama}","${kelasNama}","${m.gender_kelas || ''}","${m.domisili || ''}","${m.alamat || ''}","${m.nomor_whatsapp || ''}"`;
+    });
     const csv = '\uFEFF' + header + '\n' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -428,29 +432,50 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
   };
 
   const handleExportPDF = () => {
-    const headers = ['No', 'Nama', 'Kelas', 'Domisili', 'No HP'];
-    const body = filtered.map((m, i) => [i + 1, m.nama, m.kelas || '-', m.domisili || '-', m.nomor_whatsapp || '-']);
+    const headers = ['No', 'Nama', 'Lembaga', 'Kelas', 'Gender', 'Domisili', 'No HP'];
+    const body = filtered.map((m, i) => [
+      i + 1,
+      m.nama,
+      lembagaList.find(l => l.id === m.lembaga_id)?.nama_lembaga || '-',
+      kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas || m.kelas || '-',
+      m.gender_kelas || '-',
+      m.domisili || '-',
+      m.nomor_whatsapp || '-',
+    ]);
     generatePDF('Data Murid', headers, body, [`Total: ${filtered.length} murid`, `Tanggal: ${new Date().toLocaleDateString('id-ID')}`]);
     showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const handleShareWA = () => {
+    let text = `*DATA MURID*\n\nTotal: ${filtered.length} santri\n\n`;
+    filtered.forEach((m, i) => {
+      const lembagaNama = lembagaList.find(l => l.id === m.lembaga_id)?.nama_lembaga || '-';
+      const kelasNama = kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas || m.kelas || '-';
+      text += `${i + 1}. ${m.nama} | ${kelasNama} | ${lembagaNama}\n`;
+    });
+    text += `\nDicetak: ${new Date().toLocaleDateString('id-ID')}`;
+    shareWA(text);
   };
 
   const handleImport = async (rows: string[][]) => {
     let count = 0;
     for (const row of rows) {
-      const [nama, kelas, domisili, alamat, nomor_whatsapp, jenis_kelamin, gender_kelas] = row;
-      if (!nama || !kelas) continue;
+      const [nama, lembaga_nama, kelas, gender_kelas, domisili, alamat, nomor_whatsapp] = row;
+      if (!nama) continue;
       // Look up kelas_id by name
-      const kelasMatch = kelasOptions.find(k => k.nama_kelas.toLowerCase() === kelas.trim().toLowerCase());
+      const kelasMatch = kelasOptions.find(k => k.nama_kelas.toLowerCase() === (kelas || '').trim().toLowerCase());
+      // Look up lembaga_id by name
+      const lembagaMatch = lembagaList.find(l => l.nama_lembaga.toLowerCase() === (lembaga_nama || '').trim().toLowerCase());
       await supabase.from('murid').insert({
         nama: nama.trim(),
-        kelas: kelas.trim(),
+        kelas: kelasMatch?.nama_kelas || kelas?.trim() || null,
         kelas_id: kelasMatch?.id || null,
+        lembaga_id: lembagaMatch?.id || null,
+        gender_kelas: gender_kelas?.trim() || null,
         domisili: domisili?.trim() || null,
         alamat: alamat?.trim() || null,
         nomor_whatsapp: nomor_whatsapp?.trim() || null,
         status_aktif: true,
-        jenis_kelamin: jenis_kelamin?.trim() || null,
-        gender_kelas: gender_kelas?.trim() || null
       });
       count++;
     }
@@ -480,6 +505,7 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
         <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 transition-colors"><Upload className="w-3.5 h-3.5" /> Import CSV</button>
         <button onClick={handleExportCSV} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"><Download className="w-3.5 h-3.5" /> Export CSV</button>
         <button onClick={handleExportPDF} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 transition-colors"><FileText className="w-3.5 h-3.5" /> Export PDF</button>
+        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"><Share2 className="w-3.5 h-3.5" /> Share WA</button>
       </div>
 
       {loading ? (
@@ -562,8 +588,8 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
         onClose={() => setShowImport(false)}
         onImport={handleImport}
         title="Data Murid"
-        columns={['Nama', 'Kelas', 'Domisili', 'Alamat', 'No HP', 'Jenis Kelamin', 'Gender Kelas']}
-        note="Kolom Nama dan Kelas wajib. Jenis Kelamin: L/P. Gender Kelas: Banin/Banat/Campuran."
+        columns={['Nama', 'Lembaga', 'Kelas', 'Gender Kelas', 'Domisili', 'Alamat', 'No HP']}
+        note="Kolom Nama wajib. Lembaga & Kelas diisi sesuai nama yang terdaftar. Gender Kelas: Banin/Banat/Campuran."
       />
       {dialog}
     </div>
@@ -621,19 +647,60 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   const handleImport = async (rows: string[][]) => {
     let count = 0;
     for (const row of rows) {
-      const [nama_kelas, tingkat, kode] = row;
+      const [nama_kelas, lembaga_nama, tingkat, kode, gender] = row;
       if (!nama_kelas) continue;
-      await supabase.from('kelas').insert({ nama_kelas: nama_kelas.trim(), tingkat: Number(tingkat) || 1, kode: kode?.trim() || null, is_active: true });
+      const lembagaMatch = lembagaList.find(l => l.nama_lembaga.toLowerCase() === lembaga_nama?.trim().toLowerCase());
+      const validGender = ['Banin', 'Banat', 'Campuran'].includes(gender?.trim() ?? '') ? gender.trim() : null;
+      await supabase.from('kelas').insert({ nama_kelas: nama_kelas.trim(), tingkat: Number(tingkat) || 1, kode: kode?.trim() || null, is_active: true, lembaga_id: lembagaMatch?.id || null, gender: validGender });
       count++;
     }
     showToast(`${count} kelas diimpor`, 'success');
     fetchList();
   };
 
+  const handleExportCSV = () => {
+    const header = 'No,Nama Kelas,Lembaga,Tingkat,Kode,Gender';
+    const rows = filtered.map((k, i) => {
+      const lembagaNama = lembagaList.find(l => l.id === k.lembaga_id)?.nama_lembaga || '';
+      return `${i + 1},"${k.nama_kelas}","${lembagaNama}",${k.tingkat || ''},"${k.kode || ''}","${k.gender || ''}"`;
+    });
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'data_kelas.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('Data kelas diekspor', 'success');
+  };
+
+  const handleExportPDF = () => {
+    const headers = ['No', 'Nama Kelas', 'Lembaga', 'Tingkat', 'Kode', 'Gender'];
+    const body = filtered.map((k, i) => {
+      const lembagaNama = lembagaList.find(l => l.id === k.lembaga_id)?.nama_lembaga || '-';
+      return [i + 1, k.nama_kelas, lembagaNama, k.tingkat || '-', k.kode || '-', k.gender || '-'];
+    });
+    generatePDF('Data Kelas', headers, body, [`Total: ${filtered.length} kelas`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]);
+  };
+
+  const handleShareWA = () => {
+    let text = `*DATA KELAS*\n\n`;
+    filtered.forEach((k, i) => {
+      const lembagaNama = lembagaList.find(l => l.id === k.lembaga_id)?.nama_lembaga || '-';
+      text += `${i + 1}. ${k.nama_kelas} | Lembaga: ${lembagaNama} | Tingkat: ${k.tingkat || '-'}${k.gender ? ` | ${k.gender}` : ''}\n`;
+    });
+    text += `\nTotal: ${filtered.length} kelas`;
+    shareWA(text);
+  };
+
   const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(i => i.nama_kelas?.toLowerCase().includes(q)); }, [list, search]);
 
   return (
     <>
+    <div className="flex flex-wrap gap-1.5 mb-2">
+      <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><FileText className="w-3.5 h-3.5" /> PDF</button>
+      <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Download className="w-3.5 h-3.5" /> CSV</button>
+      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
+    </div>
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); setShowModal(true); }}
       onImport={() => setShowImport(true)} importLabel="Import"
@@ -656,7 +723,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
         </div>
       )}
       <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tingkat</label><input type="number" value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="input-field text-xs" min={1} max={12} /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div></div>
-      <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Tingkat', 'Kode', 'Gender']} note="Kolom Nama Kelas wajib. Tingkat diisi angka. Gender: Banin/Banat/Campuran." />
+      <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Lembaga', 'Tingkat', 'Kode', 'Gender']} note="Nama Kelas wajib. Lembaga: nama lembaga sesuai data. Tingkat: angka. Gender: Banin/Banat/Campuran." />
     </CrudList>
     {dialog}
     </>
@@ -762,8 +829,38 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
   const handleDelete = async (item: any) => { if (!(await confirm({ title: 'Hapus Data', message: 'Apakah Anda yakin ingin menghapus data berikut?', itemName: item.nama_mapel, warning: 'Data yang telah dihapus tidak dapat dikembalikan.', variant: 'danger', confirmText: 'Ya, Hapus' }))) return; try { await supabase.from('mata_pelajaran').delete().eq('id', item.id); showToast('Dihapus', 'success'); fetchList(); } catch { showToast('Gagal', 'error'); } };
   const filtered = useMemo(() => { if (!search) return list; const q = search.toLowerCase(); return list.filter(i => i.nama_mapel?.toLowerCase().includes(q)); }, [list, search]);
 
+  const handleExportMapelPDF = () => {
+    const headers = ['No', 'Nama Mapel', 'Kelompok', 'Kode'];
+    const body = filtered.map((m, i) => [i + 1, m.nama_mapel, m.kelompok || '-', m.kode || '-']);
+    generatePDF('Data Mata Pelajaran', headers, body, [`Total: ${filtered.length} mapel`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]);
+  };
+
+  const handleExportMapelCSV = () => {
+    const header = 'No,Nama Mapel,Kelompok,Kode';
+    const rows = filtered.map((m, i) => `${i + 1},"${m.nama_mapel}","${m.kelompok || ''}","${m.kode || ''}"`);
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'data_mapel.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('Data mapel diekspor', 'success');
+  };
+
+  const handleShareMapelWA = () => {
+    let text = `*DATA MATA PELAJARAN*\n\n`;
+    filtered.forEach((m, i) => { text += `${i + 1}. ${m.nama_mapel} (${m.kelompok || '-'})${m.kode ? ` [${m.kode}]` : ''}\n`; });
+    text += `\nTotal: ${filtered.length} mapel`;
+    shareWA(text);
+  };
+
   return (
     <>
+    <div className="flex flex-wrap gap-1.5 mb-2">
+      <button onClick={handleExportMapelPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><FileText className="w-3.5 h-3.5" /> PDF</button>
+      <button onClick={handleExportMapelCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Download className="w-3.5 h-3.5" /> CSV</button>
+      <button onClick={handleShareMapelWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
+    </div>
     <CrudList title="Mata Pelajaran" icon={BookOpen} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' }); setEditingId(null); setShowModal(true); }}
       onImport={() => setShowImport(true)} importLabel="Import"

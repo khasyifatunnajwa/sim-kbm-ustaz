@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Search, Users, UserCheck, TrendingUp, ArrowUpCircle } from 'lucide-react';
+import { GraduationCap, Search, Users, UserCheck, TrendingUp, ArrowUpCircle, FileText, Download, Share2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import EmptyState from '../../components/EmptyState';
 import Pagination from '../../components/Pagination';
 import SearchableSelect from '../../components/SearchableSelect';
 import { useLembaga } from '../../hooks/useLembaga';
+import { generatePDF, shareWA } from '../../lib/pdf';
 import type { ShowToast, Profile, Murid } from '../../types';
 
 const PAGE_SIZE = 10;
@@ -67,6 +68,47 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
 
   const lembagaOptions = useMemo(() => (lembagaList || []).map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
+  const handleExportPDF = () => {
+    const headers = ['No', 'Nama', 'Kelas', 'Lembaga', 'Domisili', 'No. WA', 'Status'];
+    const body = filtered.map((m, i) => {
+      const lembagaNama = (lembagaList || []).find(l => l.id === m.lembaga_id)?.nama_lembaga || '-';
+      const kelasNama = kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '-';
+      return [i + 1, m.nama, kelasNama, lembagaNama, m.domisili || '-', m.nomor_whatsapp || '-', m.status_aktif !== false ? 'Aktif' : 'Non-aktif'];
+    });
+    generatePDF('Data Santri', headers, body, [`Total: ${filtered.length} santri`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]);
+    showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const handleExportCSV = () => {
+    const header = 'No,Nama,Kelas,Lembaga,Domisili,No. WA,Status';
+    const rows = filtered.map((m, i) => {
+      const lembagaNama = (lembagaList || []).find(l => l.id === m.lembaga_id)?.nama_lembaga || '';
+      const kelasNama = kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '';
+      return `${i + 1},"${m.nama}","${kelasNama}","${lembagaNama}","${m.domisili || ''}","${m.nomor_whatsapp || ''}","${m.status_aktif !== false ? 'Aktif' : 'Non-aktif'}"`;
+    });
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'data_santri.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV berhasil diunduh', 'success');
+  };
+
+  const handleShareWAData = () => {
+    let text = `*DATA SANTRI*\n`;
+    if (filterLembaga) { const ln = (lembagaList || []).find(l => l.id === filterLembaga)?.nama_lembaga; if (ln) text += `Lembaga: ${ln}\n`; }
+    if (filterKelas) { const kn = kelasOptions.find(k => k.id === filterKelas)?.nama_kelas; if (kn) text += `Kelas: ${kn}\n`; }
+    text += `\n`;
+    filtered.slice(0, 50).forEach((m, i) => {
+      const kelasNama = kelasOptions.find(k => k.id === m.kelas_id)?.nama_kelas ?? m.kelas ?? '-';
+      text += `${i + 1}. ${m.nama} | ${kelasNama}${m.nomor_whatsapp ? ` | ${m.nomor_whatsapp}` : ''}\n`;
+    });
+    if (filtered.length > 50) text += `... dan ${filtered.length - 50} santri lainnya\n`;
+    text += `\nTotal: ${filtered.length} santri`;
+    shareWA(text);
+  };
+
   return (
     <div className="space-y-3">
       <div className="mb-3">
@@ -85,6 +127,20 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
           );
         })}
       </div>
+
+      {subTab === 'biodata' && (
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+            <FileText className="w-3.5 h-3.5" /> Export PDF
+          </button>
+          <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+          <button onClick={handleShareWAData} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+            <Share2 className="w-3.5 h-3.5" /> Share WA
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <SearchableSelect value={filterLembaga} onChange={v => { setFilterLembaga(v); setFilterKelas(''); }} options={lembagaOptions} placeholder="Semua Lembaga" />

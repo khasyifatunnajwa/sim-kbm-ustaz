@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, Pencil, FileText, Calendar, MapPin, CheckCircle,
-  Circle, Search, X, Bell
+  Circle, Search, X, Bell, Share2, Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { namaHari } from '../lib/utils';
@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
+import { generatePDF, shareWA } from '../lib/pdf';
 import type { CatatanGuru, ShowToast, KategoriCatatan, StatusCatatan, Profile } from '../types';
 
 const KATEGORI_CONFIG: Record<KategoriCatatan, { color: string; bg: string; border: string }> = {
@@ -327,6 +328,44 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
     setDeleteTarget(null);
   };
 
+  const exportCatatanPDF = () => {
+    if (filteredCatatan.length === 0) return;
+    const headers = ['No', 'Judul', 'Kategori', 'Status', 'Tanggal/Waktu', 'Lokasi'];
+    const body = filteredCatatan.map((c, i) => [
+      i + 1,
+      c.judul,
+      c.kategori,
+      c.status,
+      c.tanggal_waktu ? new Date(c.tanggal_waktu).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-',
+      c.lokasi || '-',
+    ]);
+    generatePDF(
+      'Catatan Guru',
+      headers, body,
+      [
+        filterKategori ? `Kategori: ${filterKategori}` : 'Semua Kategori',
+        `Cetak: ${new Date().toLocaleDateString('id-ID')}`,
+      ]
+    );
+    showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const shareCatatanWA = () => {
+    if (filteredCatatan.length === 0) return;
+    let text = `*CATATAN GURU*\n`;
+    if (filterKategori) text += `Kategori: ${filterKategori}\n`;
+    text += `\n`;
+    filteredCatatan.forEach((c, i) => {
+      const statusIcon = c.status === 'Selesai' ? '✓' : '○';
+      text += `${i + 1}. ${statusIcon} *${c.judul}* [${c.kategori}]\n`;
+      if (c.isi) text += `   ${c.isi}\n`;
+      if (c.tanggal_waktu) text += `   ${formatDateTime(c.tanggal_waktu)}\n`;
+      if (c.lokasi) text += `   Lokasi: ${c.lokasi}\n`;
+    });
+    text += `\nTotal: ${filteredCatatan.length} catatan`;
+    shareWA(text);
+  };
+
   const formatDateTime = (d: string) => {
     const date = new Date(d);
     return `${namaHari[date.getDay()]}, ${date.toLocaleDateString('id-ID', {
@@ -356,10 +395,22 @@ export default function CatatanPage({ showToast, profile }: { showToast: ShowToa
           <h2 className="section-title">Catatan Guru</h2>
           <p className="section-subtitle">{stats.belumSelesai} belum selesai, {stats.selesai} selesai</p>
         </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          <span>Tambah</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {filteredCatatan.length > 0 && (
+            <>
+              <button onClick={exportCatatanPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                <FileText className="w-3.5 h-3.5" /> PDF
+              </button>
+              <button onClick={shareCatatanWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                <Share2 className="w-3.5 h-3.5" /> WA
+              </button>
+            </>
+          )}
+          <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            <span>Tambah</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter */}

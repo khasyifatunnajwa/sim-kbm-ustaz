@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Users, FileText, Calendar, BarChart3, Loader2, BookOpen, TrendingUp,
   CheckCircle, X, Clock, XCircle, Heart, MessageCircle, Mail, StickyNote,
-  AlertTriangle, Award, Phone,
+  AlertTriangle, Award, Phone, Download, Share2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
+import { generatePDF, shareWA } from '../lib/pdf';
 import type { Profile, JadwalMengajar, JurnalKBM, Penilaian, ShowToast, PresensiGuru, IzinMengajar } from '../types';
 
 type DetailTab = 'biodata' | 'jadwal' | 'presensi' | 'riwayat' | 'catatan';
@@ -89,6 +90,46 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
     if (cat.data) setCatatanList(cat.data);
   };
 
+  const handleExportPDF = () => {
+    const headers = ['No', 'Nama Lengkap', 'Nama Panggilan', 'Email', 'No. WA', 'Role', 'Status'];
+    const body = ustazList.map((u, i) => [
+      i + 1,
+      u.nama_lengkap || '-',
+      u.nama_panggilan || '-',
+      u.email || '-',
+      u.nomor_whatsapp || '-',
+      u.role || '-',
+      u.is_active ? 'Aktif' : 'Non-aktif',
+    ]);
+    generatePDF('Daftar Ustaz', headers, body, [`Total: ${ustazList.length} ustaz`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]);
+    showToast('PDF berhasil diunduh', 'success');
+  };
+
+  const handleExportCSV = () => {
+    const header = 'No,Nama Lengkap,Nama Panggilan,Email,No. WA,Role,Status';
+    const rows = ustazList.map((u, i) =>
+      `${i + 1},"${u.nama_lengkap || ''}","${u.nama_panggilan || ''}","${u.email || ''}","${u.nomor_whatsapp || ''}","${u.role || ''}","${u.is_active ? 'Aktif' : 'Non-aktif'}"`
+    );
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'daftar_ustaz.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV berhasil diunduh', 'success');
+  };
+
+  const handleShareWAUstaz = () => {
+    let text = `*DAFTAR USTAZ*\n\n`;
+    ustazList.forEach((u, i) => {
+      text += `${i + 1}. ${u.nama_lengkap || u.nama_panggilan || 'Ustaz'} (${u.role})`;
+      if (u.nomor_whatsapp) text += ` - ${u.nomor_whatsapp}`;
+      text += '\n';
+    });
+    text += `\nTotal: ${ustazList.length} ustaz\nTanggal: ${new Date().toLocaleDateString('id-ID')}`;
+    shareWA(text);
+  };
+
   const selectedUstaz = ustazList.find(u => u.id === selectedUstazId);
 
   const kelasAmpu = useMemo(() => [...new Set(jadwalList.map(j => j.kelas).filter(Boolean))], [jadwalList]);
@@ -144,6 +185,19 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
       <div className="mb-5">
         <h2 className="section-title">Data Ustaz</h2>
         <p className="section-subtitle">Pusat data ustaz: biodata, jadwal, presensi, riwayat, dan catatan</p>
+      </div>
+
+      {/* Export & Share Buttons */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+          <FileText className="w-3.5 h-3.5" /> Export PDF
+        </button>
+        <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
+        <button onClick={handleShareWAUstaz} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
+          <Share2 className="w-3.5 h-3.5" /> Share WA
+        </button>
       </div>
 
       {ustazList.length === 0 ? (

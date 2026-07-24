@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Award, Users, TrendingUp, Calendar, CheckCircle, Clock, XCircle,
   Heart, FileText, MessageCircle, Mail, Phone, BarChart3, Loader2,
-  Search, Trophy, Target,
+  Search, Trophy, Target, Download,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
-import { shareWA } from '../lib/pdf';
+import { generatePDF, shareWA } from '../lib/pdf';
 import type { Profile, PresensiGuru, JadwalMengajar, ShowToast, JurnalKBM } from '../types';
 
 type RankCategory = 'terbaik' | 'disiplin' | 'aktif' | 'terlambat' | 'alfa';
@@ -145,6 +145,27 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
     text += `\n*Jadwal Mengajar:* ${selectedStats.totalJadwal}\n`;
     text += `*Jurnal KBM:* ${selectedStats.totalJurnal}\n`;
     shareWA(text);
+  };
+
+  const handleDownloadPDF = () => {
+    if (!selectedUstaz || !selectedStats) return;
+    const nama = selectedUstaz.nama_lengkap || selectedUstaz.nama_panggilan || 'Ustaz';
+    const headers = ['Kategori', 'Jumlah'];
+    const body: (string | number)[][] = [
+      ['Hadir', selectedStats.hadir],
+      ['Terlambat', selectedStats.terlambat],
+      ['Izin', selectedStats.izin],
+      ['Sakit', selectedStats.sakit],
+      ['Alfa', selectedStats.alfa],
+      ['Total Jadwal Mengajar', selectedStats.totalJadwal],
+      ['Total Jurnal KBM', selectedStats.totalJurnal],
+    ];
+    generatePDF(
+      `Rapor Ustaz - ${nama}`,
+      headers,
+      body,
+      [`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID')}`]
+    );
   };
 
   if (loading) {
@@ -292,8 +313,11 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
                           <Mail className="w-3.5 h-3.5" /> Email
                         </a>
                       )}
-                      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition-colors ml-auto">
-                        <MessageCircle className="w-3.5 h-3.5" /> Share
+                      <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition-colors ml-auto">
+                        <Download className="w-3.5 h-3.5" /> PDF
+                      </button>
+                      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl text-xs font-bold transition-colors">
+                        <MessageCircle className="w-3.5 h-3.5" /> Share WA
                       </button>
                     </div>
                   </div>
