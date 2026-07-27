@@ -30,9 +30,9 @@ const EXPORT_COLUMNS: Record<DataScope, string[]> = {
 
 const IMPORT_COLUMNS: { key: string; label: string; required: boolean; desc: string }[] = [
   { key: 'nama_lengkap', label: 'nama_lengkap', required: true, desc: 'Wajib diisi' },
-  { key: 'nama_panggilan', label: 'nama_panggilan', required: false, desc: 'Boleh kosong — dibuat dari nama lengkap' },
-  { key: 'id_login', label: 'id_login', required: false, desc: 'Boleh kosong — dibuat dari nama panggilan' },
-  { key: 'password', label: 'password', required: false, desc: 'Boleh kosong — dibuat otomatis (simkbmXXXX)' },
+  { key: 'nama_panggilan', label: 'nama_panggilan', required: true, desc: 'Wajib diisi' },
+  { key: 'id_login', label: 'id_login', required: false, desc: 'Kosongkan — diambil dari nama panggilan' },
+  { key: 'password', label: 'password', required: false, desc: 'Kosongkan — default: 123456' },
   { key: 'nomor_whatsapp', label: 'nomor_whatsapp', required: false, desc: 'Boleh kosong' },
   { key: 'role', label: 'role', required: false, desc: 'Boleh kosong — default: ustaz (admin/operator/ustaz)' },
   { key: 'roles', label: 'roles', required: false, desc: 'Boleh kosong — isi dengan ; untuk multiple (admin;ustaz)' },
@@ -719,42 +719,10 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
           <div className="space-y-4">
             <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-3 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-sky-700 dark:text-sky-300">
-                <p className="font-semibold mb-1">Cara Import:</p>
-                <ol className="list-decimal list-inside space-y-0.5 text-[11px]">
-                  <li>Unduh template CSV untuk melihat format yang benar</li>
-                  <li>Isi data sesuai keterangan kolom di bawah, lalu unggah file CSV</li>
-                  <li>Klik "Import Data" untuk memproses</li>
-                </ol>
-              </div>
-            </div>
-
-            {/* Column requirements table */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Keterangan Kolom</label>
-              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-                <table className="w-full text-[10px] border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-700/50">
-                      <th className="border-b border-slate-200 dark:border-slate-700 px-2 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-300">Kolom</th>
-                      <th className="border-b border-slate-200 dark:border-slate-700 px-2 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
-                      <th className="border-b border-slate-200 dark:border-slate-700 px-2 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-300">Keterangan</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {IMPORT_COLUMNS.map(col => (
-                      <tr key={col.key} className="even:bg-slate-50/50 dark:even:bg-slate-700/30">
-                        <td className="px-2 py-1.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{col.label}</td>
-                        <td className="px-2 py-1.5">
-                          {col.required
-                            ? <span className="inline-flex items-center gap-0.5 text-rose-600 font-semibold"><AlertCircle className="w-2.5 h-2.5" /> Wajib</span>
-                            : <span className="inline-flex items-center gap-0.5 text-emerald-600 font-semibold"><CheckCircle2 className="w-2.5 h-2.5" /> Opsional</span>}
-                        </td>
-                        <td className="px-2 py-1.5 text-slate-500 dark:text-slate-400">{col.desc}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="text-xs text-sky-700 dark:text-sky-300 space-y-1">
+                <p><strong>Kolom yang dibutuhkan:</strong> {IMPORT_COLUMN_KEYS.join(', ')}.</p>
+                <p><strong>Wajib diisi:</strong> nama_lengkap & nama_panggilan.</p>
+                <p>id_login diambil dari nama_panggilan jika kosong. Password default <strong>123456</strong> jika kosong.</p>
               </div>
             </div>
 

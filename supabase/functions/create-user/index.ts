@@ -175,7 +175,7 @@ Deno.serve(async (req: Request) => {
         }
         if (finalId === "__SKIP__") continue;
 
-        const password = customPassword || `simkbm${Math.floor(1000 + Math.random() * 9000)}`;
+        const password = customPassword || "123456";
         if (password.length < 6) {
           results.push({ nama_lengkap, id_login: finalId, status: "gagal", error: "Password minimal 6 karakter" });
           failedCount++;
