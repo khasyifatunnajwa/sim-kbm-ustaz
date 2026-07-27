@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Users, FileText, Download, Calendar, BarChart3, Loader2,
+  Users, FileText, Calendar, BarChart3, Loader2,
   GraduationCap, Heart, BookOpen, X
 } from 'lucide-react';
+import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import { generatePDF } from '../lib/pdf';
@@ -283,12 +284,8 @@ export default function DataSiswaPage({ showToast }: { showToast: ShowToast }) {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4">
-                      <button onClick={exportPDF} className="flex-1 flex items-center justify-center gap-2 bg-white text-emerald-700 hover:bg-emerald-50 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors">
-                        <Download className="w-4 h-4" /> Export PDF
-                      </button>
-                      <button onClick={exportExcel} className="flex-1 flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors">
-                        <FileText className="w-4 h-4" /> Export Excel
-                      </button>
+                      <ExportButton onClick={exportPDF} format="pdf" label="Export PDF" variant="md" className="flex-1 justify-center bg-white text-emerald-700 hover:bg-emerald-50 border-white" />
+                      <ExportButton onClick={exportExcel} format="excel" label="Export Excel" variant="md" className="flex-1 justify-center bg-white/20 hover:bg-white/30 text-white border-white/30" />
                     </div>
                   </div>
                 </div>

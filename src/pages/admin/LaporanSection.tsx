@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FileText, Download, FileSpreadsheet, Calendar, BookOpen, FileCheck, Users, UserCheck, Repeat } from 'lucide-react';
+import { FileText, FileSpreadsheet, Calendar, BookOpen, FileCheck, Users, UserCheck, Repeat } from 'lucide-react';
+import { ExportButton } from '../../components/DataButtons';
 import { ShowToast } from '../../types';
 
 type SubTab = 'presensi-ustaz' | 'presensi-murid' | 'nilai' | 'kbm' | 'jurnal' | 'jadwal' | 'guru-pengganti';
@@ -57,12 +58,8 @@ export default function LaporanSection({ showToast }: { showToast: ShowToast }) 
         </div>
         <p className="text-xs text-slate-500 mb-3">Pilih format export untuk mengunduh laporan:</p>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => showToast('Export PDF akan tersedia segera', 'info')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 font-semibold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-all active:scale-95">
-            <Download className="w-4 h-4" /> Export PDF
-          </button>
-          <button onClick={() => showToast('Export Excel akan tersedia segera', 'info')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-semibold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all active:scale-95">
-            <FileSpreadsheet className="w-4 h-4" /> Export Excel
-          </button>
+          <ExportButton onClick={() => showToast('Export PDF akan tersedia segera', 'info')} format="pdf" label="Export PDF" variant="md" className="justify-center" />
+          <ExportButton onClick={() => showToast('Export Excel akan tersedia segera', 'info')} format="excel" label="Export Excel" variant="md" className="justify-center" />
         </div>
       </div>
     </div>

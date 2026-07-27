@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Users, FileText, Calendar, BarChart3, Loader2, BookOpen, TrendingUp,
   CheckCircle, X, Clock, XCircle, Heart, MessageCircle, Mail, StickyNote,
-  AlertTriangle, Award, Phone, Download, Share2,
+  AlertTriangle, Award, Phone, Share2,
 } from 'lucide-react';
+import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import { generatePDF, shareWA } from '../lib/pdf';
@@ -189,12 +190,8 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
 
       {/* Export & Share Buttons */}
       <div className="flex flex-wrap gap-1.5 mb-4">
-        <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-          <FileText className="w-3.5 h-3.5" /> Export PDF
-        </button>
-        <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-          <Download className="w-3.5 h-3.5" /> Export CSV
-        </button>
+        <ExportButton onClick={handleExportPDF} format="pdf" label="Export PDF" />
+        <ExportButton onClick={handleExportCSV} format="csv" label="Export CSV" />
         <button onClick={handleShareWAUstaz} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
           <Share2 className="w-3.5 h-3.5" /> Share WA
         </button>

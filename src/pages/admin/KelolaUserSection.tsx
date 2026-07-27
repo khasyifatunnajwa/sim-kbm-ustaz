@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Users, Shield, Plus, Pencil, Trash2, Search, KeyRound, Lock, UserCog, CheckCircle, AtSign, Hash,
-  Upload, Download, X, AlertCircle, FileText, RefreshCw, CheckCircle2,
+  Upload, X, AlertCircle, FileText, RefreshCw, CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmptyState from '../../components/EmptyState';
 import Pagination from '../../components/Pagination';
+import { ImportButton, ExportButton } from '../../components/DataButtons';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useSettings } from '../../store/useSettings';
 import type { ShowToast, Profile, UserRole, BolehMengajar } from '../../types';
@@ -26,6 +27,20 @@ const EXPORT_COLUMNS: Record<DataScope, string[]> = {
   'nama-id-password': ['nama_lengkap', 'nama_panggilan', 'id_login', 'password'],
   'lengkap': ['nama_lengkap', 'nama_panggilan', 'id_login', 'password', 'nomor_whatsapp', 'role', 'roles', 'jenis_kelamin', 'boleh_mengajar', 'is_active'],
 };
+
+const IMPORT_COLUMNS: { key: string; label: string; required: boolean; desc: string }[] = [
+  { key: 'nama_lengkap', label: 'nama_lengkap', required: true, desc: 'Wajib diisi' },
+  { key: 'nama_panggilan', label: 'nama_panggilan', required: false, desc: 'Boleh kosong — dibuat dari nama lengkap' },
+  { key: 'id_login', label: 'id_login', required: false, desc: 'Boleh kosong — dibuat dari nama panggilan' },
+  { key: 'password', label: 'password', required: false, desc: 'Boleh kosong — dibuat otomatis (simkbmXXXX)' },
+  { key: 'nomor_whatsapp', label: 'nomor_whatsapp', required: false, desc: 'Boleh kosong' },
+  { key: 'role', label: 'role', required: false, desc: 'Boleh kosong — default: ustaz (admin/operator/ustaz)' },
+  { key: 'roles', label: 'roles', required: false, desc: 'Boleh kosong — isi dengan ; untuk multiple (admin;ustaz)' },
+  { key: 'jenis_kelamin', label: 'jenis_kelamin', required: false, desc: 'Boleh kosong — L / P' },
+  { key: 'boleh_mengajar', label: 'boleh_mengajar', required: false, desc: 'Boleh kosong — Banin / Banat / Keduanya' },
+  { key: 'is_active', label: 'is_active', required: false, desc: 'Boleh kosong — default: Aktif (Aktif / Non-aktif)' },
+];
+const IMPORT_COLUMN_KEYS = IMPORT_COLUMNS.map(c => c.key);
 
 const PAGE_SIZE = 10;
 
@@ -69,7 +84,6 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [exportScope, setExportScope] = useState<DataScope>('nama-id');
-  const [importScope, setImportScope] = useState<DataScope>('nama-id-password');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
   const [importing, setImporting] = useState(false);
@@ -295,24 +309,15 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
   };
 
   const downloadImportTemplate = () => {
-    const columns = EXPORT_COLUMNS[importScope];
+    const columns = IMPORT_COLUMN_KEYS;
     const header = columns.join(',');
-    let example = '';
-    if (importScope === 'nama') {
-      example = 'Ahmad Fauzi,Fauzi';
-    } else if (importScope === 'nama-id') {
-      example = 'Ahmad Fauzi,Fauzi,fauzi';
-    } else if (importScope === 'nama-id-password') {
-      example = 'Ahmad Fauzi,Fauzi,fauzi,rahasia123';
-    } else {
-      example = 'Ahmad Fauzi,Fauzi,fauzi,rahasia123,0812345678,ustaz,ustaz,L,Banin,Aktif';
-    }
+    const example = 'Ahmad Fauzi,Fauzi,fauzi,rahasia123,0812345678,ustaz,ustaz,L,Banin,Aktif';
     const csv = '\uFEFF' + header + '\n' + example;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `template_import_user_${importScope}.csv`;
+    a.download = `template_import_user.csv`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('Template CSV berhasil diunduh', 'success');
@@ -360,8 +365,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
         const text = (e.target?.result as string) || '';
         const rows = parseCSV(text);
         if (rows.length === 0) { setImportError('File CSV kosong atau tidak memiliki data'); setImportPreview([]); return; }
-        const columns = EXPORT_COLUMNS[importScope];
-        const missing = columns.filter(c => !rows[0][c] && rows[0][c] !== '');
+        const columns = IMPORT_COLUMN_KEYS;
         // Validate header presence
         const firstRowKeys = Object.keys(rows[0]);
         const hasAllCols = columns.every(c => firstRowKeys.includes(c));
@@ -392,7 +396,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
           try {
             const text = (e.target?.result as string) || '';
             const rows = parseCSV(text);
-            const columns = EXPORT_COLUMNS[importScope];
+            const columns = IMPORT_COLUMN_KEYS;
             // Normalize rows: ensure all expected keys exist
             const users = rows.map(r => {
               const obj: Record<string, string> = {};
@@ -487,12 +491,8 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama, login ID..." className="input-field text-xs pl-8" />
             </div>
-            <button onClick={() => setShowImportModal(true)} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border border-sky-200 hover:bg-sky-100 transition-colors">
-              <Upload className="w-3.5 h-3.5" /> Import CSV
-            </button>
-            <button onClick={() => setShowExportModal(true)} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 hover:bg-emerald-100 transition-colors">
-              <Download className="w-3.5 h-3.5" /> Export CSV
-            </button>
+            <ImportButton onClick={() => setShowImportModal(true)} />
+            <ExportButton onClick={() => setShowExportModal(true)} />
             <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
               <Plus className="w-3.5 h-3.5" /> Tambah
             </button>
@@ -707,9 +707,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
             </div>
             <div className="flex gap-2 pt-1">
               <button onClick={() => setShowExportModal(false)} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
-              <button onClick={handleExportCSV} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">
-                <Download className="w-3.5 h-3.5" /> Export CSV
-              </button>
+              <ExportButton onClick={handleExportCSV} format="csv" label="Export CSV" className="flex-1 justify-center" />
             </div>
           </div>
         </Modal>
@@ -724,40 +722,45 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
               <div className="text-xs text-sky-700 dark:text-sky-300">
                 <p className="font-semibold mb-1">Cara Import:</p>
                 <ol className="list-decimal list-inside space-y-0.5 text-[11px]">
-                  <li>Pilih jenis data sesuai format file CSV Anda</li>
                   <li>Unduh template CSV untuk melihat format yang benar</li>
-                  <li>Isi data, lalu unggah file CSV</li>
-                  <li>Klik "Import" untuk memproses</li>
+                  <li>Isi data sesuai keterangan kolom di bawah, lalu unggah file CSV</li>
+                  <li>Klik "Import Data" untuk memproses</li>
                 </ol>
-                <p className="text-[10px] mt-1.5">Catatan: Password kosong akan dibuat otomatis (format: simkbmXXXX). ID Login kosong akan dibuat dari nama panggilan.</p>
               </div>
             </div>
 
-            {/* Scope selector */}
+            {/* Column requirements table */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Pilih Jenis Data</label>
-              <div className="grid grid-cols-2 gap-2">
-                {SCOPE_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { setImportScope(opt.value); resetImportState(); }}
-                    className={`flex flex-col items-start gap-0.5 p-2.5 rounded-xl text-left transition-all border ${importScope === opt.value ? 'bg-sky-50 dark:bg-sky-900/20 border-sky-300 dark:border-sky-700' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-sky-300'}`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${importScope === opt.value ? 'border-sky-600 bg-sky-600' : 'border-slate-300'}`}>
-                        {importScope === opt.value && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
-                      </div>
-                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{opt.label}</p>
-                    </div>
-                    <p className="text-[10px] text-slate-400 ml-5">{opt.desc}</p>
-                  </button>
-                ))}
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Keterangan Kolom</label>
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-700/50">
+                      <th className="border-b border-slate-200 dark:border-slate-700 px-2 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-300">Kolom</th>
+                      <th className="border-b border-slate-200 dark:border-slate-700 px-2 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                      <th className="border-b border-slate-200 dark:border-slate-700 px-2 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-300">Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {IMPORT_COLUMNS.map(col => (
+                      <tr key={col.key} className="even:bg-slate-50/50 dark:even:bg-slate-700/30">
+                        <td className="px-2 py-1.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{col.label}</td>
+                        <td className="px-2 py-1.5">
+                          {col.required
+                            ? <span className="inline-flex items-center gap-0.5 text-rose-600 font-semibold"><AlertCircle className="w-2.5 h-2.5" /> Wajib</span>
+                            : <span className="inline-flex items-center gap-0.5 text-emerald-600 font-semibold"><CheckCircle2 className="w-2.5 h-2.5" /> Opsional</span>}
+                        </td>
+                        <td className="px-2 py-1.5 text-slate-500 dark:text-slate-400">{col.desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
             {/* Template download */}
             <button onClick={downloadImportTemplate} className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-400 hover:underline">
-              <FileText className="w-3.5 h-3.5" /> Download Template CSV ({importScope})
+              <FileText className="w-3.5 h-3.5" /> Download Template CSV
             </button>
 
             {/* File upload */}

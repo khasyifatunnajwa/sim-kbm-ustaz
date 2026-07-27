@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  FileQuestion, Plus, Trash2, Pencil, FileText, Share2, Search, X,
+  FileQuestion, Plus, Trash2, Pencil, Share2, Search, X,
   Type, Hash, ListOrdered,
 } from 'lucide-react';
+import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
 import type { BankSoal, Kelas, MataPelajaran, ShowToast, Profile } from '../types';
 import Modal from '../components/Modal';
@@ -291,9 +292,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
               {expandedId === soal.id && (
                 <div className="px-4 pb-4 border-t border-slate-50">
                   <div className="flex gap-2 mt-3">
-                    <button onClick={() => exportSoalPDF(soal)} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                      <FileText className="w-3 h-3" /> Export PDF
-                    </button>
+                    <ExportButton onClick={() => exportSoalPDF(soal)} format="pdf" label="Export PDF" />
                     <button onClick={() => shareSoalWA(soal)} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
                       <Share2 className="w-3 h-3" /> Share WhatsApp
                     </button>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Search, Users, UserCheck, TrendingUp, ArrowUpCircle, FileText, Download, Share2 } from 'lucide-react';
+import { GraduationCap, Search, Users, UserCheck, TrendingUp, ArrowUpCircle, FileText, Share2 } from 'lucide-react';
+import { ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
 import EmptyState from '../../components/EmptyState';
 import Pagination from '../../components/Pagination';
@@ -130,12 +131,8 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
 
       {subTab === 'biodata' && (
         <div className="flex flex-wrap gap-1.5">
-          <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-            <FileText className="w-3.5 h-3.5" /> Export PDF
-          </button>
-          <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </button>
+          <ExportButton onClick={handleExportPDF} format="pdf" label="Export PDF" />
+          <ExportButton onClick={handleExportCSV} format="csv" label="Export CSV" />
           <button onClick={handleShareWAData} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
             <Share2 className="w-3.5 h-3.5" /> Share WA
           </button>

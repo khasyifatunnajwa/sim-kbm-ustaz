@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check,
-  FileText, Share2, Download
+  FileText, Share2
 } from 'lucide-react';
+import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
@@ -382,12 +383,8 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         <div className="flex items-center gap-1.5">
           {filteredMuridList.length > 0 && (
             <>
-              <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                <FileText className="w-3.5 h-3.5" /> PDF
-              </button>
-              <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                <Download className="w-3.5 h-3.5" /> CSV
-              </button>
+              <ExportButton onClick={handleExportPDF} format="pdf" label="PDF" />
+              <ExportButton onClick={handleExportCSV} format="csv" label="CSV" />
               <button onClick={handleShareWAMurid} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
                 <Share2 className="w-3.5 h-3.5" /> WA
               </button>

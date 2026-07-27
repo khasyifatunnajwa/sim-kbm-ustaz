@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, Pencil, FileText, Calendar, MapPin, CheckCircle,
-  Circle, Search, X, Bell, Share2, Download
+  Circle, Search, X, Bell, Share2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { namaHari } from '../lib/utils';

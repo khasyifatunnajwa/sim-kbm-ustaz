@@ -4,6 +4,7 @@ import {
   Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download, FileText,
   X, AlertCircle, RefreshCw, Share2,
 } from 'lucide-react';
+import { ImportButton, ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmptyState from '../../components/EmptyState';
@@ -502,9 +503,9 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
       </div>
       <div className="flex flex-wrap gap-1.5">
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
-        <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 transition-colors"><Upload className="w-3.5 h-3.5" /> Import CSV</button>
-        <button onClick={handleExportCSV} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"><Download className="w-3.5 h-3.5" /> Export CSV</button>
-        <button onClick={handleExportPDF} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 transition-colors"><FileText className="w-3.5 h-3.5" /> Export PDF</button>
+        <ImportButton onClick={() => setShowImport(true)} />
+        <ExportButton onClick={handleExportCSV} format="csv" />
+        <ExportButton onClick={handleExportPDF} format="pdf" />
         <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"><Share2 className="w-3.5 h-3.5" /> Share WA</button>
       </div>
 
@@ -697,8 +698,8 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><FileText className="w-3.5 h-3.5" /> PDF</button>
-      <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Download className="w-3.5 h-3.5" /> CSV</button>
+      <ExportButton onClick={handleExportPDF} format="pdf" label="PDF" />
+      <ExportButton onClick={handleExportCSV} format="csv" label="CSV" />
       <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
     </div>
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
@@ -857,8 +858,8 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <button onClick={handleExportMapelPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><FileText className="w-3.5 h-3.5" /> PDF</button>
-      <button onClick={handleExportMapelCSV} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Download className="w-3.5 h-3.5" /> CSV</button>
+      <ExportButton onClick={handleExportMapelPDF} format="pdf" label="PDF" />
+      <ExportButton onClick={handleExportMapelCSV} format="csv" label="CSV" />
       <button onClick={handleShareMapelWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
     </div>
     <CrudList title="Mata Pelajaran" icon={BookOpen} search={search} setSearch={setSearch}
@@ -1303,9 +1304,7 @@ function CrudList({ title, icon: Icon, search, setSearch, onAdd, onImport, impor
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cari ${title.toLowerCase()}...`} className="input-field text-xs pl-8" />
         </div>
         {onImport && (
-          <button onClick={onImport} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 transition-colors">
-            <Upload className="w-3.5 h-3.5" /> {importLabel || 'Import'}
-          </button>
+          <ImportButton onClick={onImport} label={importLabel || 'Import'} />
         )}
         <button onClick={onAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
       </div>

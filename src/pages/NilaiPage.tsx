@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, BarChart3, FileText, Share2, Save, Calendar, TrendingUp, ChevronDown
 } from 'lucide-react';
+import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
@@ -391,9 +392,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
                   {selectedPenilaian === p.id && (
                     <div className="mt-4 pt-4 border-t border-slate-100">
                       <div className="flex gap-2 mb-3">
-                        <button onClick={exportRekapPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                          <FileText className="w-3 h-3" /> Export PDF
-                        </button>
+                        <ExportButton onClick={exportRekapPDF} format="pdf" label="Export PDF" />
                         <button onClick={shareRekapWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
                           <Share2 className="w-3 h-3" /> Share WA
                         </button>
