@@ -113,6 +113,142 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ── BULK CREATE (CSV IMPORT) ────────────────────────────────────────
+    if (action === "bulk-create") {
+      const { users } = body as { users: Array<Record<string, string>> };
+      if (!Array.isArray(users) || users.length === 0) {
+        return new Response(JSON.stringify({ error: "Data user kosong" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const results: Array<Record<string, unknown>> = [];
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const u of users) {
+        const nama_lengkap = (u.nama_lengkap || "").trim();
+        const nama_panggilan = (u.nama_panggilan || "").trim();
+        const nomor_whatsapp = (u.nomor_whatsapp || "").trim() || null;
+        const customId = (u.id_login || "").trim();
+        const customPassword = (u.password || "").trim();
+        const roleStr = (u.role || "ustaz").trim();
+        const roles = roleStr.split(",").map((r) => r.trim()).filter(Boolean);
+        if (roles.length === 0) roles.push("ustaz");
+        const jenis_kelamin = (u.jenis_kelamin || "").trim() || null;
+        const boleh_mengajar = (u.boleh_mengajar || "").trim() || null;
+
+        if (!nama_lengkap) {
+          results.push({ nama_lengkap: "-", status: "gagal", error: "Nama lengkap kosong" });
+          failedCount++;
+          continue;
+        }
+
+        // Determine id_login
+        let finalId = customId || generateIdLogin(nama_panggilan, nama_lengkap);
+        if (!finalId) finalId = "user";
+
+        // Ensure uniqueness
+        let attempt = 0;
+        while (true) {
+          const { data: existing } = await serviceClient
+            .from("profiles")
+            .select("id")
+            .eq("id_login", finalId)
+            .maybeSingle();
+          if (!existing) break;
+          attempt++;
+          if (customId) {
+            // If custom id already taken, fail this row
+            results.push({ nama_lengkap, id_login: finalId, status: "gagal", error: "ID Login sudah digunakan" });
+            failedCount++;
+            finalId = "__SKIP__";
+            break;
+          }
+          const suffix = Math.floor(100 + Math.random() * 900);
+          finalId = `${generateIdLogin(nama_panggilan, nama_lengkap)}${suffix}`;
+          if (attempt > 10) {
+            finalId = `${generateIdLogin(nama_panggilan, nama_lengkap)}${Date.now().toString().slice(-5)}`;
+            break;
+          }
+        }
+        if (finalId === "__SKIP__") continue;
+
+        const password = customPassword || `simkbm${Math.floor(1000 + Math.random() * 9000)}`;
+        if (password.length < 6) {
+          results.push({ nama_lengkap, id_login: finalId, status: "gagal", error: "Password minimal 6 karakter" });
+          failedCount++;
+          continue;
+        }
+
+        const email = `${finalId}@simkbm.local`;
+        const primRole = primaryRole(roles);
+
+        const { data: authData, error: authError } = await serviceClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { nama_lengkap, role: primRole },
+        });
+
+        if (authError) {
+          results.push({ nama_lengkap, id_login: finalId, status: "gagal", error: authError.message });
+          failedCount++;
+          continue;
+        }
+
+        if (!authData.user) {
+          results.push({ nama_lengkap, id_login: finalId, status: "gagal", error: "Gagal membuat auth user" });
+          failedCount++;
+          continue;
+        }
+
+        await new Promise((r) => setTimeout(r, 400));
+
+        const profilePayload: Record<string, unknown> = {
+          nama_lengkap,
+          nama_panggilan: nama_panggilan || nama_lengkap.split(" ")[0],
+          nomor_whatsapp,
+          email,
+          id_login: finalId,
+          role: primRole,
+          roles,
+          is_active: true,
+          jenis_kelamin,
+          boleh_mengajar,
+        };
+
+        const { error: updateError } = await serviceClient
+          .from("profiles")
+          .update(profilePayload)
+          .eq("id", authData.user.id);
+
+        if (updateError) {
+          const { error: insertError } = await serviceClient
+            .from("profiles")
+            .insert({ id: authData.user.id, ...profilePayload });
+          if (insertError) {
+            console.error("Profile insert error:", insertError);
+          }
+        }
+
+        results.push({ nama_lengkap, id_login: finalId, status: "sukses", password });
+        successCount++;
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `${successCount} user berhasil, ${failedCount} gagal`,
+          success_count: successCount,
+          failed_count: failedCount,
+          results,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // ── CREATE USER ─────────────────────────────────────────────────────
     const { nama_lengkap, nama_panggilan, nomor_whatsapp, password, roles = ["ustaz"], is_active = true, jenis_kelamin, boleh_mengajar } = body;
 
