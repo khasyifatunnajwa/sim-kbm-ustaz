@@ -5,12 +5,18 @@ const config: CapacitorConfig = {
   appName: 'SIM KBM Ustaz',
   webDir: 'dist',
   bundledWebRuntime: false,
+
+  server: {
+    androidScheme: 'https'
+  },
+
   android: {
     allowMixedContent: false,
     backgroundColor: '#ffffff',
     captureInput: true,
-    webContentsDebuggingEnabled: false,
+    webContentsDebuggingEnabled: false
   },
+
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
@@ -18,24 +24,16 @@ const config: CapacitorConfig = {
       backgroundColor: '#059669',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
-      androidSplashResourceName: 'splash',
       splashFullScreen: true,
-      splashImmersive: true,
+      splashImmersive: true
     },
+
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#059669',
-      overlaysWebView: false,
-    },
-    LocalNotifications: {
-      smallIcon: 'ic_stat_icon',
-      iconColor: '#059669',
-      sound: 'notification.wav',
-    },
-  },
-  server: {
-    androidScheme: 'https',
-  },
+      overlaysWebView: false
+    }
+  }
 };
 
 export default config;
