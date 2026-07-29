@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- White book/knowledge icon for splash screen -->
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M60,25 L60,85 M60,25 L42,33 C37,35 37,40 42,42 L60,42 M60,25 L78,33 C83,35 83,40 78,42 L60,42" />
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M32,38 L32,72 C32,77 38,82 44,82 L60,82 L60,46 L44,46 C38,46 32,43 32,38 Z" />
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M88,38 L88,72 C88,77 82,82 76,82 L60,82 L60,46 L76,46 C82,46 88,43 88,38 Z" />
+</vector>
