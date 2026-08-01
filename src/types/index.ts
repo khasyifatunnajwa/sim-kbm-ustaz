@@ -835,3 +835,57 @@ export interface KenakalanMurid {
   wali_kelas_id: string;
   nama_wali_kelas: string;
 }
+
+// ============ BATASAN & KALENDER TABLES ============
+
+export interface BatasanMengajar {
+  id: string;
+  lembaga_id?: string;
+  kelas_id?: string;
+  mapel_id?: string;
+  gender?: GenderKelas;
+  semester: number; // 1 or 2
+  tahun_ajaran_id?: string;
+  bab_mulai?: string;
+  halaman_mulai?: string;
+  bab_selesai?: string;
+  halaman_selesai?: string;
+  keterangan?: string;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KalenderPendidikan {
+  id: string;
+  judul: string;
+  deskripsi?: string;
+  jenis: 'Libur' | 'Ujian' | 'Rapat' | 'Kegiatan' | 'Penting' | 'Lainnya';
+  tanggal_mulai: string;
+  tanggal_selesai?: string;
+  warna?: string;
+  lembaga_id?: string;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JadwalUjian {
+  id: string;
+  judul: string;
+  jenis_ujian: 'UTS' | 'UAS' | 'Ulangan' | 'Lisan' | 'Lainnya';
+  kelas_id?: string;
+  mapel_id?: string;
+  tanggal: string;
+  jam_mulai?: string;
+  jam_selesai?: string;
+  ruangan?: string;
+  kalender_id?: string;
+  lembaga_id?: string;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

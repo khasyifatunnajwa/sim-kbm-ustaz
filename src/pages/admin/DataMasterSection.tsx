@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock,
-  Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download, FileText,
-  X, AlertCircle, RefreshCw, Share2,
+  Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download,
+  X, AlertCircle, RefreshCw, Share2, Ruler,
 } from 'lucide-react';
 import { ImportButton, ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
@@ -14,6 +14,7 @@ import { useLembaga } from '../../hooks/useLembaga';
 import { generatePDF, shareWA } from '../../lib/pdf';
 import type {
   ShowToast, Profile, KelompokMapel, Lembaga,
+  BatasanMengajar, Kelas, MataPelajaran, TahunAjaran,
 } from '../../types';
 // DataSiswaPage import removed - unused
 import DataUstazPage from '../DataUstazPage';
@@ -23,7 +24,7 @@ import type { GenderKelas } from '../../types';
 
 const PAGE_SIZE = 10;
 
-type MasterTab = 'lembaga' | 'ustaz' | 'murid' | 'kelas' | 'ruangan' | 'mapel' | 'tahun' | 'semester' | 'hari' | 'jam';
+type MasterTab = 'lembaga' | 'kelas' | 'ruangan' | 'tahun' | 'semester' | 'hari' | 'jam' | 'mapel' | 'batasan' | 'ustaz' | 'murid';
 
 // ====== Import Modal ======
 interface ImportModalProps {
@@ -184,15 +185,16 @@ export default function DataMasterSection({ showToast, profile }: { showToast: S
 
   const tabs = [
     { id: 'lembaga' as MasterTab, label: 'Lembaga', icon: Building2 },
-    { id: 'ustaz' as MasterTab, label: 'Ustaz', icon: Users },
-    { id: 'murid' as MasterTab, label: 'Murid', icon: GraduationCap },
     { id: 'kelas' as MasterTab, label: 'Kelas', icon: School },
     { id: 'ruangan' as MasterTab, label: 'Ruang', icon: Building2 },
-    { id: 'mapel' as MasterTab, label: 'Mapel', icon: BookOpen },
     { id: 'tahun' as MasterTab, label: 'Tahun', icon: Calendar },
     { id: 'semester' as MasterTab, label: 'Semester', icon: BookOpen },
     { id: 'hari' as MasterTab, label: 'Hari', icon: Calendar },
     { id: 'jam' as MasterTab, label: 'Jam', icon: Clock },
+    { id: 'mapel' as MasterTab, label: 'Mapel', icon: BookOpen },
+    { id: 'batasan' as MasterTab, label: 'Batasan', icon: Ruler },
+    { id: 'ustaz' as MasterTab, label: 'Guru', icon: Users },
+    { id: 'murid' as MasterTab, label: 'Murid', icon: GraduationCap },
   ];
 
   return (
@@ -202,7 +204,7 @@ export default function DataMasterSection({ showToast, profile }: { showToast: S
         <p className="text-xs text-slate-500 dark:text-slate-400">Semua data dasar lembaga, ustaz, murid, kelas, dan akademik</p>
       </div>
 
-      <div className="grid grid-cols-5 gap-1.5">
+      <div className="grid grid-cols-4 md:grid-cols-6 gap-1.5">
         {tabs.map(t => {
           const Icon = t.icon;
           return (
@@ -215,15 +217,16 @@ export default function DataMasterSection({ showToast, profile }: { showToast: S
       </div>
 
       {tab === 'lembaga' && <KelolaLembaga showToast={showToast} profile={profile} />}
-      {tab === 'ustaz' && <DataUstazPage showToast={showToast} />}
-      {tab === 'murid' && <KelolaDataMurid showToast={showToast} profile={profile} />}
       {tab === 'kelas' && <CrudKelas showToast={showToast} />}
       {tab === 'ruangan' && <CrudRuangan showToast={showToast} />}
-      {tab === 'mapel' && <CrudMapel showToast={showToast} />}
       {tab === 'tahun' && <CrudTahun showToast={showToast} />}
       {tab === 'semester' && <CrudSemester showToast={showToast} />}
       {tab === 'hari' && <CrudHariBelajar showToast={showToast} />}
       {tab === 'jam' && <CrudJamPelajaran showToast={showToast} />}
+      {tab === 'mapel' && <CrudMapel showToast={showToast} />}
+      {tab === 'batasan' && <CrudBatasan showToast={showToast} />}
+      {tab === 'ustaz' && <DataUstazPage showToast={showToast} />}
+      {tab === 'murid' && <KelolaDataMurid showToast={showToast} profile={profile} />}
     </div>
   );
 }
@@ -1331,6 +1334,295 @@ function CrudList({ title, icon: Icon, search, setSearch, onAdd, onImport, impor
       {showModal && (
         <Modal isOpen={true} onClose={onClose} title={modalTitle}>
           <div className="space-y-3">{children}<div className="flex gap-2 pt-2"><button onClick={onClose} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button><button onClick={onSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">{saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Simpan</button></div></div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ====== CRUD BATASAN MENGAJAR ======
+function CrudBatasan({ showToast }: { showToast: ShowToast; profile?: Profile | null }) {
+  const { data: lembagaList = [] } = useLembaga();
+  const [list, setList] = useState<BatasanMengajar[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
+  const [tahunList, setTahunList] = useState<TahunAjaran[]>([]);
+
+  const [form, setForm] = useState({
+    lembaga_id: '',
+    kelas_id: '',
+    mapel_id: '',
+    gender: '',
+    semester: 1 as 1 | 2,
+    tahun_ajaran_id: '',
+    bab_mulai: '',
+    halaman_mulai: '',
+    bab_selesai: '',
+    halaman_selesai: '',
+    keterangan: '',
+  });
+
+  const lembagaOptions = useMemo(() => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
+  const lembagaNameById = useMemo(() => { const m: Record<string, string> = {}; lembagaList.forEach(l => { m[l.id] = l.nama_lembaga; }); return m; }, [lembagaList]);
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [bRes, kRes, mRes, tRes] = await Promise.all([
+        supabase.from('batasan_mengajar').select('*').eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('kelas').select('id, nama_kelas, lembaga_id').eq('aktif', true).order('nama_kelas'),
+        supabase.from('mata_pelajaran').select('id, nama_mapel').eq('is_active', true).order('nama_mapel'),
+        supabase.from('tahun_ajaran').select('id, nama').order('nama'),
+      ]);
+      if (bRes.data) setList(bRes.data as BatasanMengajar[]);
+      if (kRes.data) setKelasList(kRes.data as Kelas[]);
+      if (mRes.data) setMapelList(mRes.data as MataPelajaran[]);
+      if (tRes.data) setTahunList(tRes.data as TahunAjaran[]);
+    } catch { showToast('Gagal memuat data batasan', 'error'); } finally { setLoading(false); }
+  };
+
+  const kelasFiltered = useMemo(() => {
+    if (!form.lembaga_id) return kelasList;
+    return kelasList.filter(k => !k.lembaga_id || k.lembaga_id === form.lembaga_id);
+  }, [kelasList, form.lembaga_id]);
+
+  const filtered = useMemo(() => {
+    if (!search) return list;
+    const q = search.toLowerCase();
+    return list.filter(b => {
+      const kelasNama = kelasList.find(k => k.id === b.kelas_id)?.nama_kelas ?? '';
+      const mapelNama = mapelList.find(m => m.id === b.mapel_id)?.nama_mapel ?? '';
+      return [kelasNama, mapelNama, b.bab_mulai, b.bab_selesai, b.keterangan].filter(Boolean).join(' ').toLowerCase().includes(q);
+    });
+  }, [list, search, kelasList, mapelList]);
+
+  const resetForm = () => {
+    setForm({ lembaga_id: '', kelas_id: '', mapel_id: '', gender: '', semester: 1, tahun_ajaran_id: '', bab_mulai: '', halaman_mulai: '', bab_selesai: '', halaman_selesai: '', keterangan: '' });
+    setEditingId(null);
+  };
+
+  const openAdd = () => { resetForm(); setShowModal(true); };
+
+  const openEdit = (b: BatasanMengajar) => {
+    setEditingId(b.id);
+    setForm({
+      lembaga_id: b.lembaga_id || '', kelas_id: b.kelas_id || '', mapel_id: b.mapel_id || '',
+      gender: b.gender || '', semester: (b.semester === 2 ? 2 : 1) as 1 | 2,
+      tahun_ajaran_id: b.tahun_ajaran_id || '', bab_mulai: b.bab_mulai || '', halaman_mulai: b.halaman_mulai || '',
+      bab_selesai: b.bab_selesai || '', halaman_selesai: b.halaman_selesai || '', keterangan: b.keterangan || '',
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.kelas_id || !form.mapel_id) { showToast('Kelas dan mata pelajaran wajib diisi', 'error'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        lembaga_id: form.lembaga_id || null,
+        kelas_id: form.kelas_id || null,
+        mapel_id: form.mapel_id || null,
+        gender: form.gender || null,
+        semester: form.semester,
+        tahun_ajaran_id: form.tahun_ajaran_id || null,
+        bab_mulai: form.bab_mulai || null,
+        halaman_mulai: form.halaman_mulai || null,
+        bab_selesai: form.bab_selesai || null,
+        halaman_selesai: form.halaman_selesai || null,
+        keterangan: form.keterangan || null,
+      };
+      const { error } = editingId
+        ? await supabase.from('batasan_mengajar').update(payload).eq('id', editingId)
+        : await supabase.from('batasan_mengajar').insert(payload);
+      if (error) throw error;
+      showToast(editingId ? 'Batasan diperbarui' : 'Batasan ditambahkan', 'success');
+      setShowModal(false); resetForm(); fetchAll();
+    } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('batasan_mengajar').delete().eq('id', id);
+    if (error) { showToast('Gagal menghapus', 'error'); return; }
+    setList(prev => prev.filter(b => b.id !== id));
+    showToast('Batasan dihapus', 'info');
+  };
+
+  const handleExportCSV = () => {
+    if (filtered.length === 0) { showToast('Tidak ada data', 'error'); return; }
+    const header = 'Lembaga,Kelas,Mapel,Gender,Semester,Bab Mulai,Hal Mulai,Bab Selesai,Hal Selesai,Keterangan';
+    const rows = filtered.map(b => {
+      const lembaga = lembagaNameById[b.lembaga_id ?? ''] || '';
+      const kelas = kelasList.find(k => k.id === b.kelas_id)?.nama_kelas || '';
+      const mapel = mapelList.find(m => m.id === b.mapel_id)?.nama_mapel || '';
+      return `"${lembaga}","${kelas}","${mapel}","${b.gender || ''}","${b.semester}","${b.bab_mulai || ''}","${b.halaman_mulai || ''}","${b.bab_selesai || ''}","${b.halaman_selesai || ''}","${b.keterangan || ''}"`;
+    });
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'batasan_mengajar.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV berhasil diunduh', 'success');
+  };
+
+  const handleShareWA = () => {
+    if (filtered.length === 0) { showToast('Tidak ada data', 'error'); return; }
+    let text = `*BATASAN MENGAJAR*\n\n`;
+    filtered.forEach((b, i) => {
+      const kelas = kelasList.find(k => k.id === b.kelas_id)?.nama_kelas || '-';
+      const mapel = mapelList.find(m => m.id === b.mapel_id)?.nama_mapel || '-';
+      text += `${i + 1}. ${mapel} - Kelas ${kelas} (Sem ${b.semester})\n`;
+      text += `   Bab ${b.bab_mulai || '?'} (Hal. ${b.halaman_mulai || '?'}) s/d Bab ${b.bab_selesai || '?'} (Hal. ${b.halaman_selesai || '?'})\n`;
+      if (b.keterangan) text += `   ${b.keterangan}\n`;
+    });
+    shareWA(text);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[140px]">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari batasan..." className="input-field text-xs pl-8" />
+        </div>
+        <ExportButton onClick={handleExportCSV} format="csv" />
+        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
+          <Share2 className="w-3.5 h-3.5" /> Share WA
+        </button>
+        <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
+          <Plus className="w-3.5 h-3.5" /> Tambah
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <EmptyState title="Belum ada batasan" description="Tambahkan batasan mengajar per semester." icon={<Ruler className="w-8 h-8 text-slate-300" />} />
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(b => {
+            const kelasNama = kelasList.find(k => k.id === b.kelas_id)?.nama_kelas || '-';
+            const mapelNama = mapelList.find(m => m.id === b.mapel_id)?.nama_mapel || '-';
+            const lembagaNama = b.lembaga_id ? lembagaNameById[b.lembaga_id] : undefined;
+            return (
+              <div key={b.id} className="card p-3 group">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">{mapelNama}</span>
+                      <span className="badge badge-success text-[9px]">{kelasNama}</span>
+                      {lembagaNama && <span className="badge bg-sky-50 text-sky-700 border border-sky-100 text-[9px]">{lembagaNama}</span>}
+                      <span className="badge badge-info text-[9px]">Sem {b.semester}</span>
+                      {b.gender && <span className="badge bg-purple-50 text-purple-700 border border-purple-100 text-[9px]">{b.gender}</span>}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      Bab <strong>{b.bab_mulai || '?'}</strong> (Hal. {b.halaman_mulai || '?'}) s/d Bab <strong>{b.bab_selesai || '?'}</strong> (Hal. {b.halaman_selesai || '?'})
+                    </p>
+                    {b.keterangan && <p className="text-[10px] text-slate-400 italic mt-1">{b.keterangan}</p>}
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEdit(b)} className="p-1.5 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleDelete(b.id)} className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showModal && (
+        <Modal isOpen={true} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Edit Batasan Mengajar' : 'Tambah Batasan Mengajar'} size="lg">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Lembaga</label>
+                <SearchableSelect value={form.lembaga_id} onChange={v => setForm(f => ({ ...f, lembaga_id: v, kelas_id: '' }))} options={lembagaOptions} placeholder="Pilih Lembaga" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
+                <select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))} className="input-field text-xs">
+                  <option value="">Semua</option>
+                  <option value="Banin">Banin</option>
+                  <option value="Banat">Banat</option>
+                  <option value="Campuran">Campuran</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
+                <select value={form.kelas_id} onChange={e => setForm(f => ({ ...f, kelas_id: e.target.value }))} className="input-field text-xs" required>
+                  <option value="">Pilih Kelas</option>
+                  {kelasFiltered.map(k => <option key={k.id} value={k.id}>{k.nama_kelas}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Mata Pelajaran *</label>
+                <select value={form.mapel_id} onChange={e => setForm(f => ({ ...f, mapel_id: e.target.value }))} className="input-field text-xs" required>
+                  <option value="">Pilih Mapel</option>
+                  {mapelList.map(m => <option key={m.id} value={m.id}>{m.nama_mapel}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Semester</label>
+                <div className="flex gap-1.5">
+                  {[1, 2].map(s => (
+                    <button key={s} type="button" onClick={() => setForm(f => ({ ...f, semester: s as 1 | 2 }))} className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${form.semester === s ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-800 text-slate-500 border-slate-200'}`}>
+                      Semester {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tahun Ajaran</label>
+                <select value={form.tahun_ajaran_id} onChange={e => setForm(f => ({ ...f, tahun_ajaran_id: e.target.value }))} className="input-field text-xs">
+                  <option value="">Pilih Tahun</option>
+                  {tahunList.map(t => <option key={t.id} value={t.id}>{t.nama}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Bab Mulai</label>
+                <input type="text" value={form.bab_mulai} onChange={e => setForm(f => ({ ...f, bab_mulai: e.target.value }))} className="input-field text-xs" placeholder="cth. Bab 1" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Halaman Mulai</label>
+                <input type="text" value={form.halaman_mulai} onChange={e => setForm(f => ({ ...f, halaman_mulai: e.target.value }))} className="input-field text-xs" placeholder="cth. 1" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Bab Selesai</label>
+                <input type="text" value={form.bab_selesai} onChange={e => setForm(f => ({ ...f, bab_selesai: e.target.value }))} className="input-field text-xs" placeholder="cth. Bab 5" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Halaman Selesai</label>
+                <input type="text" value={form.halaman_selesai} onChange={e => setForm(f => ({ ...f, halaman_selesai: e.target.value }))} className="input-field text-xs" placeholder="cth. 120" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Keterangan</label>
+              <textarea value={form.keterangan} onChange={e => setForm(f => ({ ...f, keterangan: e.target.value }))} className="input-field text-xs resize-none" rows={2} placeholder="Catatan tambahan..." />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
+              <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5">
+                {saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                {saving ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
