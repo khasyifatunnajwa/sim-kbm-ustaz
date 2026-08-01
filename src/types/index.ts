@@ -522,7 +522,8 @@ export type ActiveTab =
   | 'admin-jadwal-ustaz'
   | 'admin-data-santri'
   | 'admin-jadwal-asatiz'
-  | 'admin-kelola-lembaga';
+  | 'admin-kelola-lembaga'
+  | 'kalender';
 
 export type ShowToast = (message: string, type?: 'success' | 'error' | 'info') => void;
 

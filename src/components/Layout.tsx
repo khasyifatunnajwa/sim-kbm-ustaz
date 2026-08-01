@@ -47,6 +47,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'dashboard', icon: Home, label: 'Beranda' },
       { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
+      { id: 'kalender', icon: CalendarDays, label: 'Kalender' },
       { id: 'murid', icon: Users, label: 'Santri' },
     ],
   },

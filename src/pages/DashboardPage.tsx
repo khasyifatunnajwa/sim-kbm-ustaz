@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BookOpen, Users, CalendarDays, Clock, Bell, Megaphone,
+  BookOpen, Users, CalendarDays, Calendar, Clock, Bell, Megaphone,
   CheckCircle, Timer, TrendingUp, FileText, GraduationCap,
   Sparkles, ChevronRight, BookMarked, AlertTriangle, ChevronLeft, X,
   AlertCircle, StickyNote, Inbox
@@ -11,7 +11,7 @@ import { SkeletonCard } from '../components/Skeleton';
 import DashboardActivityFlow from '../components/DashboardActivityFlow';
 import { useSettings } from '../store/useSettings';
 import { namaHari } from '../lib/utils';
-import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab, CatatanGuru } from '../types';
+import type { Profile, JadwalMengajar, AgendaPenting, Pengumuman, JurnalKBM, ShowToast, ActiveTab, CatatanGuru, KalenderPendidikan } from '../types';
 
 interface DashboardPageProps {
   showToast: ShowToast;
@@ -233,6 +233,41 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
     staleTime: 60 * 1000,
   });
 
+  // Kalender Pendidikan — today's events & upcoming
+  const { data: kalenderHariIni = [] } = useQuery<KalenderPendidikan[]>({
+    queryKey: ['dashboard-kalender-hari-ini'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('kalender_pendidikan')
+        .select('*')
+        .eq('is_active', true)
+        .lte('tanggal_mulai', todayStr)
+        .or(`tanggal_selesai.is.null,tanggal_selesai.gte.${todayStr}`)
+        .order('jenis', { ascending: true });
+      return (data ?? []) as KalenderPendidikan[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const { data: kalenderMendatang = [] } = useQuery<KalenderPendidikan[]>({
+    queryKey: ['dashboard-kalender-mendatang'],
+    queryFn: async () => {
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('kalender_pendidikan')
+        .select('*')
+        .eq('is_active', true)
+        .gte('tanggal_mulai', tomorrowStr)
+        .order('tanggal_mulai', { ascending: true })
+        .limit(5);
+      return (data ?? []) as KalenderPendidikan[];
+    },
+    staleTime: 60 * 1000,
+  });
+  void kalenderMendatang;
+
   // Auto-advance carousel
   useEffect(() => {
     const visible = broadcastList.filter(p => !dismissedIds.includes(String(p.id)));
@@ -317,6 +352,11 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
         dismissedIds={dismissedIds}
         setDismissedIds={setDismissedIds}
       />
+
+      {/* Kalender Pendidikan Announcements */}
+      {kalenderHariIni.length > 0 && (
+        <KalenderBanner events={kalenderHariIni} onNavigate={() => handleNav('kalender')} />
+      )}
 
       {/* Greeting Header with Marquee */}
       <div className="card overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
@@ -420,7 +460,7 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
         <DashboardActivityFlow
           profile={profile}
           showToast={showToast}
-          setActiveTab={setActiveTab}
+          setActiveTab={setActiveTab ?? (() => {})}
           jadwalHariIni={jadwalHariIni}
           now={now}
         />
@@ -859,6 +899,55 @@ function BroadcastBanner({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+// ===== Kalender Pendidikan Banner =====
+const KALENDER_JENIS_STYLE: Record<string, { bg: string; icon: any; iconBg: string; border: string }> = {
+  Libur: { bg: 'from-rose-500 to-rose-600', icon: AlertCircle, iconBg: 'bg-white/20', border: 'border-rose-200' },
+  Ujian: { bg: 'from-amber-500 to-amber-600', icon: FileText, iconBg: 'bg-white/20', border: 'border-amber-200' },
+  Rapat: { bg: 'from-sky-500 to-sky-600', icon: Users, iconBg: 'bg-white/20', border: 'border-sky-200' },
+  Kegiatan: { bg: 'from-emerald-500 to-emerald-600', icon: Calendar, iconBg: 'bg-white/20', border: 'border-emerald-200' },
+  Penting: { bg: 'from-violet-500 to-violet-600', icon: AlertCircle, iconBg: 'bg-white/20', border: 'border-violet-200' },
+  Lainnya: { bg: 'from-slate-500 to-slate-600', icon: Calendar, iconBg: 'bg-white/20', border: 'border-slate-200' },
+};
+
+function KalenderBanner({ events, onNavigate }: { events: KalenderPendidikan[]; onNavigate: () => void }) {
+  if (events.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {events.map((e) => {
+        const style = KALENDER_JENIS_STYLE[e.jenis] || KALENDER_JENIS_STYLE.Lainnya;
+        const Icon = style.icon;
+        const isMultiDay = e.tanggal_selesai && e.tanggal_selesai !== e.tanggal_mulai;
+        return (
+          <button
+            key={e.id}
+            onClick={onNavigate}
+            className={`w-full bg-gradient-to-r ${style.bg} rounded-2xl p-3 text-white shadow-md hover:shadow-lg transition-all text-left group`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${style.iconBg}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold">{e.judul}</span>
+                  <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full font-semibold uppercase">{e.jenis}</span>
+                </div>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  {isMultiDay
+                    ? `${new Date(e.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} - ${new Date(e.tanggal_selesai!).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`
+                    : new Date(e.tanggal_mulai).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </p>
+                {e.deskripsi && <p className="text-[10px] text-white/70 mt-0.5 line-clamp-1">{e.deskripsi}</p>}
+              </div>
+              <ChevronRight className="w-4 h-4 text-white/60 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

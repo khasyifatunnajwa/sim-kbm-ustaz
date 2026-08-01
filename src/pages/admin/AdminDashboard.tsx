@@ -5,11 +5,11 @@ import {
   ChevronRight, LayoutDashboard, CheckCircle,
   School, Layers, Award, ArrowRight,
   Clock, XCircle, Heart, Activity,
-  BookUser, TrendingUp, Bell,
+  BookUser, TrendingUp, Bell, AlertCircle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { namaHari } from '../../lib/utils';
-import type { Profile, DashboardPresensiUstaz, PresensiMuridByKelas, KelasKosong } from '../../types';
+import type { Profile, DashboardPresensiUstaz, PresensiMuridByKelas, KelasKosong, KalenderPendidikan } from '../../types';
 
 export type AdminSectionId =
   | 'dashboard' | 'kelola-user' | 'data-master' | 'jadwal' | 'akademik'
@@ -60,6 +60,7 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
   const [pengumumanCount, setPengumumanCount] = useState(0);
   const [agendaCount, setAgendaCount] = useState(0);
   const [adminNotifications, setAdminNotifications] = useState<any[]>([]);
+  const [kalenderHariIni, setKalenderHariIni] = useState<KalenderPendidikan[]>([]);
 
   useEffect(() => { fetchDashboardData(); }, []);
 
@@ -157,6 +158,17 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
         .order('created_at', { ascending: false })
         .limit(20);
       setAdminNotifications(notifData || []);
+
+      // Kalender Pendidikan — today's events
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data: kalenderData } = await supabase
+        .from('kalender_pendidikan')
+        .select('*')
+        .eq('is_active', true)
+        .lte('tanggal_mulai', todayStr)
+        .or(`tanggal_selesai.is.null,tanggal_selesai.gte.${todayStr}`)
+        .order('jenis', { ascending: true });
+      setKalenderHariIni((kalenderData || []) as KalenderPendidikan[]);
     } catch (err) {
       console.error('Error fetching dashboard:', err);
     } finally {
@@ -193,6 +205,7 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
     { label: 'Kelola User', icon: Users, color: 'emerald', section: 'kelola-user' as AdminSectionId },
     { label: 'Data Master', icon: Building2, color: 'sky', section: 'data-master' as AdminSectionId },
     { label: 'Jadwal', icon: Calendar, color: 'amber', section: 'jadwal' as AdminSectionId },
+    { label: 'Kalender', icon: CalendarDays, color: 'amber', section: 'jadwal' as AdminSectionId },
     { label: 'Presensi', icon: CheckCircle, color: 'emerald', section: 'presensi' as AdminSectionId },
     { label: 'Nilai', icon: Award, color: 'violet', section: 'penilaian' as AdminSectionId },
     { label: 'Laporan', icon: FileText, color: 'rose', section: 'laporan' as AdminSectionId },
@@ -241,6 +254,39 @@ export default function AdminDashboard({ onViewChange, profile }: Props) {
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
       ) : (
         <>
+          {/* Kalender Pendidikan Banner */}
+          {kalenderHariIni.length > 0 && (
+            <div className="space-y-2">
+              {kalenderHariIni.map((e) => {
+                const isLibur = e.jenis === 'Libur';
+                const isUjian = e.jenis === 'Ujian';
+                const bg = isLibur ? 'from-rose-500 to-rose-600' : isUjian ? 'from-amber-500 to-amber-600' : 'from-emerald-500 to-emerald-600';
+                const Icon = isLibur ? AlertCircle : isUjian ? FileText : Calendar;
+                return (
+                  <div key={e.id} className={`bg-gradient-to-r ${bg} rounded-2xl p-3 text-white shadow-md`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold">{e.judul}</span>
+                          <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full font-semibold uppercase">{e.jenis}</span>
+                        </div>
+                        <p className="text-[10px] text-white/80 mt-0.5">
+                          {e.tanggal_selesai && e.tanggal_selesai !== e.tanggal_mulai
+                            ? `${new Date(e.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} - ${new Date(e.tanggal_selesai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`
+                            : new Date(e.tanggal_mulai).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </p>
+                        {e.deskripsi && <p className="text-[10px] text-white/70 mt-0.5 line-clamp-1">{e.deskripsi}</p>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Row 1: Monitoring */}
           <div>
             <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Monitoring Hari Ini</p>
