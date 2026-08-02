@@ -43,8 +43,10 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Make Gradlew Executable
-        run: chmod +x android/gradlew
+      - name: Fix Gradlew Line Endings & Make Executable
+        run: |
+          sed -i 's/\r$//' android/gradlew
+          chmod +x android/gradlew
 
       - name: Build Debug APK
         working-directory: android
