@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check,
-  FileText, Share2
+  Share2
 } from 'lucide-react';
 import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';

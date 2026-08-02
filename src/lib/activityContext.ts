@@ -1,4 +1,5 @@
 import type { JadwalMengajar } from '../types';
+import { safeSessionStorage } from './platform';
 
 const STORAGE_KEY = 'simkbm-active-jadwal';
 
@@ -32,12 +33,12 @@ export function setActivityContext(jadwal: JadwalMengajar): void {
     gender: jadwal.gender,
     hari: jadwal.hari,
   };
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(ctx));
+  safeSessionStorage.setItem(STORAGE_KEY, JSON.stringify(ctx));
 }
 
 export function getActivityContext(): ActivityContext | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = safeSessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as ActivityContext;
   } catch {
@@ -46,5 +47,5 @@ export function getActivityContext(): ActivityContext | null {
 }
 
 export function clearActivityContext(): void {
-  sessionStorage.removeItem(STORAGE_KEY);
+  safeSessionStorage.removeItem(STORAGE_KEY);
 }

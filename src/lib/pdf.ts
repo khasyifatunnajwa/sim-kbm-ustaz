@@ -196,6 +196,4 @@ export function generateRaporPDF(
   doc.save(`Rapor_${murid.nama.replace(/ /g, '_')}.pdf`);
 }
 
-export function shareWA(text: string) {
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-}
+export { shareWA } from './share';

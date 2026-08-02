@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Pencil, Users, TrendingUp, FileText, Share2, Download
+  Plus, Trash2, Pencil, Users, TrendingUp, FileText, Share2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';

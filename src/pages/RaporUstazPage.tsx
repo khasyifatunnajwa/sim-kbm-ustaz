@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Award, Users, TrendingUp, Calendar, CheckCircle, Clock, XCircle,
-  Heart, FileText, MessageCircle, Mail, Phone, BarChart3, Loader2,
+  Award, Users, TrendingUp, Calendar, Clock, XCircle,
+  MessageCircle, Mail, Phone, BarChart3, Loader2,
   Search, Trophy, Target, Download,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';

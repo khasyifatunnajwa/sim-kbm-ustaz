@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Camera, CheckCircle, Clock, AlertCircle, MapPin, X, Loader2,
+  Camera, CheckCircle, Clock, AlertCircle, MapPin, Loader2,
   Calendar, Users, BarChart3, TrendingUp, Search, Filter, Image as ImageIcon,
   Navigation, User, BookOpen, FileText, Share2,
 } from 'lucide-react';
@@ -157,7 +157,6 @@ export default function PresensiAdminPage({ showToast, profile }: { showToast: S
 
   const handleExportCSV = () => {
     if (filteredPresensi.length === 0) { showToast('Tidak ada data untuk diekspor', 'error'); return; }
-    const periode = `${BULAN_LIST[filterBulan - 1].label} ${filterTahun}`;
     const header = 'No,Nama Guru,Mata Pelajaran,Kelas,Tanggal,Jam Presensi,Status';
     const rows = filteredPresensi.map((p, i) =>
       `${i + 1},"${p.guru?.nama_lengkap || p.guru?.nama_panggilan || '-'}","${p.jadwal?.pelajaran || '-'}","${p.jadwal?.kelas || '-'}","${new Date(p.jam_server).toLocaleDateString('id-ID')}","${new Date(p.jam_server).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}","${p.status}"`
