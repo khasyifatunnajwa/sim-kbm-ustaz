@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Users, FileText, Calendar, BarChart3, Loader2,
+  Users, Calendar, BarChart3, Loader2,
   GraduationCap, Heart, BookOpen, X
 } from 'lucide-react';
 import { ExportButton } from '../components/DataButtons';

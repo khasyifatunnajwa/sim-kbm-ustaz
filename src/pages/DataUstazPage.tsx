@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Users, FileText, Calendar, BarChart3, Loader2, BookOpen, TrendingUp,
   CheckCircle, X, Clock, XCircle, Heart, MessageCircle, Mail, StickyNote,
-  AlertTriangle, Award, Phone, Share2,
+  AlertTriangle, Phone, Share2,
 } from 'lucide-react';
 import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
