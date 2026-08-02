@@ -33,3 +33,6 @@ try {
 } catch {
   messaging = null;
 }
+
+
+export { messaging }
