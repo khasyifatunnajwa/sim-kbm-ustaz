@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -14,41 +15,59 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as any).standalone === true;
-
-    if (isStandalone) {
+    // On native platforms (Android APK), the app is already installed.
+    if (Capacitor.isNativePlatform()) {
       setIsInstalled(true);
+      setIsInstallable(false);
       return;
     }
 
-    const isDismissed = () => {
-      const dismissedAt = localStorage.getItem(DISMISS_KEY);
-      if (!dismissedAt) return false;
-      return Date.now() - parseInt(dismissedAt, 10) < DISMISS_DURATION;
-    };
+    try {
+      const isStandalone =
+        (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) ||
+        (typeof window !== 'undefined' && (window.navigator as any).standalone === true);
 
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      if (isDismissed()) return;
-      setInstallPrompt(e as BeforeInstallPromptEvent);
-      setIsInstallable(true);
-    };
+      if (isStandalone) {
+        setIsInstalled(true);
+        return;
+      }
 
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
+      const isDismissed = () => {
+        try {
+          const dismissedAt = localStorage.getItem(DISMISS_KEY);
+          if (!dismissedAt) return false;
+          return Date.now() - parseInt(dismissedAt, 10) < DISMISS_DURATION;
+        } catch {
+          return false;
+        }
+      };
+
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault();
+        if (isDismissed()) return;
+        setInstallPrompt(e as BeforeInstallPromptEvent);
+        setIsInstallable(true);
+      };
+
+      const handleAppInstalled = () => {
+        setIsInstalled(true);
+        setIsInstallable(false);
+        setInstallPrompt(null);
+        try { localStorage.removeItem(DISMISS_KEY); } catch { /* ignore */ }
+      };
+
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.addEventListener('appinstalled', handleAppInstalled);
+
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.removeEventListener('appinstalled', handleAppInstalled);
+      };
+    } catch {
+      // Browser APIs unavailable — treat as not installable
+      setIsInstalled(false);
       setIsInstallable(false);
-      setInstallPrompt(null);
-      localStorage.removeItem(DISMISS_KEY);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
+    }
   }, []);
 
   const promptInstall = async (): Promise<boolean> => {
@@ -62,7 +81,7 @@ export function usePWAInstall() {
         setIsInstalled(true);
         setIsInstallable(false);
         setInstallPrompt(null);
-        localStorage.removeItem(DISMISS_KEY);
+        try { localStorage.removeItem(DISMISS_KEY); } catch { /* ignore */ }
         return true;
       } else {
         dismissInstall();
@@ -75,7 +94,7 @@ export function usePWAInstall() {
   };
 
   const dismissInstall = () => {
-    localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    try { localStorage.setItem(DISMISS_KEY, Date.now().toString()); } catch { /* ignore */ }
     setIsInstallable(false);
     setInstallPrompt(null);
   };

@@ -19,16 +19,51 @@ import { supabase } from './lib/supabase';
 // 4. Theme Provider
 import { ThemeProvider } from './contexts/ThemeContext';
 
-// Aktifkan Service Worker segera saat aplikasi dibuka
-registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    console.log('[PWA] Update tersedia, akan diterapkan otomatis');
-  },
-  onOfflineReady() {
-    console.log('[PWA] Aplikasi siap digunakan offline');
-  },
-});
+// 5. Capacitor App lifecycle (native back button, etc.)
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { SplashScreen } from '@capacitor/splash-screen';
+import { StatusBar, Style } from '@capacitor/status-bar';
+
+// Only register PWA service worker on web (not native Android)
+if (!Capacitor.isNativePlatform()) {
+  registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      console.log('[PWA] Update tersedia, akan diterapkan otomatis');
+    },
+    onOfflineReady() {
+      console.log('[PWA] Aplikasi siap digunakan offline');
+    },
+  });
+}
+
+// Initialize native plugins on Android
+if (Capacitor.isNativePlatform()) {
+  // Hide splash screen after app loads
+  setTimeout(async () => {
+    try {
+      await SplashScreen.hide();
+    } catch { /* ignore */ }
+  }, 1500);
+
+  // Set status bar style
+  (async () => {
+    try {
+      await StatusBar.setStyle({ style: Style.Dark });
+      await StatusBar.setBackgroundColor({ color: '#059669' });
+    } catch { /* ignore */ }
+  })();
+
+  // Handle Android app lifecycle — keep WebView state on background
+  CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+    if (isActive) {
+      console.log('[App] App became active');
+    } else {
+      console.log('[App] App went to background');
+    }
+  }).catch(() => {});
+}
 
 // Initialize offline sync after a short delay to let app load
 setTimeout(() => {
@@ -92,7 +127,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           </p>
           <button
             onClick={() => {
-              window.localStorage.clear(); // Bersihkan cache jika terjadi error fatal
+              try { window.localStorage.clear(); } catch { /* ignore */ }
               window.location.reload();
             }}
             style={{

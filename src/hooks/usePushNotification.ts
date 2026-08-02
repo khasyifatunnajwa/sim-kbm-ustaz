@@ -1,25 +1,25 @@
 /**
- * usePushNotification — React hook that wires Firebase Cloud Messaging
- * into the app lifecycle.
+ * usePushNotification — React hook that wires push notifications into the
+ * app lifecycle using the cross-platform src/lib/pushNotification.ts.
+ *
+ * - On Android (native): uses @capacitor/push-notifications (FCM).
+ * - On web: falls back to Firebase Web Messaging.
  *
  * Responsibilities:
- *  - On mount (when a userId is provided): request permission, get token,
- *    save to Supabase, and register a foreground onMessage listener.
- *  - On unmount / when userId becomes null: revoke tokens (logout).
- *  - Expose permission status and helper actions for the settings page.
- *
- * The hook is fully optional — if push is unsupported the app keeps running.
+ *   - On mount (when userId is provided): request permission, register
+ *     token, save to Supabase.
+ *   - On unmount / when userId becomes null: revoke tokens (logout).
+ *   - Expose permission status and helper actions for the settings page.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   isPushSupported,
   getPermission,
   requestPermission,
-  getAndSaveToken,
-  revokeAllUserTokens,
-  onForegroundMessage,
-  showLocalNotification,
-} from '../firebase/messaging';
+  initPushNotification,
+  removeToken,
+  subscribePushState,
+} from '../lib/pushNotification';
 
 export interface PushNotificationState {
   supported: boolean;
@@ -34,7 +34,6 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
   const [supported, setSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [token, setToken] = useState<string | null>(null);
-  const unsubRef = useRef<(() => void) | null>(null);
   const lastUserIdRef = useRef<string | null>(null);
 
   // Initial support + permission check
@@ -44,10 +43,15 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
       const ok = await isPushSupported();
       if (!alive) return;
       setSupported(ok);
-      setPermission(getPermission());
+      setPermission(getPermission() as NotificationPermission);
     })();
+
+    const unsub = subscribePushState(() => {
+      setPermission(getPermission() as NotificationPermission);
+    });
     return () => {
       alive = false;
+      unsub();
     };
   }, []);
 
@@ -58,28 +62,12 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
     let active = true;
 
     (async () => {
-      // If permission already granted, fetch token immediately
-      if (getPermission() === 'granted') {
-        const t = await getAndSaveToken(userId);
-        if (active) setToken(t);
-      }
-
-      // Foreground message listener
-      const unsub = onForegroundMessage((payload) => {
-        const title = payload.notification?.title ?? 'SIM KBM Ustaz';
-        const body = payload.notification?.body ?? '';
-        const url = (payload.data?.url as string) ?? '/';
-        showLocalNotification(title, body, url);
-      });
-      unsubRef.current = unsub;
+      const t = await initPushNotification(userId);
+      if (active) setToken(t);
     })();
 
     return () => {
       active = false;
-      if (unsubRef.current) {
-        unsubRef.current();
-        unsubRef.current = null;
-      }
     };
   }, [userId, supported]);
 
@@ -88,7 +76,7 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
     if (userId) {
       lastUserIdRef.current = userId;
     } else if (lastUserIdRef.current) {
-      revokeAllUserTokens(lastUserIdRef.current).catch(() => {});
+      removeToken(lastUserIdRef.current).catch(() => {});
       setToken(null);
       lastUserIdRef.current = null;
     }
@@ -97,22 +85,22 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
   const enable = useCallback(async (): Promise<boolean> => {
     if (!userId) return false;
     const perm = await requestPermission();
-    setPermission(perm);
+    setPermission(perm as NotificationPermission);
     if (perm !== 'granted') return false;
-    const t = await getAndSaveToken(userId);
+    const t = await initPushNotification(userId);
     setToken(t);
     return !!t;
   }, [userId]);
 
   const disable = useCallback(async (): Promise<void> => {
     if (!userId) return;
-    await revokeAllUserTokens(userId);
+    await removeToken(userId);
     setToken(null);
-    setPermission(getPermission());
+    setPermission(getPermission() as NotificationPermission);
   }, [userId]);
 
   const refreshPermission = useCallback(() => {
-    setPermission(getPermission());
+    setPermission(getPermission() as NotificationPermission);
   }, []);
 
   return { supported, permission, token, enable, disable, refreshPermission };
