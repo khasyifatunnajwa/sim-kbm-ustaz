@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Camera, MapPin, CheckCircle, AlertCircle, Clock, Loader2,
   CameraOff, Crosshair, X, Image as ImageIcon, Calendar, BookOpen,
@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { namaHari } from '../lib/utils';
-import { getUstazScope } from '../lib/ustazData';
 import EmptyState from '../components/EmptyState';
 import type { Profile, ShowToast, JadwalMengajar, PresensiUstaz, ActiveTab } from '../types';
 
@@ -28,7 +27,7 @@ function timeToMinutes(time: string): number {
 
 async function getServerTime(): Promise<{ server_time: string; server_date: string; server_hour: string; timestamp: number }> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/server-time`, {
-    headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || supabase.supabaseKey}` },
+    headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}` },
   });
   if (!res.ok) throw new Error('Gagal mengambil waktu server');
   return res.json();
@@ -36,7 +35,7 @@ async function getServerTime(): Promise<{ server_time: string; server_date: stri
 
 async function getGPS(): Promise<{ latitude: number; longitude: number; accuracy: number }> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(new Error('GPS tidak tersedia di perangkat ini'));
       return;
     }
@@ -92,7 +91,7 @@ async function compressImage(file: File, maxSize: number = 1280, quality: number
 }
 
 async function addWatermark(
-  file: File,
+  file: Blob | File,
   info: { namaGuru: string; mapel: string; kelas: string; hari: string; tanggal: string; jamServer: string; latitude: number; longitude: number; akurasi: number }
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -178,8 +177,8 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
   const [gpsData, setGpsData] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [selectedJadwal, setSelectedJadwal] = useState<JadwalMengajar | null>(null);
-  const [serverTime, setServerTime] = useState<string>('');
-  const [serverDate, setServerDate] = useState('');
+  const [, setServerTime] = useState<string>('');
+  const [, setServerDate] = useState('');
 
   // State untuk notifikasi & tombol Absen Kelas setelah presensi berhasil
   const [successJadwal, setSuccessJadwal] = useState<JadwalMengajar | null>(null);
@@ -248,6 +247,10 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
   const startCamera = async () => {
     setCameraError(null);
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError('Kamera tidak didukung di perangkat ini.');
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
@@ -256,11 +259,11 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
       setCameraOpen(true);
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
-        setCameraError('Izin kamera ditolak. Aktifkan kamera di pengaturan browser.');
+        setCameraError('Izin kamera ditolak. Aktifkan kamera di pengaturan aplikasi.');
       } else if (err.name === 'NotFoundError') {
         setCameraError('Kamera tidak ditemukan di perangkat ini.');
       } else {
-        setCameraError('Gagal mengakses kamera: ' + err.message);
+        setCameraError('Gagal mengakses kamera: ' + (err.message || 'Unknown error'));
       }
     }
   };
@@ -364,7 +367,7 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
       const watermarkedBlob = await addWatermark(capturedPhoto, watermarkInfo);
 
       const compressedBlob = await compressImage(
-        new File([watermarkedBlob], 'presensi.jpg', { type: 'image/jpeg' }),
+        new File([watermarkedBlob], 'presensi.jpg', { type: 'image/jpeg', lastModified: Date.now() }),
         1280,
         0.55
       );
@@ -381,11 +384,6 @@ export default function PresensiPage({ showToast, profile, setActiveTab }: { sho
         .upload(filePath, compressedBlob, {
           contentType: 'image/jpeg',
           upsert: false,
-          onUploadProgress: (ev) => {
-            if (ev.total > 0) {
-              setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
-            }
-          },
         });
 
       if (uploadError) throw uploadError;

@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+// Apply google-services plugin FIRST (before any other plugin) for Firebase
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.exists() && servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch (Exception e) {
+    logger.info("google-services.json not found or invalid, google-services plugin not applied. Push Notifications won't work")
+}
+
 android {
     namespace = "com.bustanululum.simkbm"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -57,12 +67,3 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
-
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
-}

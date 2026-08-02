@@ -115,11 +115,16 @@ export function initOfflineSyncWithToast(showToast: ShowToast) {
 }
 
 export function isOfflineMode(): boolean {
-  return !navigator.onLine;
+  try {
+    if (typeof navigator === 'undefined') return false;
+    return !navigator.onLine;
+  } catch {
+    return false;
+  }
 }
 
 export function getConnectivityStatus(): { online: boolean; status: string } {
-  const online = navigator.onLine;
+  const online = isOfflineMode() ? false : true;
   return {
     online,
     status: online ? 'online' : 'offline',

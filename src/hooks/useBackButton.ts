@@ -1,4 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import type { ActiveTab } from '../types';
 
 interface BackButtonOptions {
@@ -70,7 +72,49 @@ export function useBackButton({ activeTab, setActiveTab, onExitDialog }: BackBut
     };
 
     window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+
+    // Native Android back button via @capacitor/app
+    let nativeListener: { remove: () => void } | undefined;
+    if (Capacitor.isNativePlatform()) {
+      App.addListener('backButton', () => {
+        // Delegate to the same popstate logic by manipulating history
+        const { activeTab: current, onExitDialog: exitDialog } = stateRef.current;
+        const rawHash = window.location.hash.replace('#', '');
+        const hashParts = rawHash.split('/');
+        const hasSubRoute = hashParts.length > 1 && hashParts[1] !== '';
+
+        if (hasSubRoute) {
+          // Close sub-route (modal/detail) — go back in history
+          window.history.back();
+          return;
+        }
+
+        if (current !== 'dashboard') {
+          // Navigate to dashboard
+          setActiveTab('dashboard');
+          window.history.pushState(null, '', '#dashboard');
+          return;
+        }
+
+        // On dashboard — check double press for exit
+        const now = Date.now();
+        const timeSinceLastPress = now - lastBackPressTime.current;
+        lastBackPressTime.current = now;
+
+        if (timeSinceLastPress < 400) {
+          // Double press — exit app
+          App.exitApp();
+        } else {
+          // Single press — show exit dialog
+          exitDialog();
+        }
+      }).then((l) => { nativeListener = l; }).catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      if (nativeListener) nativeListener.remove();
+    };
   }, []);
 
   const handleBack = useCallback(() => {

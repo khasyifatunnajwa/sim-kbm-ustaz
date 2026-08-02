@@ -73,7 +73,12 @@ export async function clearQueue(): Promise<void> {
 }
 
 export function isOnline(): boolean {
-  return navigator.onLine;
+  try {
+    if (typeof navigator === 'undefined') return true;
+    return navigator.onLine;
+  } catch {
+    return true;
+  }
 }
 
 async function processMutation(mutation: QueuedMutation, supabase: any): Promise<boolean> {
@@ -174,7 +179,9 @@ export function initOfflineSync(supabase: any, showToast?: (msg: string, type: '
     syncQueue(supabase, showToast);
   };
 
-  window.addEventListener('online', handleOnline);
+  try {
+    window.addEventListener('online', handleOnline);
+  } catch { /* ignore */ }
 
   // Sync on init if online
   if (isOnline()) {
@@ -189,12 +196,14 @@ export function initOfflineSync(supabase: any, showToast?: (msg: string, type: '
   }, 30000);
 
   return () => {
-    window.removeEventListener('online', handleOnline);
+    try {
+      window.removeEventListener('online', handleOnline);
+    } catch { /* ignore */ }
     clearInterval(interval);
   };
 }
 
 // Utility to check if operation should be queued (offline) or executed directly
 export function shouldQueueOffline(): boolean {
-  return !navigator.onLine;
+  return !isOnline();
 }
