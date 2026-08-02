@@ -23,7 +23,7 @@ import {
 
 export interface PushNotificationState {
   supported: boolean;
-  permission: NotificationPermission;
+  permission: 'granted' | 'denied' | 'prompt';
   token: string | null;
   enable: () => Promise<boolean>;
   disable: () => Promise<void>;
@@ -32,7 +32,7 @@ export interface PushNotificationState {
 
 export function usePushNotification(userId: string | null | undefined): PushNotificationState {
   const [supported, setSupported] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [token, setToken] = useState<string | null>(null);
   const lastUserIdRef = useRef<string | null>(null);
 
@@ -43,11 +43,11 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
       const ok = await isPushSupported();
       if (!alive) return;
       setSupported(ok);
-      setPermission(getPermission() as NotificationPermission);
+      setPermission(getPermission());
     })();
 
     const unsub = subscribePushState(() => {
-      setPermission(getPermission() as NotificationPermission);
+      setPermission(getPermission());
     });
     return () => {
       alive = false;
@@ -85,7 +85,7 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
   const enable = useCallback(async (): Promise<boolean> => {
     if (!userId) return false;
     const perm = await requestPermission();
-    setPermission(perm as NotificationPermission);
+    setPermission(perm);
     if (perm !== 'granted') return false;
     const t = await initPushNotification(userId);
     setToken(t);
@@ -96,11 +96,11 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
     if (!userId) return;
     await removeToken(userId);
     setToken(null);
-    setPermission(getPermission() as NotificationPermission);
+    setPermission(getPermission());
   }, [userId]);
 
   const refreshPermission = useCallback(() => {
-    setPermission(getPermission() as NotificationPermission);
+    setPermission(getPermission());
   }, []);
 
   return { supported, permission, token, enable, disable, refreshPermission };

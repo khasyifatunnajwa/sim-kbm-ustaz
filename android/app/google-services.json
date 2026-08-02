@@ -1,5 +1,4 @@
 {
-  "_INFO": "PLACEHOLDER — Replace this file with your actual google-services.json from Firebase Console (Project Settings > Android app). The GitHub Actions build will skip google-services if this placeholder is present but invalid. To enable native FCM push notifications on Android, download the real file and replace this one.",
   "project_info": {
     "project_number": "653918611888",
     "project_id": "sim-kbm-ustaz",
@@ -8,7 +7,7 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:653918611888:android:0000000000000000",
+        "mobilesdk_app_id": "1:653918611888:android:1c0e1225e8767c516b8e75",
         "android_client_info": {
           "package_name": "com.bustanululum.simkbm"
         }
@@ -16,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBatIcmFZEPdSFsHpQW5p-7Z7Ac4-C8IEo"
+          "current_key": "AIzaSyBt1iF6NuW3Dtqtm8MIn25mUPAUX91veWU"
         }
       ],
       "services": {
