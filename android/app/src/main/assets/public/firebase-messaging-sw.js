@@ -12,7 +12,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyBatIcmFZEPdSFsHpQW5p-7Z7Ac4-C8IEo',
+  apiKey: 'AIzaSyBt1iF6NuW3Dtqtm8MIn25mUPAUX91veWU',
   authDomain: 'sim-kbm-ustaz.firebaseapp.com',
   projectId: 'sim-kbm-ustaz',
   storageBucket: 'sim-kbm-ustaz.firebasestorage.app',

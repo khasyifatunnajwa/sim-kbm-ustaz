@@ -1,15 +1,5 @@
 apply plugin: 'com.android.application'
 
-// Apply google-services plugin FIRST (before any other plugin) for Firebase
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.exists() && servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch (Exception e) {
-    logger.info("google-services.json not found or invalid, google-services plugin not applied. Push Notifications won't work")
-}
-
 android {
     namespace = "com.bustanululum.simkbm"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -38,13 +28,10 @@ android {
             // For Play Store upload, use: ./gradlew bundleRelease with a proper keystore
         }
     }
-    // Java 17 for Capacitor 6+
+    // Java 21 for Capacitor 8+
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = '17'
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
 }
 
@@ -64,6 +51,20 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // Firebase Cloud Messaging for push notifications
+    implementation platform('com.google.firebase:firebase-bom:33.1.0')
+    implementation 'com.google.firebase:firebase-messaging'
+}
+
+// Apply google-services plugin at the bottom (after dependencies)
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.exists() && servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch (Exception e) {
+    logger.info("google-services.json not found or invalid, google-services plugin not applied. Push Notifications won't work")
 }
 
 apply from: 'capacitor.build.gradle'

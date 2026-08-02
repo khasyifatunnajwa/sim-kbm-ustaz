@@ -8,7 +8,7 @@ import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getMessaging, type Messaging } from 'firebase/messaging';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyBatIcmFZEPdSFsHpQW5p-7Z7Ac4-C8IEo',
+  apiKey: 'AIzaSyBt1iF6NuW3Dtqtm8MIn25mUPAUX91veWU',
   authDomain: 'sim-kbm-ustaz.firebaseapp.com',
   projectId: 'sim-kbm-ustaz',
   storageBucket: 'sim-kbm-ustaz.firebasestorage.app',
