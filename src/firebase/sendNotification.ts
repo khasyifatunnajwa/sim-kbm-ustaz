@@ -66,7 +66,7 @@ export async function sendNotification(
         android: { notification: { icon: '/icon/192x192.png' } },
         webpush: {
           notification: {
-            icon: '/icon/192x192.png.png',
+            icon: '/icon/192x192.png',
             badge: '/icon/192x192.png',
           },
         },

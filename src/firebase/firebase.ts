@@ -1,6 +1,6 @@
 /**
  * Firebase App initialization (modular SDK v9+).
- * Exports a singleton `app`, `auth`, and `messaging` instance for reuse across the app.
+ * Exports a singleton `app` and `messaging` instance for reuse across the app.
  * Safe to import in browsers that do not support messaging — the messaging export
  * is lazily evaluated and guarded in messaging.ts.
  */
@@ -33,6 +33,3 @@ try {
 } catch {
   messaging = null;
 }
-
-
-export { messaging }

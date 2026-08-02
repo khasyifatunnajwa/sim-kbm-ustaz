@@ -47,15 +47,20 @@ export async function requestPermission(): Promise<NotificationPermission> {
   }
 }
 
-/** Register the Firebase messaging service worker (so background pushes work). */
-async function registerMessagingSW(): Promise<void> {
-  if (!('serviceWorker' in navigator)) return;
+/**
+ * Register the Firebase messaging service worker using a sub-scope so it
+ * does not conflict with the PWA's main service worker (which controls `/`).
+ * Returns the registration (or null) so callers can pass it to getToken().
+ */
+async function registerMessagingSW(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) return null;
   try {
-    await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-      scope: '/',
+    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/firebase-cloud-messaging-push-scope/',
     });
+    return reg;
   } catch {
-    // ignore — the SW may already be controlled by the PWA SW
+    return null;
   }
 }
 
@@ -69,12 +74,15 @@ export async function getAndSaveToken(userId: string, platform = 'web'): Promise
   if (Notification.permission !== 'granted') return null;
   if (!messagingInstance) return null;
 
-  await registerMessagingSW();
+  const swReg = await registerMessagingSW();
   const messaging = getMessaging(app);
 
   let token: string;
   try {
-    token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      ...(swReg ? { serviceWorkerRegistration: swReg } : {}),
+    });
   } catch {
     return null;
   }
@@ -168,3 +176,6 @@ export function showLocalNotification(title: string, body: string, url = '/'): v
     // ignore
   }
 }
+
+
+export { isPushSupported, getPermission, requestPermission, getAndSaveToken, revokeAllUserTokens, onForegroundMessage, showLocalNotification }

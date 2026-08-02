@@ -35,6 +35,7 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [token, setToken] = useState<string | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
+  const lastUserIdRef = useRef<string | null>(null);
 
   // Initial support + permission check
   useEffect(() => {
@@ -82,13 +83,16 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
     };
   }, [userId, supported]);
 
-  // On logout (userId becomes null): revoke tokens
+  // On logout (userId becomes null): revoke tokens using the last known userId
   useEffect(() => {
-    if (!userId && token) {
-      revokeAllUserTokens(token).catch(() => {});
+    if (userId) {
+      lastUserIdRef.current = userId;
+    } else if (lastUserIdRef.current) {
+      revokeAllUserTokens(lastUserIdRef.current).catch(() => {});
       setToken(null);
+      lastUserIdRef.current = null;
     }
-  }, [userId, token]);
+  }, [userId]);
 
   const enable = useCallback(async (): Promise<boolean> => {
     if (!userId) return false;
