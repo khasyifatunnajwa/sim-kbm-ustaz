@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Palette, Type, LayoutDashboard, Table, Bell, Smartphone,
   Zap, Database, Shield, Accessibility, Info, RotateCcw,
@@ -12,6 +12,7 @@ import type { DashboardWidgetId, ThemeColor, FontSize, FontWeight, LineSpacing, 
 import type { ShowToast, Profile } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLembaga } from '../hooks/useLembaga';
+import { usePushNotification } from '../hooks/usePushNotification';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchableSelect from '../components/SearchableSelect';
@@ -74,6 +75,16 @@ const REFRESH_OPTIONS: { label: string; value: RefreshInterval }[] = [
 export default function PengaturanPage({ showToast }: PengaturanPageProps) {
   const { settings, updateSetting, resetSettings, resetPersonalData } = useSettings();
   const { data: lembagaList = [] } = useLembaga();
+
+  // Firebase Cloud Messaging — user id from Supabase session
+  const [fcmUserId, setFcmUserId] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setFcmUserId(user?.id ?? null);
+    })();
+  }, []);
+  const push = usePushNotification(fcmUserId);
 
   const lembagaOptions = [
     { value: 'all', label: 'Semua Lembaga' },
@@ -459,6 +470,68 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
         <div className="border-t border-slate-100 dark:border-slate-700 my-2" />
         <SettingsRow title="Suara Notifikasi"><Toggle checked={settings.notifSound} onChange={(v) => updateSetting('notifSound', v)} /></SettingsRow>
         <SettingsRow title="Getar"><Toggle checked={settings.notifVibrate} onChange={(v) => updateSetting('notifVibrate', v)} /></SettingsRow>
+      </SettingsSection>
+
+      {/* ====== Notifikasi Push (FCM) ====== */}
+      <SettingsSection icon={Bell} title="Notifikasi Push" desc="Kelola izin dan status notifikasi push (Firebase Cloud Messaging)." accent="text-orange-600 bg-orange-50">
+        {!push.supported ? (
+          <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-700/50 text-sm text-slate-600 dark:text-slate-300">
+            Browser ini tidak mendukung Push Notification. Aplikasi tetap berjalan normal tanpa notifikasi push.
+          </div>
+        ) : (
+          <>
+            <SettingsRow title="Status Izin Browser">
+              <span className={`text-sm font-medium px-2.5 py-1 rounded-full ${
+                push.permission === 'granted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
+                push.permission === 'denied' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' :
+                'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+              }`}>
+                {push.permission === 'granted' ? 'Diizinkan' : push.permission === 'denied' ? 'Ditolak' : 'Belum ditanyakan'}
+              </span>
+            </SettingsRow>
+
+            <SettingsRow title="Status Token Perangkat">
+              <span className={`text-sm font-medium px-2.5 py-1 rounded-full ${
+                push.token ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
+                'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+              }`}>
+                {push.token ? 'Terdaftar' : 'Belum terdaftar'}
+              </span>
+            </SettingsRow>
+
+            <div className="flex flex-col gap-2 pt-2">
+              {push.permission !== 'granted' && (
+                <button
+                  onClick={async () => {
+                    const ok = await push.enable();
+                    showToast(ok ? 'Notifikasi push diaktifkan.' : 'Izin notifikasi ditolak atau gagal.', ok ? 'success' : 'error');
+                  }}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+                >
+                  Aktifkan Notifikasi Push
+                </button>
+              )}
+
+              {push.permission === 'granted' && push.token && (
+                <button
+                  onClick={async () => {
+                    await push.disable();
+                    showToast('Notifikasi push dinonaktifkan untuk perangkat ini.', 'success');
+                  }}
+                  className="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition-colors"
+                >
+                  Nonaktifkan Notifikasi Push
+                </button>
+              )}
+
+              {push.permission === 'denied' && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Izin notifikasi sebelumnya ditolak. Untuk mengaktifkan kembali, buka pengaturan browser Anda (klik ikon kunci di address bar), izinkan notifikasi, lalu muat ulang halaman ini.
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </SettingsSection>
 
       {/* ====== Tampilan Mobile ====== */}

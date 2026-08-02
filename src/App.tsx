@@ -10,6 +10,7 @@ import { useRealtimePengumuman } from './hooks/useRealtime';
 import { useStore } from './store/useStore';
 import { useApplySettings } from './hooks/useApplySettings';
 import InstallBanner from './components/InstallBanner';
+import { usePushNotification } from './hooks/usePushNotification';
 import type { ActiveTab, ShowToast, Profile } from './types';
 
 // LAZY LOADING (Code Splitting) agar loading awal aplikasi jauh lebih ringan
@@ -337,6 +338,9 @@ export default function App() {
   // Realtime: auto-update pengumuman & agenda di Dashboard
   useRealtimePengumuman();
 
+  // Firebase Cloud Messaging: register token on login, revoke on logout
+  const push = usePushNotification(user?.id);
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -449,11 +453,15 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      // Remove this user's device tokens before signing out
+      if (user?.id) {
+        await push.disable();
+      }
       await supabase.auth.signOut();
     } catch (e) {
       // ignore
     }
-    window.location.hash = ''; 
+    window.location.hash = '';
     clearStore();
   };
 
