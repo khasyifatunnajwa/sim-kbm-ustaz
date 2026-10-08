@@ -150,7 +150,7 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
     const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
     const fmt = (d: string) => {
       const dt = new Date(d);
-      return `${dt.getDate()} ${namaBulan[dt.getMonth()]} ${dt.getFullYear()}`;
+      return `${dt.getDate()}/${namaBulan[dt.getMonth()]}/${dt.getFullYear()}`;
     };
     const hadir = presensiList.filter(p => p.status_presensi === 'Hadir').length;
     const terlambat = presensiList.filter(p => p.status_presensi === 'Terlambat').length;
@@ -164,8 +164,7 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
     const nama = selectedUstaz.nama_lengkap || selectedUstaz.nama_panggilan || 'Ustaz';
     let text = `*Presensi Kehadiran*\n`;
     text += `${nama}\n`;
-    text += `Periode :\n`;
-    text += `${fmt(periodeAwal)} s.d. ${fmt(periodeAkhir)}\n\n`;
+    text += `Mulai ${fmt(periodeAwal)} Sampai ${fmt(periodeAkhir)}\n\n`;
     text += `*Rekap Presensi*\n`;
     text += `Hadir        : ${hadir}\n`;
     text += `Izin         : ${izin}\n`;
