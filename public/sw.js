@@ -1,10 +1,10 @@
 // SIM KBM Ustaz V2.0 - Service Worker
-const CACHE_NAME = 'simkbm-v4.0.1';
+const CACHE_NAME = 'simkbm-v5.0.0';
 const STALE_CACHE_TIMEOUT = 30000; // 30 seconds
 
 // Install event
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v4.0.1...');
+  console.log('[SW] Installing v5.0.0...');
   self.skipWaiting();
 });
 
@@ -123,4 +123,39 @@ self.addEventListener('fetch', (event) => {
         return new Response('Offline', { status: 503 });
       })
   );
+});
+
+// ===== Background Sync for offline queue =====
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'simkbm-offline-sync') {
+    event.waitUntil(
+      (async () => {
+        const allClients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+        allClients.forEach(client => {
+          client.postMessage({ type: 'BACKGROUND_SYNC', tag: event.tag });
+        });
+      })()
+    );
+  }
+});
+
+// ===== Periodic Background Sync (for scheduled notifications) =====
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'simkbm-jadwal-check') {
+    event.waitUntil(
+      (async () => {
+        const allClients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+        allClients.forEach(client => {
+          client.postMessage({ type: 'PERIODIC_SYNC', tag: event.tag });
+        });
+      })()
+    );
+  }
+});
+
+// ===== Message handler from page =====
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

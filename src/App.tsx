@@ -11,6 +11,9 @@ import { useStore } from './store/useStore';
 import { useApplySettings } from './hooks/useApplySettings';
 import InstallBanner from './components/InstallBanner';
 import { usePushNotification } from './hooks/usePushNotification';
+import { useScheduledNotifications } from './hooks/useScheduledNotifications';
+import NotificationBanner from './components/NotificationBanner';
+import OfflineSyncIndicator from './components/OfflineSyncIndicator';
 import type { ActiveTab, ShowToast, Profile } from './types';
 
 // LAZY LOADING (Code Splitting) agar loading awal aplikasi jauh lebih ringan
@@ -339,6 +342,9 @@ export default function App() {
   // Firebase Cloud Messaging: register token on login, revoke on logout
   const push = usePushNotification(user?.id);
 
+  // Scheduled notifications: jadwal reminders, pengumuman, agenda
+  useScheduledNotifications(profile);
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -530,6 +536,8 @@ export default function App() {
   return (
     <>
       <InstallBanner />
+      <NotificationBanner onNavigate={(tab) => { if (tab) handleTabChange(tab as ActiveTab); }} />
+      <OfflineSyncIndicator showToast={showToast} />
       <Layout
         activeTab={activeTab}
         setActiveTab={handleTabChange}
