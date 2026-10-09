@@ -17,7 +17,9 @@ import {
   Settings,
   Download,
   GraduationCap,
+  Camera,
   Megaphone,
+  LayoutDashboard,
   Building2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -53,6 +55,7 @@ const navGroups: NavGroup[] = [
     label: 'KBM',
     items: [
       { id: 'absensi', icon: ClipboardCheck, label: 'Absensi' },
+      { id: 'presensi', icon: Camera, label: 'Presensi' },
       { id: 'jurnal', icon: FileText, label: 'Jurnal' },
       { id: 'nilai', icon: BarChart3, label: 'Nilai' },
       { id: 'sikap', icon: Heart, label: 'Sikap' },
@@ -72,13 +75,14 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'admin',                icon: Shield,           label: 'Panel Admin',       adminOnly: true },
       { id: 'pengumuman',           icon: Megaphone,        label: 'Pengumuman',        adminOnly: true },
+      { id: 'presensi-admin',       icon: LayoutDashboard,  label: 'Presensi Admin',    adminOnly: true },
     ],
   },
 ];
 
 const allNavItems = navGroups.flatMap(g => g.items);
 
-const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'absensi', 'murid', 'jurnal'];
+const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'absensi', 'presensi', 'murid', 'jurnal'];
 
 export default function Layout({ activeTab, setActiveTab, profile, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);

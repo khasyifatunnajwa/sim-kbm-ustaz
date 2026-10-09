@@ -24,6 +24,8 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
   const [now, setNow] = useState(new Date());
   const [currentSlide, setCurrentSlide] = useState(0);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [presensiBannerDismissed, setPresensiBannerDismissed] = useState(false);
+
   const todayHari = namaHari[new Date().getDay()];
   const todayDate = new Date().toISOString().split('T')[0];
   const isUstaz = profile?.role !== 'admin';
@@ -197,6 +199,23 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
     },
     staleTime: 60 * 1000,
   });
+
+  // Presensi Guru check
+  const { data: presensiToday } = useQuery({
+    queryKey: ['dashboard-presensi-guru', todayDate, userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presensi_guru')
+        .select('id')
+        .eq('tanggal', todayDate)
+        .eq('user_id', userId)
+        .limit(1);
+      return data ?? [];
+    },
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+  });
+  const hasPresensiToday = (presensiToday?.length ?? 0) > 0;
 
   // Catatan Guru notifications
   const { data: catatanGuruList = [] } = useQuery<CatatanGuru[]>({
@@ -436,7 +455,7 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
         </div>
       )}
 
-      {/* Smart Activity Flow — auto pipeline absensi → jurnal */}
+      {/* Smart Activity Flow — auto pipeline presensi → absensi → jurnal */}
       {jadwalHariIni.length > 0 && (
         <DashboardActivityFlow
           profile={profile}
@@ -445,6 +464,35 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
           jadwalHariIni={jadwalHariIni}
           now={now}
         />
+      )}
+
+      {/* Presensi Reminder Banner */}
+      {ongoingClass && !hasPresensiToday && !presensiBannerDismissed && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/70 dark:border-amber-700/40 rounded-2xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="icon-box-sm bg-amber-100 text-amber-600 flex-shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                Silakan melakukan Presensi Kehadiran.
+              </p>
+            </div>
+            <button
+              onClick={() => handleNav('presensi')}
+              className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800/40 hover:bg-amber-200 dark:hover:bg-amber-700/50 rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
+            >
+              Presensi
+            </button>
+            <button
+              onClick={() => setPresensiBannerDismissed(true)}
+              className="p-1 rounded-lg text-amber-400 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-800/40 transition-colors flex-shrink-0"
+              aria-label="Tutup pengingat presensi"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Quick Stats */}

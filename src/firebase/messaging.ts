@@ -176,3 +176,6 @@ export function showLocalNotification(title: string, body: string, url = '/'): v
     // ignore
   }
 }
+
+
+export { isPushSupported, getPermission, requestPermission, getAndSaveToken, revokeAllUserTokens, onForegroundMessage, showLocalNotification }

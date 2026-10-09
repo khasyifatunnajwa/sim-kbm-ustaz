@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock,
   Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download,
-  AlertCircle, RefreshCw, Share2, Ruler,
+  X, AlertCircle, RefreshCw, Share2, Ruler,
 } from 'lucide-react';
 import { ImportButton, ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
@@ -101,79 +101,81 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
     }
   };
 
-  const handleClose = () => {
-    onClose();
-    setFile(null);
-    setPreview([]);
-    setError('');
-  };
+  if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={`Import ${title}`}>
-      {/* Template download */}
-      <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-3 mb-4">
-        <div className="flex items-start gap-2 mb-2">
-          <AlertCircle className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-semibold text-sky-700 dark:text-sky-400 mb-1">Kolom yang diperlukan:</p>
-            <div className="flex flex-wrap gap-1">
-              {columns.map((c, i) => (
-                <span key={i} className="text-[10px] bg-sky-100 dark:bg-sky-800/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded font-mono">{c}</span>
-              ))}
+    <div className="modal-overlay" onClick={e => { if (e.currentTarget === e.target) { onClose(); setFile(null); setPreview([]); } }}>
+      <div className="modal-content max-w-lg">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Import {title}</h3>
+          <button onClick={() => { onClose(); setFile(null); setPreview([]); }} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" /></button>
+        </div>
+
+        {/* Template download */}
+        <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-3 mb-4">
+          <div className="flex items-start gap-2 mb-2">
+            <AlertCircle className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-sky-700 dark:text-sky-400 mb-1">Kolom yang diperlukan:</p>
+              <div className="flex flex-wrap gap-1">
+                {columns.map((c, i) => (
+                  <span key={i} className="text-[10px] bg-sky-100 dark:bg-sky-800/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded font-mono">{c}</span>
+                ))}
+              </div>
+              {note && <p className="text-[10px] text-sky-600 dark:text-sky-400 mt-1.5">{note}</p>}
             </div>
-            {note && <p className="text-[10px] text-sky-600 dark:text-sky-400 mt-1.5">{note}</p>}
           </div>
+          <button onClick={handleDownloadTemplate} className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-400 hover:underline">
+            <Download className="w-3.5 h-3.5" /> Download Template CSV
+          </button>
         </div>
-        <button onClick={handleDownloadTemplate} className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-400 hover:underline">
-          <Download className="w-3.5 h-3.5" /> Download Template CSV
-        </button>
-      </div>
 
-      {/* File input */}
-      <div
-        className="border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-400 transition-colors"
-        onClick={() => fileRef.current?.click()}
-      >
-        <Upload className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-        {file ? (
-          <p className="text-sm font-semibold text-emerald-600">{file.name}</p>
-        ) : (
-          <p className="text-sm text-slate-400">Klik untuk pilih file CSV</p>
-        )}
-        <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
-      </div>
+        {/* File input */}
+        <div
+          className="border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-400 transition-colors"
+          onClick={() => fileRef.current?.click()}
+        >
+          <Upload className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          {file ? (
+            <p className="text-sm font-semibold text-emerald-600">{file.name}</p>
+          ) : (
+            <p className="text-sm text-slate-400">Klik untuk pilih file CSV</p>
+          )}
+          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
+        </div>
 
-      {/* Preview */}
-      {preview.length > 0 && (
-        <div className="mt-3 overflow-x-auto">
-          <p className="text-[10px] font-semibold text-slate-500 mb-1.5">Preview ({preview.length} baris pertama):</p>
-          <table className="w-full text-[10px] border-collapse">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-700/50">
-                {columns.map(c => <th key={c} className="border border-slate-200 dark:border-slate-600 px-2 py-1 text-left font-semibold text-slate-500">{c}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {preview.slice(0, 3).map((row, i) => (
-                <tr key={i}>
-                  {columns.map((_, ci) => <td key={ci} className="border border-slate-200 dark:border-slate-600 px-2 py-1 text-slate-600 dark:text-slate-300 truncate max-w-[100px]">{row[ci] || '-'}</td>)}
+        {/* Preview */}
+        {preview.length > 0 && (
+          <div className="mt-3 overflow-x-auto">
+            <p className="text-[10px] font-semibold text-slate-500 mb-1.5">Preview ({preview.length} baris pertama):</p>
+            <table className="w-full text-[10px] border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-700/50">
+                  {columns.map(c => <th key={c} className="border border-slate-200 dark:border-slate-600 px-2 py-1 text-left font-semibold text-slate-500">{c}</th>)}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {preview.slice(0, 3).map((row, i) => (
+                  <tr key={i}>
+                    {columns.map((_, ci) => <td key={ci} className="border border-slate-200 dark:border-slate-600 px-2 py-1 text-slate-600 dark:text-slate-300 truncate max-w-[100px]">{row[ci] || '-'}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {error && <p className="text-xs text-rose-600 mt-2 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />{error}</p>}
+
+        <div className="flex gap-2 mt-4">
+          <button onClick={() => { onClose(); setFile(null); setPreview([]); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
+          <button onClick={handleSubmit} disabled={loading || !file} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
+            {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            {loading ? 'Mengimpor...' : 'Import Data'}
+          </button>
         </div>
-      )}
-
-      {error && <p className="text-xs text-rose-600 mt-2 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />{error}</p>}
-
-      <div className="flex gap-2 mt-4">
-        <button onClick={handleClose} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
-        <button onClick={handleSubmit} disabled={loading || !file} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
-          {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-          {loading ? 'Mengimpor...' : 'Import Data'}
-        </button>
       </div>
-    </Modal>
+    </div>
   );
 }
 
