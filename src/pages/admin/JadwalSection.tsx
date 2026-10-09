@@ -299,7 +299,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     const now = new Date();
     const namaHariIndonesia = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const namaBulanIndonesia = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    const tanggalHeader = `${namaHariIndonesia[now.getDay()]}, ${now.getDate()} ${namaBulanIndonesia[now.getMonth()]} ${now.getFullYear()}`;
+    const tanggalHeader = `${namaHariIndonesia[now.getDay()]}, ${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
 
     let text = `*Jadwal Mengajar ${lembagaNamaHeader}*\n`;
     text += `_${tanggalHeader}_\n\n`;
@@ -310,16 +310,21 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
       grouped[j.hari].push(j);
     });
 
+    const jamLabel: Record<string, string> = {
+      '07:00': 'Jam Pertama', '07:45': 'Jam Kedua', '08:30': 'Jam Ketiga',
+      '09:45': 'Jam Keempat', '10:30': 'Jam Kelima', '11:15': 'Jam Keenam',
+      '13:00': 'Jam Ketujuh', '13:45': 'Jam Kedelapan',
+    };
+
     hariOptions.forEach(hari => {
       const items = grouped[hari];
       if (!items || items.length === 0) return;
-      // Sort each hari's items by jam_mulai ascending
       const sorted = [...items].sort((a, b) => (a.jam_mulai || '').localeCompare(b.jam_mulai || ''));
       text += `*${hari}*\n`;
-      sorted.forEach(j => {
+      sorted.forEach((j, idx) => {
         const ustazNama = ustazOptions.find(o => o.value === j.user_id)?.label || '-';
-        const jamMulai = j.jam_mulai?.slice(0, 5) || '-';
-        text += `${jamMulai} | ${ustazNama} | ${j.pelajaran}\n`;
+        const label = jamLabel[j.jam_mulai?.slice(0, 5) || ''] || `Jam ke-${idx + 1}`;
+        text += `${label} | ${ustazNama} | ${j.pelajaran}\n`;
       });
       text += '\n';
     });

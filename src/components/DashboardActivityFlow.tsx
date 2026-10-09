@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Bell, CheckCircle, Clock, Timer, Camera,
+  Bell, CheckCircle, Clock, Timer,
   ClipboardCheck, FileText, BookOpen,
   AlertCircle, Sparkles,
 } from 'lucide-react';
@@ -55,24 +55,6 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
   }, [jadwalHariIni, currentMinutes, activeJadwal]);
 
   const targetJadwal = activeJadwal || upcomingJadwal;
-
-  // Fetch presensi status for this jadwal today
-  const { data: presensiData } = useQuery({
-    queryKey: ['activity-presensi', todayDate, userId, targetJadwal?.id],
-    queryFn: async () => {
-      if (!targetJadwal) return null;
-      const { data } = await supabase
-        .from('presensi_ustaz')
-        .select('id, status, jam_server')
-        .eq('guru_id', userId)
-        .eq('jadwal_id', targetJadwal.id)
-        .eq('tanggal', todayDate)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!targetJadwal && !!userId,
-    staleTime: 30 * 1000,
-  });
 
   // Fetch absensi status for this jadwal's class today
   const { data: absensiData } = useQuery({
@@ -141,16 +123,14 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
   const steps = useMemo(() => {
     if (!targetJadwal) return null;
     const isOngoing = activeJadwal?.id === targetJadwal.id;
-    const presensiDone = !!presensiData;
     const absensiDone = absensiData ? absensiData.total > 0 && (absensiData.hadir + absensiData.telat + absensiData.izin + absensiData.sakit + absensiData.alfa + absensiData.belum) > 0 : false;
     const jurnalDone = !!jurnalData;
 
-    const presensiStatus: StepStatus = presensiDone ? 'done' : (isOngoing ? 'active' : 'pending');
-    const absensiStatus: StepStatus = !presensiDone ? 'pending' : (absensiDone ? 'done' : 'active');
+    const absensiStatus: StepStatus = absensiDone ? 'done' : (isOngoing ? 'active' : 'pending');
     const jurnalStatus: StepStatus = !absensiDone ? 'pending' : (jurnalDone ? 'done' : 'active');
 
-    return { presensiStatus, absensiStatus, jurnalStatus, presensiDone, absensiDone, jurnalDone, isOngoing };
-  }, [targetJadwal, activeJadwal, presensiData, absensiData, jurnalData]);
+    return { absensiStatus, jurnalStatus, absensiDone, jurnalDone, isOngoing };
+  }, [targetJadwal, activeJadwal, absensiData, jurnalData]);
 
   // Countdown for upcoming
   const countdown = useMemo(() => {
@@ -170,7 +150,6 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
   useEffect(() => {
     if (!targetJadwal) return;
     const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['activity-presensi'] });
       queryClient.invalidateQueries({ queryKey: ['activity-absensi'] });
       queryClient.invalidateQueries({ queryKey: ['activity-jurnal'] });
     }, 15000);
@@ -186,7 +165,7 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
 
   if (!targetJadwal || !steps) return null;
 
-  const allDone = steps.presensiDone && steps.absensiDone && steps.jurnalDone;
+  const allDone = steps.absensiDone && steps.jurnalDone;
   const jadwalStart = timeToMinutes(targetJadwal.jam_mulai);
   const jadwalEnd = targetJadwal.jam_selesai ? timeToMinutes(targetJadwal.jam_selesai) : jadwalStart + 90;
   const isFinished = currentMinutes >= jadwalEnd;
@@ -209,7 +188,7 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
   return (
     <div className="space-y-3">
       {/* ===== UPCOMING NOTIFICATION (15 min before) ===== */}
-      {upcomingJadwal && !steps.presensiDone && (
+      {upcomingJadwal && (
         <div className="bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border border-sky-200 dark:border-sky-800 rounded-2xl p-4 animate-fadeIn">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 bg-sky-100 dark:bg-sky-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -264,7 +243,6 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
           {/* Step Pipeline */}
           <div className="flex items-center gap-1 mb-3">
             {[
-              { status: steps.presensiStatus, label: 'Presensi', icon: Camera },
               { status: steps.absensiStatus, label: 'Absensi', icon: ClipboardCheck },
               { status: steps.jurnalStatus, label: 'Jurnal', icon: FileText },
             ].map((step, i) => {
@@ -280,7 +258,7 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
                     <Icon className="w-3 h-3" />
                     <span className="hidden sm:inline">{step.label}</span>
                   </div>
-                  {i < 2 && (
+                  {i < 1 && (
                     <div className={`flex-1 h-0.5 mx-0.5 ${step.status === 'done' ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700'}`} />
                   )}
                 </div>
@@ -288,43 +266,13 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
             })}
           </div>
 
-          {/* ===== STEP 1: Presensi ===== */}
-          {steps.presensiStatus === 'active' && (
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 mb-2">
-              <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Waktu mengajar telah dimulai</p>
-                  <p className="text-[11px] text-amber-700 dark:text-amber-300">Silakan lakukan Presensi Kehadiran.</p>
-                </div>
-                <button
-                  onClick={() => navigateTo('presensi', targetJadwal)}
-                  className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors flex-shrink-0 active:scale-95"
-                >
-                  <Camera className="w-3.5 h-3.5" /> Presensi Sekarang
-                </button>
-              </div>
-            </div>
-          )}
-
-          {steps.presensiDone && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-2.5 mb-2 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-300 flex-1">
-                {presensiData?.status === 'Terlambat'
-                  ? `Anda terlambat. Mohon lebih disiplin pada pertemuan berikutnya.`
-                  : 'Presensi tepat waktu. Semoga KBM berjalan lancar.'}
-              </p>
-            </div>
-          )}
-
-          {/* ===== STEP 2: Absensi Murid ===== */}
+          {/* ===== STEP 1: Absensi Murid ===== */}
           {steps.absensiStatus === 'active' && (
             <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-3 mb-2">
               <div className="flex items-start gap-2.5">
                 <ClipboardCheck className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-sky-800 dark:text-sky-200">Langkah Berikutnya: Absensi Murid</p>
+                  <p className="text-xs font-bold text-sky-800 dark:text-sky-200">Waktu mengajar telah dimulai</p>
                   <p className="text-[11px] text-sky-700 dark:text-sky-300">
                     Kelas {targetJadwal.kelas} • {targetJadwal.pelajaran}
                   </p>
@@ -363,7 +311,7 @@ export default function DashboardActivityFlow({ profile, setActiveTab, jadwalHar
             </div>
           )}
 
-          {/* ===== STEP 3: Jurnal ===== */}
+          {/* ===== STEP 2: Jurnal ===== */}
           {steps.jurnalStatus === 'active' && (
             <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-3 mb-2">
               <div className="flex items-start gap-2.5">
