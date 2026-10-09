@@ -11,6 +11,9 @@ import { useStore } from './store/useStore';
 import { useApplySettings } from './hooks/useApplySettings';
 import InstallBanner from './components/InstallBanner';
 import { usePushNotification } from './hooks/usePushNotification';
+import { useScheduledNotifications } from './hooks/useScheduledNotifications';
+import NotificationBanner from './components/NotificationBanner';
+import OfflineSyncIndicator from './components/OfflineSyncIndicator';
 import type { ActiveTab, ShowToast, Profile } from './types';
 
 // LAZY LOADING (Code Splitting) agar loading awal aplikasi jauh lebih ringan
@@ -29,8 +32,6 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 const AdminPengumumanPage = lazy(() => import('./pages/AdminPengumumanPage'));
 const ProfilPage = lazy(() => import('./pages/ProfilPage'));
 const PengaturanPage = lazy(() => import('./pages/PengaturanPage'));
-const PresensiPage = lazy(() => import('./pages/PresensiPage'));
-const PresensiAdminPage = lazy(() => import('./pages/PresensiAdminPage'));
 const KalenderPage = lazy(() => import('./pages/KalenderPage'));
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
@@ -341,6 +342,9 @@ export default function App() {
   // Firebase Cloud Messaging: register token on login, revoke on logout
   const push = usePushNotification(user?.id);
 
+  // Scheduled notifications: jadwal reminders, pengumuman, agenda
+  useScheduledNotifications(profile);
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -402,7 +406,7 @@ export default function App() {
           });
 
           const hash = window.location.hash.replace('#', '').split('/')[0];
-          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'pengaturan', 'presensi', 'presensi-admin', 'admin-presensi-ustaz', 'admin-presensi-murid', 'admin-jadwal-ustaz', 'admin-data-santri', 'admin-jadwal-asatiz', 'admin-kelola-lembaga', 'kalender'];
+          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'pengaturan', 'admin-presensi-ustaz', 'admin-presensi-murid', 'admin-jadwal-ustaz', 'admin-data-santri', 'admin-jadwal-asatiz', 'admin-kelola-lembaga', 'kalender'];
           if (hash && validTabs.includes(hash)) {
             setActiveTab(hash as ActiveTab);
           } else {
@@ -524,8 +528,6 @@ export default function App() {
         {activeTab === 'pengumuman' && <AdminPengumumanPage showToast={showToast} />}
         {activeTab === 'profil' && <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />}
         {activeTab === 'pengaturan' && <PengaturanPage showToast={showToast} profile={profile} />}
-        {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
-        {activeTab === 'presensi-admin' && <PresensiAdminPage showToast={showToast} profile={profile} />}
         {activeTab === 'kalender' && <KalenderPage showToast={showToast} profile={profile} />}
       </Suspense>
     );
@@ -534,6 +536,8 @@ export default function App() {
   return (
     <>
       <InstallBanner />
+      <NotificationBanner onNavigate={(tab) => { if (tab) handleTabChange(tab as ActiveTab); }} />
+      <OfflineSyncIndicator showToast={showToast} />
       <Layout
         activeTab={activeTab}
         setActiveTab={handleTabChange}
