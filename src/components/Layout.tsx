@@ -17,10 +17,9 @@ import {
   Settings,
   Download,
   GraduationCap,
-  Camera,
   Megaphone,
-  LayoutDashboard,
   Building2,
+  CheckCircle,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,6 +46,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'dashboard', icon: Home, label: 'Beranda' },
       { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
+      { id: 'presensi', icon: CheckCircle, label: 'Presensi' },
       { id: 'kalender', icon: CalendarDays, label: 'Kalender' },
       { id: 'murid', icon: Users, label: 'Santri' },
     ],
@@ -55,7 +55,6 @@ const navGroups: NavGroup[] = [
     label: 'KBM',
     items: [
       { id: 'absensi', icon: ClipboardCheck, label: 'Absensi' },
-      { id: 'presensi', icon: Camera, label: 'Presensi' },
       { id: 'jurnal', icon: FileText, label: 'Jurnal' },
       { id: 'nilai', icon: BarChart3, label: 'Nilai' },
       { id: 'sikap', icon: Heart, label: 'Sikap' },
@@ -75,14 +74,13 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'admin',                icon: Shield,           label: 'Panel Admin',       adminOnly: true },
       { id: 'pengumuman',           icon: Megaphone,        label: 'Pengumuman',        adminOnly: true },
-      { id: 'presensi-admin',       icon: LayoutDashboard,  label: 'Presensi Admin',    adminOnly: true },
     ],
   },
 ];
 
 const allNavItems = navGroups.flatMap(g => g.items);
 
-const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'absensi', 'presensi', 'murid', 'jurnal'];
+const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'presensi', 'absensi', 'murid', 'jurnal'];
 
 export default function Layout({ activeTab, setActiveTab, profile, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -166,7 +164,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         <div className="p-3 border-t border-slate-100 space-y-2">
           <button
             onClick={() => handleNav('pengaturan')}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'pengaturan' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'pengaturan' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50[...]`}
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
               <Settings className="w-4 h-4" />
@@ -292,14 +290,14 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
           <div className="md:hidden flex items-center gap-1.5">
             <button
               onClick={() => handleNav('pengaturan')}
-              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-2[...]`}
               title="Pengaturan"
             >
               <Settings className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleNav('profil')}
-              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600'}`}
               title="Ke Halaman Profil"
             >
               <User className="w-4 h-4" />

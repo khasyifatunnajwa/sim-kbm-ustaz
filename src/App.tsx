@@ -29,9 +29,9 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 const AdminPengumumanPage = lazy(() => import('./pages/AdminPengumumanPage'));
 const ProfilPage = lazy(() => import('./pages/ProfilPage'));
 const PengaturanPage = lazy(() => import('./pages/PengaturanPage'));
-const PresensiPage = lazy(() => import('./pages/PresensiPage'));
-const PresensiAdminPage = lazy(() => import('./pages/PresensiAdminPage'));
 const KalenderPage = lazy(() => import('./pages/KalenderPage'));
+// Presensi page (restore)
+const PresensiPage = lazy(() => import('./pages/PresensiPage'));
 
 const SUPABASE_URL = 'https://intkcrhsinezswldmokr.supabase.co';
 
@@ -402,7 +402,7 @@ export default function App() {
           });
 
           const hash = window.location.hash.replace('#', '').split('/')[0];
-          const validTabs = ['dashboard', 'jadwal', 'murid', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'pengaturan', 'presensi', 'presensi-admin', 'admin-presensi-ustaz', 'admin-presensi-murid', 'admin-jadwal-ustaz', 'admin-data-santri', 'admin-jadwal-asatiz', 'admin-kelola-lembaga', 'kalender'];
+          const validTabs = ['dashboard', 'jadwal', 'murid', 'presensi', 'absensi', 'jurnal', 'nilai', 'sikap', 'catatan', 'soal', 'izin', 'rapor', 'admin', 'pengumuman', 'profil', 'pengaturan', 'admin-presensi-ustaz', 'admin-presensi-murid', 'admin-jadwal-ustaz', 'admin-data-santri', 'admin-jadwal-asatiz', 'admin-kelola-lembaga', 'kalender'];
           if (hash && validTabs.includes(hash)) {
             setActiveTab(hash as ActiveTab);
           } else {
@@ -507,6 +507,7 @@ export default function App() {
         {activeTab === 'dashboard' && <DashboardPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
         {activeTab === 'jadwal' && <JadwalPage showToast={showToast} profile={profile} />}
         {activeTab === 'murid' && <MuridPage showToast={showToast} profile={profile} />}
+        {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
         {activeTab === 'absensi' && <AbsensiPage showToast={showToast} profile={profile} />}
         {activeTab === 'jurnal' && <JurnalPage showToast={showToast} profile={profile} />}
         {activeTab === 'nilai' && <NilaiPage showToast={showToast} profile={profile} />}
@@ -524,8 +525,6 @@ export default function App() {
         {activeTab === 'pengumuman' && <AdminPengumumanPage showToast={showToast} />}
         {activeTab === 'profil' && <ProfilPage showToast={showToast} profile={profile} setProfile={setProfile} />}
         {activeTab === 'pengaturan' && <PengaturanPage showToast={showToast} profile={profile} />}
-        {activeTab === 'presensi' && <PresensiPage showToast={showToast} profile={profile} setActiveTab={setActiveTab} />}
-        {activeTab === 'presensi-admin' && <PresensiAdminPage showToast={showToast} profile={profile} />}
         {activeTab === 'kalender' && <KalenderPage showToast={showToast} profile={profile} />}
       </Suspense>
     );
