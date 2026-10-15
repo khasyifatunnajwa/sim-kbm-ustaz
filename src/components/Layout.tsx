@@ -19,6 +19,7 @@ import {
   GraduationCap,
   Megaphone,
   Building2,
+  CheckCircle,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,6 +46,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'dashboard', icon: Home, label: 'Beranda' },
       { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
+      { id: 'presensi', icon: CheckCircle, label: 'Presensi' },
       { id: 'kalender', icon: CalendarDays, label: 'Kalender' },
       { id: 'murid', icon: Users, label: 'Santri' },
     ],
@@ -78,7 +80,7 @@ const navGroups: NavGroup[] = [
 
 const allNavItems = navGroups.flatMap(g => g.items);
 
-const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'absensi', 'murid', 'jurnal'];
+const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'presensi', 'absensi', 'murid', 'jurnal'];
 
 export default function Layout({ activeTab, setActiveTab, profile, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -295,7 +297,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             </button>
             <button
               onClick={() => handleNav('profil')}
-              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' [...]`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600'}`}
               title="Ke Halaman Profil"
             >
               <User className="w-4 h-4" />
