@@ -28,8 +28,23 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Check Node Environment
+        run: |
+          echo "===== NODE ====="
+          node -v
+          echo "===== NPM ====="
+          npm -v
+          echo "===== NPX ====="
+          npx --version
+
+      - name: Clean NPM Cache
+        run: npm cache clean --force
+
       - name: Install Dependencies
         run: npm ci
+
+      - name: Check Capacitor
+        run: npx cap --version
 
       - name: Build Vite
         run: npm run build
@@ -44,7 +59,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Accept Android SDK Licenses
-        run: yes | sdkmanager --licenses
+        run: yes | sdkmanager --licenses || true
 
       - name: Sync Capacitor
         run: npx cap sync android
