@@ -7,8 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-// Hapus foto setelah 3×24 jam = 72 jam
-const RETENTION_HOURS = 72;
+// Hapus foto setelah 24 jam
+const RETENTION_HOURS = 24;
 
 function extractFilePath(photoUrl: string): string | null {
   try {
@@ -77,27 +77,33 @@ Deno.serve(async (req: Request) => {
       try {
         const filePath = extractFilePath(record.photo_url);
 
-        if (filePath) {
-          const { error: removeError } = await supabase.storage
-            .from("presensi-ustaz")
-            .remove([filePath]);
-
-          if (removeError) {
-            console.error(`Failed to delete file ${filePath}:`, removeError.message);
-            failedCount++;
-          } else {
-            deletedCount++;
-          }
-        } else {
+        if (!filePath) {
           console.warn(`Cannot parse path from URL: ${record.photo_url}`);
           failedCount++;
+          continue;
         }
 
-        // Tandai sebagai expired terlepas dari berhasil/tidaknya hapus file
-        await supabase
+        const { error: removeError } = await supabase.storage
+          .from("presensi-ustaz")
+          .remove([filePath]);
+
+        if (removeError) {
+          console.error(`Failed to delete file ${filePath}:`, removeError.message);
+          failedCount++;
+          continue;
+        }
+
+        deletedCount++;
+
+        const { error: updateError } = await supabase
           .from("presensi_ustaz")
           .update({ photo_url: null, photo_expired: true })
           .eq("id", record.id);
+
+        if (updateError) {
+          console.error(`Failed to update record ${record.id}:`, updateError.message);
+          failedCount++;
+        }
       } catch (err) {
         console.error(`Error processing record ${record.id}:`, err);
         failedCount++;
