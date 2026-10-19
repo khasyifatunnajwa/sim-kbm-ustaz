@@ -17,9 +17,10 @@ import {
   Settings,
   Download,
   GraduationCap,
+  Camera,
   Megaphone,
+  LayoutDashboard,
   Building2,
-  CheckCircle,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,7 +47,6 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'dashboard', icon: Home, label: 'Beranda' },
       { id: 'jadwal', icon: CalendarDays, label: 'Jadwal' },
-      { id: 'presensi', icon: CheckCircle, label: 'Presensi' },
       { id: 'kalender', icon: CalendarDays, label: 'Kalender' },
       { id: 'murid', icon: Users, label: 'Santri' },
     ],
@@ -55,6 +55,7 @@ const navGroups: NavGroup[] = [
     label: 'KBM',
     items: [
       { id: 'absensi', icon: ClipboardCheck, label: 'Absensi' },
+      { id: 'presensi', icon: Camera, label: 'Presensi' },
       { id: 'jurnal', icon: FileText, label: 'Jurnal' },
       { id: 'nilai', icon: BarChart3, label: 'Nilai' },
       { id: 'sikap', icon: Heart, label: 'Sikap' },
@@ -72,14 +73,16 @@ const navGroups: NavGroup[] = [
   {
     label: 'Administrasi',
     items: [
-      { id: 'admin', icon: Shield, label: 'Panel Admin', adminOnly: true },
-      { id: 'pengumuman', icon: Megaphone, label: 'Pengumuman', adminOnly: true },
+      { id: 'admin',                icon: Shield,           label: 'Panel Admin',       adminOnly: true },
+      { id: 'pengumuman',           icon: Megaphone,        label: 'Pengumuman',        adminOnly: true },
+      { id: 'presensi-admin',       icon: LayoutDashboard,  label: 'Presensi Admin',    adminOnly: true },
     ],
   },
 ];
 
 const allNavItems = navGroups.flatMap(g => g.items);
-const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'presensi', 'absensi', 'murid', 'jurnal'];
+
+const bottomNavItems: ActiveTab[] = ['dashboard', 'jadwal', 'absensi', 'presensi', 'murid', 'jurnal'];
 
 export default function Layout({ activeTab, setActiveTab, profile, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -99,9 +102,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
     } else {
       document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, [sidebarOpen]);
 
   const handleNav = (tab: ActiveTab) => {
@@ -109,16 +110,9 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
     setSidebarOpen(false);
   };
 
-  const activeLabel =
-    activeTab === 'profil'
-      ? 'Profil Pengguna'
-      : activeTab === 'pengaturan'
-        ? 'Pengaturan Aplikasi'
-        : allNavItems.find(n => n.id === activeTab)?.label ?? 'Beranda';
-
+  const activeLabel = activeTab === 'profil' ? 'Profil Pengguna' : activeTab === 'pengaturan' ? 'Pengaturan Aplikasi' : allNavItems.find(n => n.id === activeTab)?.label ?? 'Beranda';
   const displayName = profile?.nama_panggilan || profile?.nama_lengkap?.split(' ')[0] || 'Ustaz';
-  const roleLabel =
-    profile?.role === 'admin' ? 'Administrator' : profile?.role === 'operator' ? 'Operator' : 'Ustaz';
+  const roleLabel = profile?.role === 'admin' ? 'Administrator' : profile?.role === 'operator' ? 'Operator' : 'Ustaz';
 
   const renderNavGroups = () => (
     <>
@@ -127,9 +121,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
         if (visibleItems.length === 0) return null;
         return (
           <div key={group.label} className="mb-1">
-            <p className="px-4 py-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
-              {group.label}
-            </p>
+            <p className="px-4 py-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider">{group.label}</p>
             {visibleItems.map(item => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -139,9 +131,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
                   onClick={() => handleNav(item.id)}
                   className={`nav-item w-full text-left ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`}
                 >
-                  <Icon
-                    className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}
-                  />
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
                   <span className="text-sm">{item.label}</span>
                   {isActive && <ChevronRight className="w-4 h-4 ml-auto text-emerald-400" />}
                 </button>
@@ -169,16 +159,16 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-3 px-2">{renderNavGroups()}</div>
+        <div className="flex-1 overflow-y-auto py-3 px-2">
+          {renderNavGroups()}
+        </div>
 
         <div className="p-3 border-t border-slate-100 space-y-2">
           <button
             onClick={() => handleNav('pengaturan')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'pengaturan' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
           >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}
-            >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
               <Settings className="w-4 h-4" />
             </div>
             <div>
@@ -186,14 +176,11 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               <p className="text-[10px] text-slate-400">Tampilan & preferensi</p>
             </div>
           </button>
-
           <button
             onClick={() => handleNav('profil')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left ${activeTab === 'profil' ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'hover:bg-slate-50'}`}
           >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'profil' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-600'}`}
-            >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeTab === 'profil' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-600'}`}>
               <User className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -211,7 +198,6 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               <span>Instal Aplikasi</span>
             </button>
           )}
-
           <button
             onClick={onLogout}
             className="w-full flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-50 px-4 py-2.5 rounded-xl font-semibold transition-colors text-sm"
@@ -248,23 +234,17 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
                   </div>
                   <span className="font-bold">SIM KBM</span>
                 </div>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
-                >
+                <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-
-              <div className="flex-1 py-3 px-2 overflow-y-auto">{renderNavGroups()}</div>
-
+              <div className="flex-1 py-3 px-2 overflow-y-auto">
+                {renderNavGroups()}
+              </div>
               <div className="p-3 border-t border-slate-100 space-y-2">
                 {isInstallable && !isInstalled && (
                   <button
-                    onClick={() => {
-                      promptInstall();
-                      setSidebarOpen(false);
-                    }}
+                    onClick={() => { promptInstall(); setSidebarOpen(false); }}
                     className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold transition-colors"
                   >
                     <Download className="w-4 h-4" />
@@ -272,10 +252,7 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    onLogout();
-                    setSidebarOpen(false);
-                  }}
+                  onClick={() => { onLogout(); setSidebarOpen(false); }}
                   className="w-full flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-50 px-4 py-2.5 rounded-xl font-semibold transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
@@ -297,7 +274,6 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
             >
               <Menu className="w-5 h-5" />
             </button>
-
             <div className="flex items-center gap-2">
               <div className="md:hidden w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 p-0.5 shadow">
                 <img src="/icon/logo.png" alt="Logo" className="w-full h-full object-contain" />
@@ -313,19 +289,17 @@ export default function Layout({ activeTab, setActiveTab, profile, onLogout, chi
               </div>
             </div>
           </div>
-
           <div className="md:hidden flex items-center gap-1.5">
             <button
               onClick={() => handleNav('pengaturan')}
-              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-50 text-emerald-600'}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'pengaturan' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
               title="Pengaturan"
             >
               <Settings className="w-4 h-4" />
             </button>
-
             <button
               onClick={() => handleNav('profil')}
-              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600'}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all ${activeTab === 'profil' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'}`}
               title="Ke Halaman Profil"
             >
               <User className="w-4 h-4" />
