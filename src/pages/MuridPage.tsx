@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
+import { readOfflinePageCache, writeOfflinePageCache } from '../lib/offlinePageCache';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
@@ -116,18 +117,31 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     }
   };
 
+  const muridCacheKey = profile?.id ? `sim-kbm-cache:murid:${profile.id}` : null;
+
   const fetchMurid = async () => {
     setLoading(true);
+    const cached = muridCacheKey
+      ? await readOfflinePageCache<{ muridList: Murid[]; kelasList: Kelas[] }>(muridCacheKey)
+      : null;
+
+    if (cached) {
+      setMuridList(cached.muridList);
+      setKelasList(cached.kelasList);
+    }
+
     try {
       const scope = await getUstazScope(profile);
-
-      // Fetch kelas objects with IDs
-      const { data: kelasData } = await supabase
+      const { data: kelasData, error: kelasError } = await supabase
         .from('kelas')
         .select('id, nama_kelas, lembaga_id, aktif, gender')
         .eq('aktif', true)
         .order('nama_kelas');
-      const kelasObjList = (kelasData ?? []) as Kelas[];
+
+      const kelasObjList = !kelasError && kelasData
+        ? kelasData as Kelas[]
+        : cached?.kelasList ?? [];
+
       setKelasList(kelasObjList);
 
       const { data, error } = await supabase
@@ -136,19 +150,27 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         .order('nama');
 
       if (error) throw error;
-      if (data) {
-        let muridData = data as Murid[];
-        if (!scope.isAdmin) {
-          // Show murid in ustaz's classes OR murid they personally added
-          muridData = muridData.filter(m =>
-            (m.kelas_id != null && scope.kelasIds.includes(m.kelas_id)) ||
-            m.user_id === profile?.id
-          );
-        }
-        setMuridList(muridData);
+
+      let muridData = (data ?? []) as Murid[];
+      if (!scope.isAdmin) {
+        muridData = muridData.filter(m =>
+          (m.kelas_id != null && scope.kelasIds.includes(m.kelas_id)) ||
+          m.user_id === profile?.id
+        );
+      }
+
+      setMuridList(muridData);
+
+      if (muridCacheKey) {
+        await writeOfflinePageCache(muridCacheKey, {
+          muridList: muridData,
+          kelasList: kelasObjList,
+        });
       }
     } catch (error: any) {
-      showToast(error.message || 'Gagal mengambil data murid', 'error');
+      if (!cached) {
+        showToast(error?.message || 'Data belum tersedia. Periksa koneksi internet.', 'error');
+      }
     } finally {
       setLoading(false);
     }

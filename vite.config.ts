@@ -12,6 +12,7 @@ export default defineConfig({
         type: 'module',
       },
       workbox: {
+        mode: 'development',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
         maximumFileSizeToCacheInBytes: 4000000,
         navigateFallback: '/index.html',
