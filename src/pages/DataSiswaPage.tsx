@@ -284,8 +284,8 @@ export default function DataSiswaPage({ showToast }: { showToast: ShowToast }) {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4">
-                      <ExportButton onClick={exportPDF} format="pdf" label="Export PDF" variant="md" className="flex-1 justify-center bg-white text-emerald-700 hover:bg-emerald-50 border-white" />
-                      <ExportButton onClick={exportExcel} format="excel" label="Export Excel" variant="md" className="flex-1 justify-center bg-white/20 hover:bg-white/30 text-white border-white/30" />
+                      <ExportButton onClick={exportPDF} format="pdf" label="Ekspor PDF" variant="md" className="flex-1 justify-center bg-white text-emerald-700 hover:bg-emerald-50 border-white" />
+                      <ExportButton onClick={exportExcel} format="excel" label="Ekspor Excel" variant="md" className="flex-1 justify-center bg-white/20 hover:bg-white/30 text-white border-white/30" />
                     </div>
                   </div>
                 </div>

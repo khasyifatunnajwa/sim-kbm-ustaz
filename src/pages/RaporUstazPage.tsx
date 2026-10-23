@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
 import {
-  Award, Users, TrendingUp, Calendar, CheckCircle, Clock, XCircle,
-  Heart, FileText, MessageCircle, Mail, Phone, BarChart3, Loader2,
-  Search, Trophy, Target, Download,
+  useState, useEffect, useMemo } from 'react';
+import {
+  Award, Users, TrendingUp, Calendar, CheckCircle, Clock, XCircle, Heart, FileText, MessageCircle, Mail, Phone, BarChart3, Loader2, Search, Trophy, Target, Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
@@ -357,7 +356,7 @@ export default function RaporUstazPage(_: { showToast: ShowToast }) {
                         <Download className="w-3.5 h-3.5" /> PDF
                       </button>
                       <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl text-xs font-bold transition-colors">
-                        <MessageCircle className="w-3.5 h-3.5" /> Share WA
+                        <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
                       </button>
                     </div>
                   </div>

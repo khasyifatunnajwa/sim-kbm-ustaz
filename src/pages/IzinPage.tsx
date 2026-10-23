@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Trash2, Send, FileText, Calendar, Clock, User, BookOpen, Users, Share2,
+  useState, useEffect, useMemo } from 'react';
+import {
+  Plus, Trash2, FileText, Calendar, Clock, User, BookOpen, Users, MessageCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
@@ -144,7 +145,7 @@ export default function IzinPage({ showToast, profile }: { showToast: ShowToast;
 
   const getJenisLabel = () => form.jenis_izin === 'Lainnya' ? (form.jenis_lainnya || 'Lainnya') : form.jenis_izin;
 
-  // ===== SHARE BUTTON: Save + Share WA + Update presensi =====
+  // ===== SHARE BUTTON: Save + Bagikan via WhatsApp + Update presensi =====
   const handleShare = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.mata_pelajaran || !form.kelas) {
@@ -319,8 +320,8 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
                   {i.catatan && <p className="text-[11px] text-slate-400 italic mt-1">{i.catatan}</p>}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <button onClick={() => handleShareExisting(i)} title="Share WhatsApp" className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
-                    <Send className="w-3.5 h-3.5" />
+                  <button onClick={() => handleShareExisting(i)} title="Bagikan via WhatsApp" className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
+                    <MessageCircle className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => handleDelete(i.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -470,7 +471,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               disabled={saving}
               className="flex-1 text-sm flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Share2 className="w-4 h-4" /> {saving ? 'Memproses...' : 'Share'}
+              <MessageCircle className="w-4 h-4" /> {saving ? 'Memproses...' : 'Bagikan via WhatsApp'}
             </button>
           </div>
         </form>

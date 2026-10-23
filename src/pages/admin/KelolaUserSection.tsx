@@ -707,7 +707,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
             </div>
             <div className="flex gap-2 pt-1">
               <button onClick={() => setShowExportModal(false)} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
-              <ExportButton onClick={handleExportCSV} format="csv" label="Export CSV" className="flex-1 justify-center" />
+              <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" className="flex-1 justify-center" />
             </div>
           </div>
         </Modal>
@@ -715,20 +715,20 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
 
       {/* ===== IMPORT MODAL ===== */}
       {showImportModal && (
-        <Modal isOpen={true} onClose={() => { setShowImportModal(false); resetImportState(); }} title="Import Data User (CSV)" size="lg">
+        <Modal isOpen={true} onClose={() => { setShowImportModal(false); resetImportState(); }} title="Impor Data Pengguna (CSV)" size="lg">
           <div className="space-y-4">
             <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-3 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-sky-700 dark:text-sky-300 space-y-1">
-                <p><strong>Kolom yang dibutuhkan:</strong> {IMPORT_COLUMN_KEYS.join(', ')}.</p>
-                <p><strong>Wajib diisi:</strong> nama_lengkap & nama_panggilan.</p>
+                <p><strong>Header CSV harus memuat seluruh 10 kolom berikut:</strong> {IMPORT_COLUMN_KEYS.join(', ')}.</p>
+                <p><strong>Kolom wajib diisi:</strong> nama_lengkap dan nama_panggilan.</p>
                 <p>id_login diambil dari nama_panggilan jika kosong. Password default <strong>123456</strong> jika kosong.</p>
               </div>
             </div>
 
             {/* Template download */}
             <button onClick={downloadImportTemplate} className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-400 hover:underline">
-              <FileText className="w-3.5 h-3.5" /> Download Template CSV
+              <FileText className="w-3.5 h-3.5" /> Unduh Templat CSV
             </button>
 
             {/* File upload */}
@@ -807,7 +807,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
                   <button onClick={() => { setShowImportModal(false); resetImportState(); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
                   <button onClick={handleImportSubmit} disabled={importing || !importFile || importPreview.length === 0} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
                     {importing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    {importing ? 'Mengimpor...' : 'Import Data'}
+                    {importing ? 'Mengimpor…' : 'Impor Data'}
                   </button>
                 </>
               )}

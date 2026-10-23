@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Calendar, Plus, Pencil, Trash2, Search, FileText,
-  X, AlertCircle, Upload, Share2, Filter, RefreshCw,
-  ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle, Download,
+  useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Calendar, Plus, Pencil, Trash2, Search, FileText, X, AlertCircle, Upload, MessageCircle, Filter, RefreshCw, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle, Download
 } from 'lucide-react';
 import { ImportButton, ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
@@ -112,7 +111,7 @@ function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
             </div>
           </div>
           <button onClick={downloadTemplate} className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-400 hover:underline">
-            <Download className="w-3.5 h-3.5" /> Download Template CSV
+            <Download className="w-3.5 h-3.5" /> Unduh Templat CSV
           </button>
         </div>
         <div className="border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-400 transition-colors" onClick={() => fileRef.current?.click()}>
@@ -134,7 +133,7 @@ function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
           <button onClick={() => { onClose(); setFile(null); setPreview([]); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
           <button onClick={handleSubmit} disabled={loading || !file} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
             {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            {loading ? 'Mengimpor...' : 'Import Jadwal'}
+            {loading ? 'Mengimpor…' : 'Impor Jadwal'}
           </button>
         </div>
       </div>
@@ -421,7 +420,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
             <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
             <ImportButton onClick={() => setShowImport(true)} />
             <ExportButton onClick={handleExportCSV} format="csv" />
-            <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 hover:bg-green-100 transition-colors"><Share2 className="w-3.5 h-3.5" /> Share WA</button>
+            <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 hover:bg-green-100 transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
           </div>
 
           {filtered.length > 0 && (
@@ -695,9 +694,9 @@ function KalenderPendidikanPanel({ showToast }: { showToast: ShowToast }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <ExportButton onClick={handleExportCSV} format="csv" label="Export CSV" />
+        <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
         <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
-          <Share2 className="w-3.5 h-3.5" /> Share WA
+          <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
         </button>
         <button onClick={() => openAdd()} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
           <Plus className="w-3.5 h-3.5" /> Tambah Event
@@ -1031,10 +1030,10 @@ function JadwalUjianPanel({ showToast }: { showToast: ShowToast }) {
           <option value="">Semua</option>
           {JENIS_UJIAN_OPT.map(j => <option key={j} value={j}>{j}</option>)}
         </select>
-        <ExportButton onClick={handleExportPDF} format="pdf" label="PDF" />
-        <ExportButton onClick={handleExportCSV} format="csv" label="CSV" />
+        <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
+        <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
         <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
-          <Share2 className="w-3.5 h-3.5" /> WA
+          <MessageCircle className="w-3.5 h-3.5" /> WA
         </button>
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
           <Plus className="w-3.5 h-3.5" /> Tambah

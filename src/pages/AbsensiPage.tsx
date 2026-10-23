@@ -1,10 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ClipboardCheck, Save, CheckCircle, AlertCircle, XCircle, Clock,
-  FileText, Share2, BarChart3, Pencil, AlertTriangle,
-  History, Lock, ChevronRight, User,
-} from 'lucide-react';
+import { ClipboardCheck, Save, CheckCircle, AlertCircle, XCircle, Clock, FileText, MessageCircle, BarChart3, Pencil, AlertTriangle, History, Lock, ChevronRight, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useMasterData } from '../hooks/useMasterData';
 import { getActivityContext, clearActivityContext } from '../lib/activityContext';
@@ -652,10 +648,10 @@ export default function AbsensiPage({ showToast, profile }: { showToast: ShowToa
           {selectedKelas && muridFiltered.length > 0 && (
             <div className="flex gap-2 mb-4">
               <button onClick={exportRekapPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors">
-                <FileText className="w-4 h-4" /> PDF
+                <FileText className="w-4 h-4" /> Ekspor PDF
               </button>
               <button onClick={shareRekapWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors">
-                <Share2 className="w-4 h-4" /> WhatsApp
+                <MessageCircle className="w-4 h-4" /> Bagikan via WhatsApp
               </button>
             </div>
           )}

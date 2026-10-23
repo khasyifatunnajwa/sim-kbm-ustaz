@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock,
-  Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download,
-  X, AlertCircle, RefreshCw, Share2, Ruler,
+  useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock, Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download, X, AlertCircle, RefreshCw, MessageCircle, Ruler
 } from 'lucide-react';
 import { ImportButton, ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
@@ -176,7 +175,7 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
             </div>
           </div>
           <button onClick={handleDownloadTemplate} className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-400 hover:underline">
-            <Download className="w-3.5 h-3.5" /> Download Template CSV
+            <Download className="w-3.5 h-3.5" /> Unduh Templat CSV
           </button>
         </div>
 
@@ -221,7 +220,7 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
           <button onClick={() => { onClose(); setFile(null); setPreview([]); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
           <button onClick={handleSubmit} disabled={loading || !file} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
             {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            {loading ? 'Mengimpor...' : 'Import Data'}
+            {loading ? 'Mengimpor…' : 'Impor Data'}
           </button>
         </div>
       </div>
@@ -614,7 +613,7 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
         <ImportButton onClick={() => setShowImport(true)} />
         <ExportButton onClick={handleExportCSV} format="csv" />
         <ExportButton onClick={handleExportPDF} format="pdf" />
-        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"><Share2 className="w-3.5 h-3.5" /> Share WA</button>
+        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
       </div>
 
       {loading ? (
@@ -806,9 +805,9 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <ExportButton onClick={handleExportPDF} format="pdf" label="PDF" />
-      <ExportButton onClick={handleExportCSV} format="csv" label="CSV" />
-      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
+      <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
+      <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
+      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
     </div>
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); setShowModal(true); }}
@@ -966,9 +965,9 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <ExportButton onClick={handleExportMapelPDF} format="pdf" label="PDF" />
-      <ExportButton onClick={handleExportMapelCSV} format="csv" label="CSV" />
-      <button onClick={handleShareMapelWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
+      <ExportButton onClick={handleExportMapelPDF} format="pdf" label="Ekspor PDF" />
+      <ExportButton onClick={handleExportMapelCSV} format="csv" label="Ekspor CSV" />
+      <button onClick={handleShareMapelWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
     </div>
     <CrudList title="Mata Pelajaran" icon={BookOpen} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' }); setEditingId(null); setShowModal(true); }}
@@ -1412,7 +1411,7 @@ function CrudList({ title, icon: Icon, search, setSearch, onAdd, onImport, impor
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cari ${title.toLowerCase()}...`} className="input-field text-xs pl-8" />
         </div>
         {onImport && (
-          <ImportButton onClick={onImport} label={importLabel || 'Import'} />
+          <ImportButton onClick={onImport} label={importLabel || 'Impor Data'} />
         )}
         <button onClick={onAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
       </div>
@@ -1599,7 +1598,7 @@ function CrudBatasan({ showToast }: { showToast: ShowToast; profile?: Profile | 
         </div>
         <ExportButton onClick={handleExportCSV} format="csv" />
         <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
-          <Share2 className="w-3.5 h-3.5" /> Share WA
+          <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
         </button>
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
           <Plus className="w-3.5 h-3.5" /> Tambah
