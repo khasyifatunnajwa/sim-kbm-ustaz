@@ -1,9 +1,9 @@
-import { Upload, Download, FileText, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { FileUp, Download, FileText, FileSpreadsheet, RefreshCw } from 'lucide-react';
 
 type ExportFormat = 'csv' | 'pdf' | 'excel' | 'json';
 type Size = 'sm' | 'md';
 
-const FORMAT_CONFIG: Record<ExportFormat, { icon: typeof Upload; label: string; color: string }> = {
+const FORMAT_CONFIG: Record<ExportFormat, { icon: typeof FileUp; label: string; color: string }> = {
   csv:   { icon: Download,         label: 'CSV',   color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30' },
   pdf:   { icon: FileText,         label: 'PDF',   color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/30' },
   excel: { icon: FileSpreadsheet,  label: 'Excel', color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30' },
@@ -26,7 +26,7 @@ interface ImportButtonProps {
   className?: string;
 }
 
-export function ImportButton({ onClick, label = 'Import CSV', variant = 'sm', disabled, loading, className = '' }: ImportButtonProps) {
+export function ImportButton({ onClick, label = 'Impor Data', variant = 'sm', disabled, loading, className = '' }: ImportButtonProps) {
   const sz = SIZE_CONFIG[variant];
   return (
     <button
@@ -34,8 +34,8 @@ export function ImportButton({ onClick, label = 'Import CSV', variant = 'sm', di
       disabled={disabled || loading}
       className={`flex items-center gap-1.5 ${sz.padCls} ${sz.textCls} font-semibold rounded-xl border transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${IMPORT_COLOR} ${className}`}
     >
-      {loading ? <RefreshCw className={`${sz.iconCls} animate-spin`} /> : <Upload className={sz.iconCls} />}
-      {loading ? 'Memproses...' : label}
+      {loading ? <RefreshCw className={`${sz.iconCls} animate-spin`} /> : <FileUp className={sz.iconCls} />}
+      {loading ? 'Memproses…' : label}
     </button>
   );
 }
@@ -53,7 +53,7 @@ interface ExportButtonProps {
 export function ExportButton({ onClick, format = 'csv', label, variant = 'sm', disabled, loading, className = '' }: ExportButtonProps) {
   const sz = SIZE_CONFIG[variant];
   const cfg = FORMAT_CONFIG[format];
-  const text = label ?? `Export ${cfg.label}`;
+  const text = label ?? `Ekspor ${cfg.label}`;
   return (
     <button
       onClick={onClick}
@@ -61,7 +61,7 @@ export function ExportButton({ onClick, format = 'csv', label, variant = 'sm', d
       className={`flex items-center gap-1.5 ${sz.padCls} ${sz.textCls} font-semibold rounded-xl border transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${cfg.color} ${className}`}
     >
       {loading ? <RefreshCw className={`${sz.iconCls} animate-spin`} /> : <cfg.icon className={sz.iconCls} />}
-      {loading ? 'Memproses...' : text}
+      {loading ? 'Memproses…' : text}
     </button>
   );
 }

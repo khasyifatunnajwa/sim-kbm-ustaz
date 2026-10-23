@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock,
-  Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download,
-  X, AlertCircle, RefreshCw, Share2, Ruler,
+  useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock, Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download, X, AlertCircle, RefreshCw, MessageCircle, Ruler
 } from 'lucide-react';
 import { ImportButton, ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
@@ -26,6 +25,45 @@ const PAGE_SIZE = 10;
 
 type MasterTab = 'lembaga' | 'kelas' | 'ruangan' | 'tahun' | 'semester' | 'hari' | 'jam' | 'mapel' | 'batasan' | 'ustaz' | 'murid';
 
+
+function parseCSV(text: string): string[][] {
+  const input = text.replace(/^\uFEFF/, '');
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (input[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else quoted = false;
+      } else cell += ch;
+    } else if (ch === '"' && cell.length === 0) {
+      quoted = true;
+    } else if (ch === ',') {
+      row.push(cell.trim());
+      cell = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && input[i + 1] === '\n') i++;
+      row.push(cell.trim());
+      if (row.some(v => v !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += ch;
+    }
+  }
+
+  if (quoted) throw new Error('Tanda kutip CSV tidak berpasangan.');
+  row.push(cell.trim());
+  if (row.some(v => v !== '')) rows.push(row);
+  return rows;
+}
+
 // ====== Import Modal ======
 interface ImportModalProps {
   isOpen: boolean;
@@ -34,6 +72,17 @@ interface ImportModalProps {
   title: string;
   columns: string[];
   note?: string;
+}
+
+function validateCSVHeader(rows: string[][], columns: string[]): string[][] {
+  if (!rows.length) throw new Error('File CSV kosong.');
+  const normalize = (value: string) => value.trim().toLowerCase();
+  const actual = rows[0].map(normalize);
+  const expected = columns.map(normalize);
+  if (actual.length !== expected.length || actual.some((value, i) => value !== expected[i])) {
+    throw new Error('Header CSV tidak sesuai template. Unduh template yang tersedia lalu sesuaikan datanya.');
+  }
+  return rows.slice(1).filter(row => row.some(cell => cell.trim() !== ''));
 }
 
 function ImportModal({ isOpen, onClose, onImport, title, columns, note }: ImportModalProps) {
@@ -50,8 +99,8 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
     reader.onload = (e) => {
       try {
         const text = (e.target?.result as string).replace(/^\uFEFF/, '');
-        const rows = text.split('\n').map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
-        const dataRows = rows.filter((r, i) => i > 0 && r.some(c => c));
+        const rows = parseCSV(text);
+        const dataRows = validateCSVHeader(rows, columns);
         setPreview(dataRows.slice(0, 5));
       } catch {
         setError('Format file tidak valid');
@@ -80,8 +129,8 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
         reader.onload = async (e) => {
           try {
             const text = (e.target?.result as string).replace(/^\uFEFF/, '');
-            const rows = text.split('\n').map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
-            const dataRows = rows.filter((r, i) => i > 0 && r.some(c => c));
+            const rows = parseCSV(text);
+            const dataRows = validateCSVHeader(rows, columns);
             await onImport(dataRows);
             resolve();
           } catch (err: any) {
@@ -126,7 +175,7 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
             </div>
           </div>
           <button onClick={handleDownloadTemplate} className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-400 hover:underline">
-            <Download className="w-3.5 h-3.5" /> Download Template CSV
+            <Download className="w-3.5 h-3.5" /> Unduh Templat CSV
           </button>
         </div>
 
@@ -171,7 +220,7 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
           <button onClick={() => { onClose(); setFile(null); setPreview([]); }} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
           <button onClick={handleSubmit} disabled={loading || !file} className="btn-primary flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
             {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            {loading ? 'Mengimpor...' : 'Import Data'}
+            {loading ? 'Mengimpor…' : 'Impor Data'}
           </button>
         </div>
       </div>
@@ -462,29 +511,84 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
   };
 
   const handleImport = async (rows: string[][]) => {
-    let count = 0;
-    for (const row of rows) {
-      const [nama, lembaga_nama, kelas, gender_kelas, domisili, alamat, nomor_whatsapp] = row;
-      if (!nama) continue;
-      // Look up kelas_id by name
-      const kelasMatch = kelasOptions.find(k => k.nama_kelas.toLowerCase() === (kelas || '').trim().toLowerCase());
-      // Look up lembaga_id by name
-      const lembagaMatch = lembagaList.find(l => l.nama_lembaga.toLowerCase() === (lembaga_nama || '').trim().toLowerCase());
-      await supabase.from('murid').insert({
-        nama: nama.trim(),
-        kelas: kelasMatch?.nama_kelas || kelas?.trim() || null,
-        kelas_id: kelasMatch?.id || null,
-        lembaga_id: lembagaMatch?.id || null,
-        gender_kelas: gender_kelas?.trim() || null,
-        domisili: domisili?.trim() || null,
-        alamat: alamat?.trim() || null,
-        nomor_whatsapp: nomor_whatsapp?.trim() || null,
-        status_aktif: true,
-      });
-      count++;
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const [namaRaw, lembagaRaw, kelasRaw, genderRaw, domisiliRaw, alamatRaw, nomorRaw] = rows[i];
+      const nama = (namaRaw || '').trim();
+      const lembagaNama = (lembagaRaw || '').trim();
+      const kelasNama = (kelasRaw || '').trim();
+      const baris = i + 2;
+
+      if (!nama) {
+        failed++;
+        errors.push(`Baris ${baris}: nama kosong`);
+        continue;
+      }
+
+      if (!kelasNama) {
+        failed++;
+        errors.push(`Baris ${baris}: kelas kosong`);
+        continue;
+      }
+
+      const kelasMatch = kelasOptions.find(
+        k => k.nama_kelas.trim().toLowerCase() === kelasNama.toLowerCase()
+      );
+
+      if (!kelasMatch) {
+        failed++;
+        errors.push(`Baris ${baris}: kelas "${kelasNama}" tidak ditemukan`);
+        continue;
+      }
+
+      const lembagaMatch = lembagaNama
+        ? lembagaList.find(
+            l => l.nama_lembaga.trim().toLowerCase() === lembagaNama.toLowerCase()
+          )
+        : undefined;
+
+      if (lembagaNama && !lembagaMatch) {
+        failed++;
+        errors.push(`Baris ${baris}: lembaga "${lembagaNama}" tidak ditemukan`);
+        continue;
+      }
+
+      try {
+        const { error } = await supabase.from('murid').insert({
+          nama,
+          kelas: kelasMatch.nama_kelas,
+          kelas_id: kelasMatch.id,
+          lembaga_id: lembagaMatch?.id || null,
+          gender_kelas: (genderRaw || '').trim() || null,
+          domisili: (domisiliRaw || '').trim() || null,
+          alamat: (alamatRaw || '').trim() || null,
+          nomor_whatsapp: (nomorRaw || '').trim() || null,
+          status_aktif: true,
+        });
+
+        if (error) {
+          failed++;
+          errors.push(`Baris ${baris}: ${error.message}`);
+        } else {
+          success++;
+        }
+      } catch (err) {
+        failed++;
+        errors.push(`Baris ${baris}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
-    showToast(`${count} murid berhasil diimpor`, 'success');
-    fetchList();
+
+    if (errors.length) console.error('Rincian kegagalan impor murid:', errors);
+    if (success > 0) await fetchList();
+
+    if (failed === 0) {
+      showToast(`${success} murid berhasil diimpor`, 'success');
+    } else {
+      showToast(`${success} berhasil, ${failed} gagal. Periksa konsol untuk rincian.`, success > 0 ? 'success' : 'error');
+    }
   };
 
   return (
@@ -509,7 +613,7 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
         <ImportButton onClick={() => setShowImport(true)} />
         <ExportButton onClick={handleExportCSV} format="csv" />
         <ExportButton onClick={handleExportPDF} format="pdf" />
-        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"><Share2 className="w-3.5 h-3.5" /> Share WA</button>
+        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
       </div>
 
       {loading ? (
@@ -701,9 +805,9 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <ExportButton onClick={handleExportPDF} format="pdf" label="PDF" />
-      <ExportButton onClick={handleExportCSV} format="csv" label="CSV" />
-      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
+      <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
+      <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
+      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
     </div>
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); setShowModal(true); }}
@@ -861,9 +965,9 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <ExportButton onClick={handleExportMapelPDF} format="pdf" label="PDF" />
-      <ExportButton onClick={handleExportMapelCSV} format="csv" label="CSV" />
-      <button onClick={handleShareMapelWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><Share2 className="w-3.5 h-3.5" /> WhatsApp</button>
+      <ExportButton onClick={handleExportMapelPDF} format="pdf" label="Ekspor PDF" />
+      <ExportButton onClick={handleExportMapelCSV} format="csv" label="Ekspor CSV" />
+      <button onClick={handleShareMapelWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
     </div>
     <CrudList title="Mata Pelajaran" icon={BookOpen} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' }); setEditingId(null); setShowModal(true); }}
@@ -1307,7 +1411,7 @@ function CrudList({ title, icon: Icon, search, setSearch, onAdd, onImport, impor
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cari ${title.toLowerCase()}...`} className="input-field text-xs pl-8" />
         </div>
         {onImport && (
-          <ImportButton onClick={onImport} label={importLabel || 'Import'} />
+          <ImportButton onClick={onImport} label={importLabel || 'Impor Data'} />
         )}
         <button onClick={onAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
       </div>
@@ -1494,7 +1598,7 @@ function CrudBatasan({ showToast }: { showToast: ShowToast; profile?: Profile | 
         </div>
         <ExportButton onClick={handleExportCSV} format="csv" />
         <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
-          <Share2 className="w-3.5 h-3.5" /> Share WA
+          <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
         </button>
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
           <Plus className="w-3.5 h-3.5" /> Tambah

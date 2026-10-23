@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Search, Users, UserCheck, TrendingUp, ArrowUpCircle, FileText, Share2 } from 'lucide-react';
+import {
+  useState, useEffect, useMemo } from 'react';
+import { GraduationCap, Search, Users, UserCheck, TrendingUp, ArrowUpCircle, FileText, MessageCircle
+} from 'lucide-react';
 import { ExportButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
 import EmptyState from '../../components/EmptyState';
@@ -131,10 +133,10 @@ export default function DataMuridSection({ showToast, profile }: { showToast: Sh
 
       {subTab === 'biodata' && (
         <div className="flex flex-wrap gap-1.5">
-          <ExportButton onClick={handleExportPDF} format="pdf" label="Export PDF" />
-          <ExportButton onClick={handleExportCSV} format="csv" label="Export CSV" />
+          <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
+          <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
           <button onClick={handleShareWAData} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-            <Share2 className="w-3.5 h-3.5" /> Share WA
+            <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
           </button>
         </div>
       )}

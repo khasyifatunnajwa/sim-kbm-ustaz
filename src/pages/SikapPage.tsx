@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  Plus, Trash2, Pencil, Users, TrendingUp, FileText, Share2, Download
-} from 'lucide-react';
+import { Plus, Trash2, Pencil, Users, TrendingUp, FileText, MessageCircle, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
@@ -355,10 +353,10 @@ export default function SikapPage({ showToast, profile }: { showToast: ShowToast
                   {sikapList.length > 0 && (
                     <div className="flex gap-1.5">
                       <button onClick={exportSikapPDF} className="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                        <FileText className="w-3 h-3" /> PDF
+                        <FileText className="w-3 h-3" /> Ekspor PDF
                       </button>
                       <button onClick={shareSikapWA} className="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                        <Share2 className="w-3 h-3" /> WA
+                        <MessageCircle className="w-3 h-3" /> Bagikan via WhatsApp
                       </button>
                     </div>
                   )}

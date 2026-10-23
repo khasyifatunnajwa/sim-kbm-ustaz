@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
 import {
-  FileText, Download, Share2, Users, GraduationCap, Award,
-  Calendar, TrendingUp, BookOpen, Heart, Loader2,
+  useState, useEffect, useMemo } from 'react';
+import {
+  FileText, Download, MessageCircle, Users, GraduationCap, Award, Calendar, TrendingUp, BookOpen, Heart, Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
@@ -344,8 +344,8 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
                         onClick={handleShareWA}
                         className="flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
                       >
-                        <Share2 className="w-4 h-4" />
-                        Share WA
+                        <MessageCircle className="w-4 h-4" />
+                        Bagikan via WhatsApp
                       </button>
                     </div>
                   </div>

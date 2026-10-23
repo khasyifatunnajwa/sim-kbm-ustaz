@@ -56,10 +56,10 @@ export default function LaporanSection({ showToast }: { showToast: ShowToast }) 
             <p className="text-[10px] text-slate-400">Periode: {period === 'bulanan' ? 'Bulanan' : 'Semester'}</p>
           </div>
         </div>
-        <p className="text-xs text-slate-500 mb-3">Pilih format export untuk mengunduh laporan:</p>
+        <p className="text-xs text-slate-500 mb-3">Pilih format ekspor untuk mengunduh laporan:</p>
         <div className="grid grid-cols-2 gap-2">
-          <ExportButton onClick={() => showToast('Export PDF akan tersedia segera', 'info')} format="pdf" label="Export PDF" variant="md" className="justify-center" />
-          <ExportButton onClick={() => showToast('Export Excel akan tersedia segera', 'info')} format="excel" label="Export Excel" variant="md" className="justify-center" />
+          <ExportButton onClick={() => showToast('Ekspor PDF akan tersedia segera', 'info')} format="pdf" label="Ekspor PDF" variant="md" className="justify-center" />
+          <ExportButton onClick={() => showToast('Ekspor Excel akan tersedia segera', 'info')} format="excel" label="Ekspor Excel" variant="md" className="justify-center" />
         </div>
       </div>
     </div>

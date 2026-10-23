@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  Plus, Trash2, Pencil, BookOpen, Calendar, Target, Save, FileText, Share2
-} from 'lucide-react';
+import { Plus, Trash2, Pencil, BookOpen, Calendar, Target, Save, FileText, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { namaHari } from '../lib/utils';
 import { getUstazScope } from '../lib/ustazData';
@@ -307,10 +305,10 @@ export default function JurnalPage({ showToast, profile }: { showToast: ShowToas
           {filteredJurnal.length > 0 && (
             <>
               <button onClick={exportJurnalPDF} className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                <FileText className="w-3.5 h-3.5" /> PDF
+                <FileText className="w-3.5 h-3.5" /> Ekspor PDF
               </button>
               <button onClick={shareJurnalWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                <Share2 className="w-3.5 h-3.5" /> WA
+                <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
               </button>
             </>
           )}

@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check,
-  FileText, Share2
-} from 'lucide-react';
+import { Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check, FileText, MessageCircle } from 'lucide-react';
 import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
+import { readOfflinePageCache, writeOfflinePageCache } from '../lib/offlinePageCache';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
@@ -116,18 +114,31 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
     }
   };
 
+  const muridCacheKey = profile?.id ? `sim-kbm-cache:murid:${profile.id}` : null;
+
   const fetchMurid = async () => {
     setLoading(true);
+    const cached = muridCacheKey
+      ? await readOfflinePageCache<{ muridList: Murid[]; kelasList: Kelas[] }>(muridCacheKey)
+      : null;
+
+    if (cached) {
+      setMuridList(cached.muridList);
+      setKelasList(cached.kelasList);
+    }
+
     try {
       const scope = await getUstazScope(profile);
-
-      // Fetch kelas objects with IDs
-      const { data: kelasData } = await supabase
+      const { data: kelasData, error: kelasError } = await supabase
         .from('kelas')
         .select('id, nama_kelas, lembaga_id, aktif, gender')
         .eq('aktif', true)
         .order('nama_kelas');
-      const kelasObjList = (kelasData ?? []) as Kelas[];
+
+      const kelasObjList = !kelasError && kelasData
+        ? kelasData as Kelas[]
+        : cached?.kelasList ?? [];
+
       setKelasList(kelasObjList);
 
       const { data, error } = await supabase
@@ -136,19 +147,27 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         .order('nama');
 
       if (error) throw error;
-      if (data) {
-        let muridData = data as Murid[];
-        if (!scope.isAdmin) {
-          // Show murid in ustaz's classes OR murid they personally added
-          muridData = muridData.filter(m =>
-            (m.kelas_id != null && scope.kelasIds.includes(m.kelas_id)) ||
-            m.user_id === profile?.id
-          );
-        }
-        setMuridList(muridData);
+
+      let muridData = (data ?? []) as Murid[];
+      if (!scope.isAdmin) {
+        muridData = muridData.filter(m =>
+          (m.kelas_id != null && scope.kelasIds.includes(m.kelas_id)) ||
+          m.user_id === profile?.id
+        );
+      }
+
+      setMuridList(muridData);
+
+      if (muridCacheKey) {
+        await writeOfflinePageCache(muridCacheKey, {
+          muridList: muridData,
+          kelasList: kelasObjList,
+        });
       }
     } catch (error: any) {
-      showToast(error.message || 'Gagal mengambil data murid', 'error');
+      if (!cached) {
+        showToast(error?.message || 'Data belum tersedia. Periksa koneksi internet.', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -383,10 +402,10 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         <div className="flex items-center gap-1.5">
           {filteredMuridList.length > 0 && (
             <>
-              <ExportButton onClick={handleExportPDF} format="pdf" label="PDF" />
-              <ExportButton onClick={handleExportCSV} format="csv" label="CSV" />
+              <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
+              <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
               <button onClick={handleShareWAMurid} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                <Share2 className="w-3.5 h-3.5" /> WA
+                <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
               </button>
             </>
           )}

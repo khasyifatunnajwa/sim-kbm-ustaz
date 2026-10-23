@@ -4,6 +4,7 @@ import {
   Bell, Megaphone, Timer, AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { readOfflinePageCache, writeOfflinePageCache } from '../lib/offlinePageCache';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import SearchableSelect from '../components/SearchableSelect';
@@ -90,35 +91,87 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     }
   };
 
+  const jadwalCacheKey = profile?.id ? `sim-kbm-cache:jadwal:${profile.id}` : null;
+
   const fetchData = async () => {
     setLoading(true);
-    const jadwalQuery = profile?.role === 'admin'
-      ? supabase.from('jadwal_mengajar').select('*').order('jam_mulai')
-      : supabase.from('jadwal_mengajar').select('*').eq('user_id', profile?.id ?? '').order('jam_mulai');
-    const [jr, ar, pr, kr, mr, muridRes] = await Promise.all([
-      jadwalQuery,
-      supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
-      supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
-      supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
-      supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
-      supabase.from('murid').select('kelas, lembaga_id'),
-    ]);
-    if (jr.data) setJadwal(jr.data as JadwalMengajar[]);
-    if (ar.data) setAgendaList(ar.data as AgendaPenting[]);
-    if (pr.data) setPengumumanList(pr.data as Pengumuman[]);
-    if (kr.data) setKelasList(kr.data as Kelas[]);
-    if (mr.data) setMapelList(mr.data as MataPelajaran[]);
-    if (muridRes.data) {
+    const cached = jadwalCacheKey
+      ? await readOfflinePageCache<{
+          jadwal: JadwalMengajar[];
+          agendaList: AgendaPenting[];
+          pengumumanList: Pengumuman[];
+          kelasList: Kelas[];
+          mapelList: MataPelajaran[];
+          muridKelasByLembaga: Record<string, string[]>;
+        }>(jadwalCacheKey)
+      : null;
+
+    if (cached) {
+      setJadwal(cached.jadwal);
+      setAgendaList(cached.agendaList);
+      setPengumumanList(cached.pengumumanList);
+      setKelasList(cached.kelasList);
+      setMapelList(cached.mapelList);
+      setMuridKelasByLembaga(cached.muridKelasByLembaga);
+    }
+
+    try {
+      const jadwalQuery = profile?.role === 'admin'
+        ? supabase.from('jadwal_mengajar').select('*').order('jam_mulai')
+        : supabase.from('jadwal_mengajar').select('*').eq('user_id', profile?.id ?? '').order('jam_mulai');
+      const [jr, ar, pr, kr, mr, muridRes] = await Promise.all([
+        jadwalQuery,
+        supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
+        supabase.from('pengumuman').select('*').order('tanggal', { ascending: false }).limit(3),
+        supabase.from('kelas').select('*').eq('is_active', true).order('nama_kelas'),
+        supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
+        supabase.from('murid').select('kelas, lembaga_id'),
+      ]);
+
+      if (jr.error) throw jr.error;
+      if (ar.error) throw ar.error;
+      if (pr.error) throw pr.error;
+      if (kr.error) throw kr.error;
+      if (mr.error) throw mr.error;
+      if (muridRes.error) throw muridRes.error;
+
+      const jadwalData = (jr.data ?? []) as JadwalMengajar[];
+      const agendaData = (ar.data ?? []) as AgendaPenting[];
+      const pengumumanData = (pr.data ?? []) as Pengumuman[];
+      const kelasData = (kr.data ?? []) as Kelas[];
+      const mapelData = (mr.data ?? []) as MataPelajaran[];
       const byLembaga: Record<string, string[]> = {};
-      (muridRes.data as any[]).forEach(m => {
+      (muridRes.data ?? []).forEach((m: any) => {
         if (m.lembaga_id && m.kelas) {
           if (!byLembaga[m.lembaga_id]) byLembaga[m.lembaga_id] = [];
           if (!byLembaga[m.lembaga_id].includes(m.kelas)) byLembaga[m.lembaga_id].push(m.kelas);
         }
       });
+
+      setJadwal(jadwalData);
+      setAgendaList(agendaData);
+      setPengumumanList(pengumumanData);
+      setKelasList(kelasData);
+      setMapelList(mapelData);
       setMuridKelasByLembaga(byLembaga);
+
+      if (jadwalCacheKey) {
+        await writeOfflinePageCache(jadwalCacheKey, {
+          jadwal: jadwalData,
+          agendaList: agendaData,
+          pengumumanList: pengumumanData,
+          kelasList: kelasData,
+          mapelList: mapelData,
+          muridKelasByLembaga: byLembaga,
+        });
+      }
+    } catch (error) {
+      if (!cached) {
+        console.warn('Data Jadwal belum tersedia dari cache:', error);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);

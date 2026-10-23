@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
 import {
-  Users, FileText, Calendar, BarChart3, Loader2, BookOpen, TrendingUp,
-  CheckCircle, X, Clock, XCircle, Heart, MessageCircle, Mail, StickyNote,
-  AlertTriangle, Award, Phone, Share2,
+  useState, useEffect, useMemo } from 'react';
+import {
+  Users, FileText, Calendar, BarChart3, Loader2, BookOpen, TrendingUp, CheckCircle, X, Clock, XCircle, Heart, MessageCircle, Mail, StickyNote, AlertTriangle, Award, Phone
 } from 'lucide-react';
 import { ExportButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
@@ -190,10 +189,10 @@ export default function DataUstazPage({ showToast }: { showToast: ShowToast }) {
 
       {/* Export & Share Buttons */}
       <div className="flex flex-wrap gap-1.5 mb-4">
-        <ExportButton onClick={handleExportPDF} format="pdf" label="Export PDF" />
-        <ExportButton onClick={handleExportCSV} format="csv" label="Export CSV" />
+        <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
+        <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
         <button onClick={handleShareWAUstaz} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-          <Share2 className="w-3.5 h-3.5" /> Share WA
+          <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
         </button>
       </div>
 
