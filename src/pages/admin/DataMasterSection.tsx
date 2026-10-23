@@ -26,6 +26,45 @@ const PAGE_SIZE = 10;
 
 type MasterTab = 'lembaga' | 'kelas' | 'ruangan' | 'tahun' | 'semester' | 'hari' | 'jam' | 'mapel' | 'batasan' | 'ustaz' | 'murid';
 
+
+function parseCSV(text: string): string[][] {
+  const input = text.replace(/^\uFEFF/, '');
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (input[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else quoted = false;
+      } else cell += ch;
+    } else if (ch === '"' && cell.length === 0) {
+      quoted = true;
+    } else if (ch === ',') {
+      row.push(cell.trim());
+      cell = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && input[i + 1] === '\n') i++;
+      row.push(cell.trim());
+      if (row.some(v => v !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += ch;
+    }
+  }
+
+  if (quoted) throw new Error('Tanda kutip CSV tidak berpasangan.');
+  row.push(cell.trim());
+  if (row.some(v => v !== '')) rows.push(row);
+  return rows;
+}
+
 // ====== Import Modal ======
 interface ImportModalProps {
   isOpen: boolean;
@@ -34,6 +73,17 @@ interface ImportModalProps {
   title: string;
   columns: string[];
   note?: string;
+}
+
+function validateCSVHeader(rows: string[][], columns: string[]): string[][] {
+  if (!rows.length) throw new Error('File CSV kosong.');
+  const normalize = (value: string) => value.trim().toLowerCase();
+  const actual = rows[0].map(normalize);
+  const expected = columns.map(normalize);
+  if (actual.length !== expected.length || actual.some((value, i) => value !== expected[i])) {
+    throw new Error('Header CSV tidak sesuai template. Unduh template yang tersedia lalu sesuaikan datanya.');
+  }
+  return rows.slice(1).filter(row => row.some(cell => cell.trim() !== ''));
 }
 
 function ImportModal({ isOpen, onClose, onImport, title, columns, note }: ImportModalProps) {
@@ -50,8 +100,8 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
     reader.onload = (e) => {
       try {
         const text = (e.target?.result as string).replace(/^\uFEFF/, '');
-        const rows = text.split('\n').map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
-        const dataRows = rows.filter((r, i) => i > 0 && r.some(c => c));
+        const rows = parseCSV(text);
+        const dataRows = validateCSVHeader(rows, columns);
         setPreview(dataRows.slice(0, 5));
       } catch {
         setError('Format file tidak valid');
@@ -80,8 +130,8 @@ function ImportModal({ isOpen, onClose, onImport, title, columns, note }: Import
         reader.onload = async (e) => {
           try {
             const text = (e.target?.result as string).replace(/^\uFEFF/, '');
-            const rows = text.split('\n').map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
-            const dataRows = rows.filter((r, i) => i > 0 && r.some(c => c));
+            const rows = parseCSV(text);
+            const dataRows = validateCSVHeader(rows, columns);
             await onImport(dataRows);
             resolve();
           } catch (err: any) {
@@ -462,29 +512,84 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
   };
 
   const handleImport = async (rows: string[][]) => {
-    let count = 0;
-    for (const row of rows) {
-      const [nama, lembaga_nama, kelas, gender_kelas, domisili, alamat, nomor_whatsapp] = row;
-      if (!nama) continue;
-      // Look up kelas_id by name
-      const kelasMatch = kelasOptions.find(k => k.nama_kelas.toLowerCase() === (kelas || '').trim().toLowerCase());
-      // Look up lembaga_id by name
-      const lembagaMatch = lembagaList.find(l => l.nama_lembaga.toLowerCase() === (lembaga_nama || '').trim().toLowerCase());
-      await supabase.from('murid').insert({
-        nama: nama.trim(),
-        kelas: kelasMatch?.nama_kelas || kelas?.trim() || null,
-        kelas_id: kelasMatch?.id || null,
-        lembaga_id: lembagaMatch?.id || null,
-        gender_kelas: gender_kelas?.trim() || null,
-        domisili: domisili?.trim() || null,
-        alamat: alamat?.trim() || null,
-        nomor_whatsapp: nomor_whatsapp?.trim() || null,
-        status_aktif: true,
-      });
-      count++;
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const [namaRaw, lembagaRaw, kelasRaw, genderRaw, domisiliRaw, alamatRaw, nomorRaw] = rows[i];
+      const nama = (namaRaw || '').trim();
+      const lembagaNama = (lembagaRaw || '').trim();
+      const kelasNama = (kelasRaw || '').trim();
+      const baris = i + 2;
+
+      if (!nama) {
+        failed++;
+        errors.push(`Baris ${baris}: nama kosong`);
+        continue;
+      }
+
+      if (!kelasNama) {
+        failed++;
+        errors.push(`Baris ${baris}: kelas kosong`);
+        continue;
+      }
+
+      const kelasMatch = kelasOptions.find(
+        k => k.nama_kelas.trim().toLowerCase() === kelasNama.toLowerCase()
+      );
+
+      if (!kelasMatch) {
+        failed++;
+        errors.push(`Baris ${baris}: kelas "${kelasNama}" tidak ditemukan`);
+        continue;
+      }
+
+      const lembagaMatch = lembagaNama
+        ? lembagaList.find(
+            l => l.nama_lembaga.trim().toLowerCase() === lembagaNama.toLowerCase()
+          )
+        : undefined;
+
+      if (lembagaNama && !lembagaMatch) {
+        failed++;
+        errors.push(`Baris ${baris}: lembaga "${lembagaNama}" tidak ditemukan`);
+        continue;
+      }
+
+      try {
+        const { error } = await supabase.from('murid').insert({
+          nama,
+          kelas: kelasMatch.nama_kelas,
+          kelas_id: kelasMatch.id,
+          lembaga_id: lembagaMatch?.id || null,
+          gender_kelas: (genderRaw || '').trim() || null,
+          domisili: (domisiliRaw || '').trim() || null,
+          alamat: (alamatRaw || '').trim() || null,
+          nomor_whatsapp: (nomorRaw || '').trim() || null,
+          status_aktif: true,
+        });
+
+        if (error) {
+          failed++;
+          errors.push(`Baris ${baris}: ${error.message}`);
+        } else {
+          success++;
+        }
+      } catch (err) {
+        failed++;
+        errors.push(`Baris ${baris}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
-    showToast(`${count} murid berhasil diimpor`, 'success');
-    fetchList();
+
+    if (errors.length) console.error('Rincian kegagalan impor murid:', errors);
+    if (success > 0) await fetchList();
+
+    if (failed === 0) {
+      showToast(`${success} murid berhasil diimpor`, 'success');
+    } else {
+      showToast(`${success} berhasil, ${failed} gagal. Periksa konsol untuk rincian.`, success > 0 ? 'success' : 'error');
+    }
   };
 
   return (
