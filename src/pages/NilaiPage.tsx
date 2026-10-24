@@ -1,9 +1,10 @@
+import { WhatsAppActionButton, ExportButton } from "../components/DataButtons";
 import {
   useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, BarChart3, FileText, MessageCircle, Save, Calendar, TrendingUp, ChevronDown
 } from 'lucide-react';
-import { ExportButton } from '../components/DataButtons';
+
 import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
@@ -393,10 +394,8 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
                   {selectedPenilaian === p.id && (
                     <div className="mt-4 pt-4 border-t border-slate-100">
                       <div className="flex gap-2 mb-3">
-                        <ExportButton onClick={exportRekapPDF} format="pdf" label="Ekspor PDF" />
-                        <button onClick={shareRekapWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                          <MessageCircle className="w-3 h-3" /> Bagikan via WhatsApp
-                        </button>
+                        <ExportButton onClick={exportRekapPDF} format="pdf" label="Ekspor PDF"  confirmAction={{ title: "Konfirmasi ekspor", message: "Berkas akan dibuat dan diunduh. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+                        <WhatsAppActionButton onClick={shareRekapWA} />
                         <button onClick={() => setSelectedPenilaian('')} className="ml-auto text-xs text-slate-400 hover:text-slate-600">
                           Tutup
                         </button>

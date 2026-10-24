@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { getUstazScope } from '../lib/ustazData';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import { WhatsAppActionButton } from '../components/DataButtons';
 import SearchableSelect from '../components/SearchableSelect';
 import { useLembaga } from '../hooks/useLembaga';
 import { shareWA } from '../lib/pdf';
@@ -320,9 +321,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
                   {i.catatan && <p className="text-[11px] text-slate-400 italic mt-1">{i.catatan}</p>}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <button onClick={() => handleShareExisting(i)} title="Bagikan via WhatsApp" className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
-                    <MessageCircle className="w-3.5 h-3.5" />
-                  </button>
+                  <WhatsAppActionButton onClick={() => handleShareExisting(i)} />
                   <button onClick={() => handleDelete(i.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

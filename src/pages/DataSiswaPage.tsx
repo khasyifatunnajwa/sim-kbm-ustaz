@@ -284,8 +284,8 @@ export default function DataSiswaPage({ showToast }: { showToast: ShowToast }) {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4">
-                      <ExportButton onClick={exportPDF} format="pdf" label="Ekspor PDF" variant="md" className="flex-1 justify-center bg-white text-emerald-700 hover:bg-emerald-50 border-white" />
-                      <ExportButton onClick={exportExcel} format="excel" label="Ekspor Excel" variant="md" className="flex-1 justify-center bg-white/20 hover:bg-white/30 text-white border-white/30" />
+                      <ExportButton onClick={exportPDF} format="pdf" label="Ekspor PDF" variant="md" className="flex-1 justify-center bg-white text-emerald-700 hover:bg-emerald-50 border-white"  confirmAction={{ title: "Konfirmasi ekspor", message: "Berkas akan dibuat dan diunduh. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+                      <ExportButton onClick={exportExcel} format="csv" label="Ekspor CSV" variant="md" className="flex-1 justify-center bg-white/20 hover:bg-white/30 text-white border-white/30"  confirmAction={{ title: "Konfirmasi ekspor", message: "Berkas akan dibuat dan diunduh. Lanjutkan?", confirmText: "Ya, ekspor" }} />
                     </div>
                   </div>
                 </div>

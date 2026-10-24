@@ -3,7 +3,7 @@ import {
 import {
   Calendar, Plus, Pencil, Trash2, Search, FileText, X, AlertCircle, Upload, MessageCircle, Filter, RefreshCw, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle, Download
 } from 'lucide-react';
-import { ImportButton, ExportButton } from '../../components/DataButtons';
+import { ImportButton, ExportButton, WhatsAppActionButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmptyState from '../../components/EmptyState';
@@ -419,8 +419,8 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
           <div className="flex flex-wrap gap-1.5">
             <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
             <ImportButton onClick={() => setShowImport(true)} />
-            <ExportButton onClick={handleExportCSV} format="csv" />
-            <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 hover:bg-green-100 transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
+            <ExportButton onClick={handleExportCSV} format="csv"  confirmAction={{ title: "Konfirmasi ekspor", message: "Berkas akan dibuat dan diunduh. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+            <WhatsAppActionButton onClick={handleShareWA} />
           </div>
 
           {filtered.length > 0 && (
@@ -694,10 +694,8 @@ function KalenderPendidikanPanel({ showToast }: { showToast: ShowToast }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
-        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
-          <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
-        </button>
+        <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV"  confirmAction={{ title: "Konfirmasi ekspor", message: "Berkas akan dibuat dan diunduh. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+        <WhatsAppActionButton onClick={handleShareWA} />
         <button onClick={() => openAdd()} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
           <Plus className="w-3.5 h-3.5" /> Tambah Event
         </button>
@@ -1030,11 +1028,9 @@ function JadwalUjianPanel({ showToast }: { showToast: ShowToast }) {
           <option value="">Semua</option>
           {JENIS_UJIAN_OPT.map(j => <option key={j} value={j}>{j}</option>)}
         </select>
-        <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
-        <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
-        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
-          <MessageCircle className="w-3.5 h-3.5" /> WA
-        </button>
+        <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF"  confirmAction={{ title: "Konfirmasi ekspor", message: "Berkas akan dibuat dan diunduh. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+        <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV"  confirmAction={{ title: "Konfirmasi ekspor", message: "Berkas akan dibuat dan diunduh. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+        <WhatsAppActionButton onClick={handleShareWA} />
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
           <Plus className="w-3.5 h-3.5" /> Tambah
         </button>

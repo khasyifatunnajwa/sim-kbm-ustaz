@@ -707,7 +707,7 @@ export default function KelolaUserSection({ showToast, profile }: { showToast: S
             </div>
             <div className="flex gap-2 pt-1">
               <button onClick={() => setShowExportModal(false)} className="btn-secondary flex-1 py-2.5 text-xs">Batal</button>
-              <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" className="flex-1 justify-center" />
+              <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" className="flex-1 justify-center" confirmAction={{ title: "Ekspor Data Pengguna", message: "Unduh data pengguna sesuai cakupan yang dipilih ke file CSV?", confirmText: "Ya, ekspor", cancelText: "Batal" }} />
             </div>
           </div>
         </Modal>

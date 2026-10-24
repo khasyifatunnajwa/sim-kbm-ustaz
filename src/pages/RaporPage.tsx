@@ -1,3 +1,4 @@
+import { WhatsAppActionButton } from "../components/DataButtons";
 import {
   useState, useEffect, useMemo } from 'react';
 import {
@@ -340,13 +341,7 @@ export default function RaporPage({ showToast }: { showToast: ShowToast }) {
                         {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                         {generating ? 'Membuat...' : 'Unduh PDF'}
                       </button>
-                      <button
-                        onClick={handleShareWA}
-                        className="flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Bagikan via WhatsApp
-                      </button>
+                      <WhatsAppActionButton onClick={handleShareWA} />
                     </div>
                   </div>
                 </div>

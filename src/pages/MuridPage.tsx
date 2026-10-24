@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Pencil, Users, Phone, MapPin, Search, X, Filter, CheckCircle, XCircle, ChevronDown, Check, FileText, MessageCircle } from 'lucide-react';
-import { ExportButton } from '../components/DataButtons';
+import { ExportButton, WhatsAppActionButton } from '../components/DataButtons';
 import { supabase } from '../lib/supabase';
 import { readOfflinePageCache, writeOfflinePageCache } from '../lib/offlinePageCache';
 import { getUstazScope } from '../lib/ustazData';
@@ -402,11 +402,9 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
         <div className="flex items-center gap-1.5">
           {filteredMuridList.length > 0 && (
             <>
-              <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
-              <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
-              <button onClick={handleShareWAMurid} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
-              </button>
+              <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" confirmAction={{ title: 'Ekspor PDF?', message: 'Berkas PDF akan dibuat dan diunduh. Lanjutkan?', confirmText: 'Ya, lanjutkan' }} />
+              <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" confirmAction={{ title: 'Ekspor CSV?', message: 'Berkas CSV akan dibuat dan diunduh. Lanjutkan?', confirmText: 'Ya, lanjutkan' }} />
+              <WhatsAppActionButton onClick={handleShareWAMurid} />
             </>
           )}
           <button

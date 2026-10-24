@@ -3,7 +3,7 @@ import {
 import {
   Building2, Users, GraduationCap, School, BookOpen, Calendar, Clock, Plus, Pencil, Trash2, Search, CheckCircle, Upload, Download, X, AlertCircle, RefreshCw, MessageCircle, Ruler
 } from 'lucide-react';
-import { ImportButton, ExportButton } from '../../components/DataButtons';
+import { ImportButton, ExportButton, WhatsAppActionButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmptyState from '../../components/EmptyState';
@@ -611,9 +611,9 @@ function KelolaDataMurid({ showToast }: { showToast: ShowToast; profile: Profile
       <div className="flex flex-wrap gap-1.5">
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2 px-3 text-xs"><Plus className="w-3.5 h-3.5" /> Tambah</button>
         <ImportButton onClick={() => setShowImport(true)} />
-        <ExportButton onClick={handleExportCSV} format="csv" />
-        <ExportButton onClick={handleExportPDF} format="pdf" />
-        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
+        <ExportButton onClick={handleExportCSV} format="csv" confirmAction={{ title: "Konfirmasi ekspor", message: "Data akan disiapkan untuk diekspor. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+        <ExportButton onClick={handleExportPDF} format="pdf" confirmAction={{ title: "Konfirmasi ekspor", message: "Data akan disiapkan untuk diekspor. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+        <WhatsAppActionButton onClick={handleShareWA} />
       </div>
 
       {loading ? (
@@ -805,9 +805,9 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" />
-      <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" />
-      <button onClick={handleShareWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
+      <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" confirmAction={{ title: "Konfirmasi ekspor", message: "Data akan disiapkan untuk diekspor. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+      <ExportButton onClick={handleExportCSV} format="csv" label="Ekspor CSV" confirmAction={{ title: "Konfirmasi ekspor", message: "Data akan disiapkan untuk diekspor. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+      <WhatsAppActionButton onClick={handleShareWA} />
     </div>
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); setShowModal(true); }}
@@ -965,9 +965,9 @@ function CrudMapel({ showToast }: { showToast: ShowToast }) {
   return (
     <>
     <div className="flex flex-wrap gap-1.5 mb-2">
-      <ExportButton onClick={handleExportMapelPDF} format="pdf" label="Ekspor PDF" />
-      <ExportButton onClick={handleExportMapelCSV} format="csv" label="Ekspor CSV" />
-      <button onClick={handleShareMapelWA} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"><MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp</button>
+      <ExportButton onClick={handleExportMapelPDF} format="pdf" label="Ekspor PDF" confirmAction={{ title: "Konfirmasi ekspor", message: "Data akan disiapkan untuk diekspor. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+      <ExportButton onClick={handleExportMapelCSV} format="csv" label="Ekspor CSV" confirmAction={{ title: "Konfirmasi ekspor", message: "Data akan disiapkan untuk diekspor. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+      <WhatsAppActionButton onClick={handleShareMapelWA} />
     </div>
     <CrudList title="Mata Pelajaran" icon={BookOpen} search={search} setSearch={setSearch}
       onAdd={() => { setForm({ nama_mapel: '', kelompok: 'Diniyah', kode: '' }); setEditingId(null); setShowModal(true); }}
@@ -1596,10 +1596,8 @@ function CrudBatasan({ showToast }: { showToast: ShowToast; profile?: Profile | 
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari batasan..." className="input-field text-xs pl-8" />
         </div>
-        <ExportButton onClick={handleExportCSV} format="csv" />
-        <button onClick={handleShareWA} className="flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors">
-          <MessageCircle className="w-3.5 h-3.5" /> Bagikan via WhatsApp
-        </button>
+        <ExportButton onClick={handleExportCSV} format="csv" confirmAction={{ title: "Konfirmasi ekspor", message: "Data akan disiapkan untuk diekspor. Lanjutkan?", confirmText: "Ya, ekspor" }} />
+        <WhatsAppActionButton onClick={handleShareWA} />
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 py-2.5 px-3 text-xs">
           <Plus className="w-3.5 h-3.5" /> Tambah
         </button>
