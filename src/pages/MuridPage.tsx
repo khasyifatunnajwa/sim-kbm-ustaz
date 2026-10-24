@@ -399,7 +399,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
             <p className="text-[11px] text-slate-500">Total: {filteredMuridList.length} Santri</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {filteredMuridList.length > 0 && (
             <>
               <ExportButton onClick={handleExportPDF} format="pdf" label="Ekspor PDF" confirmAction={{ title: 'Ekspor PDF?', message: 'Berkas PDF akan dibuat dan diunduh. Lanjutkan?', confirmText: 'Ya, lanjutkan' }} />
@@ -413,7 +413,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
               setShowModal(true); 
               window.history.pushState(null, '', '#murid/form');
             }}
-            className="btn-primary flex w-full sm:w-auto max-w-full min-w-0 shrink-0 items-center justify-center gap-2 text-xs font-semibold py-2 px-3 whitespace-nowrap"
+            className="btn-primary flex w-full sm:w-auto max-w-full min-w-0 items-center justify-center gap-2 text-xs font-semibold py-2 px-3 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             Tambah Santri
