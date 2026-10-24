@@ -413,7 +413,7 @@ export default function MuridPage({ showToast, profile }: { showToast: ShowToast
               setShowModal(true); 
               window.history.pushState(null, '', '#murid/form');
             }}
-            className="btn-primary flex items-center justify-center gap-2 text-xs font-semibold py-2"
+            className="btn-primary flex w-full sm:w-auto max-w-full min-w-0 shrink-0 items-center justify-center gap-2 text-xs font-semibold py-2 px-3 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             Tambah Santri
