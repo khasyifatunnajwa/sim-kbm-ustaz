@@ -73,7 +73,7 @@ export default function KbmPage({ showToast, profile }: { showToast: ShowToast; 
 
     // kelasList & mapelList from scope (string arrays) -> fetch full rows for admins, or filter for ustaz
     const [kr, mr, bukuR, hafalR, catatanR] = await Promise.all([
-      supabase.from('kelas').select('*').eq('aktif', true).order('tingkat'),
+      supabase.from('kelas').select('*').eq('aktif', true).order('nama_kelas'),
       supabase.from('mata_pelajaran').select('*').eq('is_active', true).order('nama_mapel'),
       (async () => {
         let q = supabase.from('buku_saku').select('*, kelas(nama_kelas)').order('created_at', { ascending: false });
@@ -92,7 +92,19 @@ export default function KbmPage({ showToast, profile }: { showToast: ShowToast; 
       })(),
     ]);
     if (kr.data) {
-      const allKelas = kr.data as Kelas[];
+      const urutanTingkat: Record<string, number> = {
+        'Tamhidi': 1,
+        'Ibtida’i': 2,
+        'Tsanawiyah': 3,
+        'Ulya': 4,
+        'Kuliyah Syariah': 5,
+      };
+      const allKelas = [...(kr.data as Kelas[])].sort((a, b) => {
+        const urutanA = urutanTingkat[a.tingkat || 'Ibtida’i'] ?? 99;
+        const urutanB = urutanTingkat[b.tingkat || 'Ibtida’i'] ?? 99;
+        return urutanA - urutanB ||
+          a.nama_kelas.localeCompare(b.nama_kelas, 'id');
+      });
       setKelasList(isAdmin ? allKelas : allKelas.filter(k => scope.kelasList.includes(k.nama_kelas)));
     }
     if (mr.data) {

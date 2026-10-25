@@ -717,7 +717,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' as GenderKelas | '' });
+  const [form, setForm] = useState({ nama_kelas: '', tingkat: "Ibtida’i", kode: '', lembaga_id: '', gender: '' as GenderKelas | '' });
 
   useEffect(() => { fetchList(); }, []);
   const fetchList = async () => {
@@ -733,7 +733,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
     if (!form.nama_kelas) { showToast('Nama kelas wajib diisi', 'error'); return; }
     setSaving(true);
     try {
-      const payload: any = { nama_kelas: form.nama_kelas, tingkat: Number(form.tingkat) || 1, kode: form.kode || null, is_active: true, lembaga_id: form.lembaga_id || null, gender: form.gender || null };
+      const payload: any = { nama_kelas: form.nama_kelas, tingkat: form.tingkat, kode: form.kode || null, is_active: true, lembaga_id: form.lembaga_id || null, gender: form.gender || null };
       if (editingId) {
         const { error } = await supabase.from('kelas').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -743,7 +743,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
         if (error) throw error;
         showToast('Kelas ditambahkan', 'success');
       }
-      setShowModal(false); setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); fetchList();
+      setShowModal(false); setForm({ nama_kelas: '', tingkat: "Ibtida’i", kode: '', lembaga_id: '', gender: '' }); setEditingId(null); fetchList();
     } catch (err: any) { showToast('Gagal: ' + err.message, 'error'); } finally { setSaving(false); }
   };
 
@@ -759,7 +759,10 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
       if (!nama_kelas) continue;
       const lembagaMatch = lembagaList.find(l => l.nama_lembaga.toLowerCase() === lembaga_nama?.trim().toLowerCase());
       const validGender = ['Banin', 'Banat', 'Campuran'].includes(gender?.trim() ?? '') ? gender.trim() : null;
-      await supabase.from('kelas').insert({ nama_kelas: nama_kelas.trim(), tingkat: Number(tingkat) || 1, kode: kode?.trim() || null, is_active: true, lembaga_id: lembagaMatch?.id || null, gender: validGender });
+      const pilihanTingkat = ['Tamhidi', 'Ibtida’i', 'Tsanawiyah', 'Ulya', 'Kuliyah Syariah'];
+      const validTingkat = pilihanTingkat.includes(tingkat?.trim() ?? '') ? tingkat.trim() : "Ibtida’i";
+      const { error } = await supabase.from('kelas').insert({ nama_kelas: nama_kelas.trim(), tingkat: validTingkat, kode: kode?.trim() || null, is_active: true, lembaga_id: lembagaMatch?.id || null, gender: validGender });
+      if (error) throw error;
       count++;
     }
     showToast(`${count} kelas diimpor`, 'success');
@@ -770,7 +773,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
     const header = 'No,Nama Kelas,Lembaga,Tingkat,Kode,Gender';
     const rows = filtered.map((k, i) => {
       const lembagaNama = lembagaList.find(l => l.id === k.lembaga_id)?.nama_lembaga || '';
-      return `${i + 1},"${k.nama_kelas}","${lembagaNama}",${k.tingkat || ''},"${k.kode || ''}","${k.gender || ''}"`;
+      return `${i + 1},"${k.nama_kelas}","${lembagaNama}","${k.tingkat || "Ibtida’i"}","${k.kode || ''}","${k.gender || ''}"`;
     });
     const csv = '\uFEFF' + header + '\n' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -785,7 +788,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
     const headers = ['No', 'Nama Kelas', 'Lembaga', 'Tingkat', 'Kode', 'Gender'];
     const body = filtered.map((k, i) => {
       const lembagaNama = lembagaList.find(l => l.id === k.lembaga_id)?.nama_lembaga || '-';
-      return [i + 1, k.nama_kelas, lembagaNama, k.tingkat || '-', k.kode || '-', k.gender || '-'];
+      return [i + 1, k.nama_kelas, lembagaNama, k.tingkat || "Ibtida’i", k.kode || '-', k.gender || '-'];
     });
     generatePDF('Data Kelas', headers, body, [`Total: ${filtered.length} kelas`, `Cetak: ${new Date().toLocaleDateString('id-ID')}`]);
   };
@@ -794,7 +797,7 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
     let text = `*DATA KELAS*\n\n`;
     filtered.forEach((k, i) => {
       const lembagaNama = lembagaList.find(l => l.id === k.lembaga_id)?.nama_lembaga || '-';
-      text += `${i + 1}. ${k.nama_kelas} | Lembaga: ${lembagaNama} | Tingkat: ${k.tingkat || '-'}${k.gender ? ` | ${k.gender}` : ''}\n`;
+      text += `${i + 1}. ${k.nama_kelas} | Lembaga: ${lembagaNama} | Tingkat: ${k.tingkat || "Ibtida’i"}${k.gender ? ` | ${k.gender}` : ''}\n`;
     });
     text += `\nTotal: ${filtered.length} kelas`;
     shareWA(text);
@@ -810,11 +813,11 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
       <WhatsAppActionButton onClick={handleShareWA} />
     </div>
     <CrudList title="Kelas" icon={School} search={search} setSearch={setSearch}
-      onAdd={() => { setForm({ nama_kelas: '', tingkat: '1', kode: '', lembaga_id: '', gender: '' }); setEditingId(null); setShowModal(true); }}
+      onAdd={() => { setForm({ nama_kelas: '', tingkat: "Ibtida’i", kode: '', lembaga_id: '', gender: '' }); setEditingId(null); setShowModal(true); }}
       onImport={() => setShowImport(true)} importLabel="Import"
       loading={loading} list={filtered} page={page} setPage={setPage}
-      onEdit={(item) => { setEditingId(item.id); setForm({ nama_kelas: item.nama_kelas || '', tingkat: String(item.tingkat || '1'), kode: item.kode || '', lembaga_id: item.lembaga_id || '', gender: item.gender || '' }); setShowModal(true); }}
-      onDelete={handleDelete} displayName={(item) => item.nama_kelas} subInfo={(item) => `Tingkat ${item.tingkat || '-'}`}
+      onEdit={(item) => { setEditingId(item.id); setForm({ nama_kelas: item.nama_kelas || '', tingkat: item.tingkat || "Ibtida’i", kode: item.kode || '', lembaga_id: item.lembaga_id || '', gender: item.gender || '' }); setShowModal(true); }}
+      onDelete={handleDelete} displayName={(item) => item.nama_kelas} subInfo={(item) => item.tingkat || "Ibtida’i"}
       showModal={showModal} onClose={() => setShowModal(false)} saving={saving} onSave={handleSave}
       modalTitle={editingId ? 'Edit Kelas' : 'Tambah Kelas'}>
       <div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Nama Kelas *</label><input type="text" value={form.nama_kelas} onChange={e => setForm({ ...form, nama_kelas: e.target.value })} className="input-field text-xs" /></div>
@@ -830,9 +833,9 @@ function CrudKelas({ showToast }: { showToast: ShowToast }) {
           </select>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tingkat</label><input type="number" value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="input-field text-xs" min={1} max={12} /></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div></div>
+      <div className="grid grid-cols-2 gap-2"><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Tingkat *</label><select value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="input-field text-xs" required><option value="Tamhidi">Tamhidi</option><option value="Ibtida’i">Ibtida’i</option><option value="Tsanawiyah">Tsanawiyah</option><option value="Ulya">Ulya</option><option value="Kuliyah Syariah">Kuliyah Syariah</option></select></div><div><label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kode</label><input type="text" value={form.kode} onChange={e => setForm({ ...form, kode: e.target.value })} className="input-field text-xs" /></div></div>
     </CrudList>
-    <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Lembaga', 'Tingkat', 'Kode', 'Gender']} note="Nama Kelas wajib. Lembaga: nama lembaga sesuai data. Tingkat: angka. Gender: Banin/Banat/Campuran." />
+    <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleImport} title="Kelas" columns={['Nama Kelas', 'Lembaga', 'Tingkat', 'Kode', 'Gender']} note="Nama Kelas wajib. Tingkat: Tamhidi / Ibtida’i / Tsanawiyah / Ulya / Kuliyah Syariah. Lembaga: nama sesuai data. Gender: Banin/Banat/Campuran." />
     {dialog}
     </>
   );
