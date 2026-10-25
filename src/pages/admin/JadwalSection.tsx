@@ -319,11 +319,17 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     const mapelIdTersimpan = (j as any).mapel_id || '';
     const normNama = (v: string) => v.trim().toLocaleLowerCase('id-ID');
 
+    const kelasMatches = dbKelasOptions.filter(
+      o => normNama(o.nama_kelas) === normNama(kelasNama)
+    );
     const kelasId = kelasIdTersimpan ||
-      dbKelasOptions.find(o => normNama(o.nama_kelas) === normNama(kelasNama))?.value ||
+      (kelasMatches.length === 1 ? kelasMatches[0].value : '') ||
       (kelasNama ? '__legacy_kelas__' : '');
+    const mapelMatches = dbMapelOptions.filter(
+      o => normNama(o.label) === normNama(mapelNama)
+    );
     const mapelId = mapelIdTersimpan ||
-      dbMapelOptions.find(o => normNama(o.label) === normNama(mapelNama))?.value ||
+      (mapelMatches.length === 1 ? mapelMatches[0].value : '') ||
       (mapelNama ? '__legacy_mapel__' : '');
 
     setEditingId(j.id);
@@ -386,37 +392,81 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     const validTime = (v: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test((v || '').trim());
     const timeNorm = (v: unknown) => String(v ?? '').trim().slice(0, 5);
 
-    // Identitas jadwal mengikuti pemeriksaan duplikasi sebelumnya.
-    // Ruangan tidak dijadikan pembeda agar impor ulang tidak menggandakan jadwal.
+    // Kunci duplikat memakai ID master jika tersedia.
+    // Ruangan tidak menjadi pembeda jadwal.
     const scheduleKey = (j: {
       user_id?: string | null;
       hari?: string | null;
       jam_mulai?: string | null;
       jam_selesai?: string | null;
       kelas?: string | null;
+      kelas_id?: string | number | null;
       pelajaran?: string | null;
+      mapel_id?: string | number | null;
     }) => [
       norm(j.user_id),
       norm(j.hari),
       timeNorm(j.jam_mulai),
       timeNorm(j.jam_selesai),
-      norm(j.kelas),
-      norm(j.pelajaran),
+      j.kelas_id != null && String(j.kelas_id).trim() !== ''
+        ? 'kelas-id:' + norm(j.kelas_id)
+        : 'kelas-nama:' + norm(j.kelas),
+      j.mapel_id != null && String(j.mapel_id).trim() !== ''
+        ? 'mapel-id:' + norm(j.mapel_id)
+        : 'mapel-nama:' + norm(j.pelajaran),
     ].join('|');
 
-    // Periksa jadwal yang sudah tersimpan terlebih dahulu.
-    // Jika pemeriksaan gagal, hentikan impor agar tidak berisiko menggandakan data.
+    // Jika pemeriksaan jadwal lama gagal, batalkan impor.
     const { data: existingSchedules, error: existingError } = await supabase
       .from('jadwal_mengajar')
-      .select('user_id,hari,jam_mulai,jam_selesai,kelas,pelajaran');
+      .select('user_id,hari,jam_mulai,jam_selesai,kelas,kelas_id,pelajaran,mapel_id');
 
     if (existingError) {
       showToast('Impor dibatalkan karena jadwal lama gagal diperiksa: ' + existingError.message, 'error');
       return;
     }
 
+    const ambiguousLegacySchedules: Array<{
+      user_id?: string | null;
+      hari?: string | null;
+      jam_mulai?: string | null;
+      jam_selesai?: string | null;
+      kelas?: string | null;
+      pelajaran?: string | null;
+    }> = [];
+
     const knownKeys = new Set(
-      (existingSchedules || []).map(j => scheduleKey(j))
+      (existingSchedules || []).map(j => {
+        let kelasId = j.kelas_id;
+        let mapelId = j.mapel_id;
+
+        if (kelasId == null || String(kelasId).trim() === '') {
+          const found = dbKelasOptions.filter(
+            k => norm(k.nama_kelas) === norm(j.kelas)
+          );
+          if (found.length === 1) kelasId = found[0].value;
+        }
+
+        if (mapelId == null || String(mapelId).trim() === '') {
+          const found = dbMapelOptions.filter(
+            m => norm(m.label) === norm(j.pelajaran)
+          );
+          if (found.length === 1) mapelId = found[0].value;
+        }
+
+        if (
+          kelasId == null || String(kelasId).trim() === '' ||
+          mapelId == null || String(mapelId).trim() === ''
+        ) {
+          ambiguousLegacySchedules.push(j);
+        }
+
+        return scheduleKey({
+          ...j,
+          kelas_id: kelasId,
+          mapel_id: mapelId,
+        });
+      })
     );
 
     for (let i = 0; i < rows.length; i++) {
@@ -464,23 +514,65 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
       }
 
       const userId = matches[0].value;
+
+      // Nama kelas/mapel harus cocok tepat satu data master.
+      // Jangan menautkan jadwal ke ID yang dipilih secara sembarang.
+      const kelasMatches = dbKelasOptions.filter(
+        k => norm(k.nama_kelas) === norm(kelas)
+      );
+      const mapelMatches = dbMapelOptions.filter(
+        m => norm(m.label) === norm(pelajaran)
+      );
+
+      if (kelasMatches.length !== 1) {
+        failures.push(
+          `Baris ${line}: kelas "${kelas}" ${kelasMatches.length === 0 ? 'tidak ditemukan di Data Master' : 'memiliki nama ganda di Data Master'}`
+        );
+        continue;
+      }
+      if (mapelMatches.length !== 1) {
+        failures.push(
+          `Baris ${line}: mata pelajaran "${pelajaran}" ${mapelMatches.length === 0 ? 'tidak ditemukan di Data Master' : 'memiliki nama ganda di Data Master'}`
+        );
+        continue;
+      }
+
+      const kelasMatch = kelasMatches[0];
+      const mapelMatch = mapelMatches[0];
+
       const key = scheduleKey({
         user_id: userId,
         hari,
         jam_mulai: start,
         jam_selesai: end,
         kelas,
+        kelas_id: kelasMatch.value,
         pelajaran,
+        mapel_id: mapelMatch.value,
       });
+
+      // Jangan menebak identitas jadwal lama yang ambigu.
+      const ambiguousLegacy = ambiguousLegacySchedules.some(j =>
+        norm(j.user_id) === norm(userId) &&
+        norm(j.hari) === norm(hari) &&
+        timeNorm(j.jam_mulai) === timeNorm(start) &&
+        timeNorm(j.jam_selesai) === timeNorm(end) &&
+        norm(j.kelas) === norm(kelas) &&
+        norm(j.pelajaran) === norm(pelajaran)
+      );
+
+      if (ambiguousLegacy) {
+        failures.push(
+          `Baris ${line}: jadwal lama dengan identitas kelas/mapel belum pasti; periksa jadwal lama terlebih dahulu`
+        );
+        continue;
+      }
 
       // Lewati jadwal yang sudah ada, termasuk duplikat dalam file CSV yang sama.
       if (knownKeys.has(key)) {
         skipped++;
         continue;
       }
-
-      const kelasMatch = dbKelasOptions.find(k => norm(k.nama_kelas) === norm(kelas));
-      const mapelMatch = dbMapelOptions.find(m => norm(m.label) === norm(pelajaran));
 
       const { error } = await supabase.from('jadwal_mengajar').insert({
         user_id: userId,
