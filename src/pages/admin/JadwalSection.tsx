@@ -870,66 +870,130 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
                         </div>
 
 
-                        {/* Tampilan kartu untuk HP */}
-                        <div className="space-y-3 p-2 sm:hidden">
-                          {Array.from(byKelas.entries())
-                            .sort(([, a], [, b]) => a.label.localeCompare(b.label))
-                            .map(([kelasKey, kelasData]) => (
-                              <article key={kelasKey} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                                <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/70">
-                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                                    <Calendar className="h-4 w-4" />
-                                  </span>
-                                  <div className="min-w-0 flex-1">
-                                    <h6 className="break-words text-sm font-bold text-slate-800 dark:text-slate-100">{kelasData.label}</h6>
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{kelasData.items.length} jadwal pelajaran</p>
-                                  </div>
-                                </div>
-                                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                  {slots.map((slot, index) => {
+                        {/* Tabel ringkas untuk HP */}
+                        <div className="sm:hidden overflow-x-auto">
+                          <table className="w-full table-fixed border-collapse text-left">
+                            <thead>
+                              <tr className={
+                                isBanin
+                                  ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100"
+                                  : isBanat
+                                    ? "bg-pink-50 text-pink-900 dark:bg-pink-950/40 dark:text-pink-100"
+                                    : "bg-violet-50 text-violet-900 dark:bg-violet-950/40 dark:text-violet-100"
+                              }>
+                                <th colSpan={3} className={
+                                  "px-3 py-3 text-center text-sm font-extrabold uppercase tracking-wide " +
+                                  (isBanin
+                                    ? "bg-emerald-700 text-white"
+                                    : isBanat
+                                      ? "bg-pink-600 text-white"
+                                      : "bg-violet-700 text-white")
+                                }>
+                                  Jadwal {genderLabel} {lembagaNama}
+                                </th>
+                              </tr>
+                              <tr className="border-b-2 border-slate-200 bg-slate-50 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                <th className="w-[26%] px-2 py-3 font-bold">Kelas</th>
+                                <th className="w-[37%] px-2 py-3 font-bold">Jam ke-1</th>
+                                <th className="w-[37%] px-2 py-3 font-bold">Jam ke-2</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                              {Array.from(byKelas.entries())
+                                .sort(([, a], [, b]) => a.label.localeCompare(b.label))
+                                .map(([kelasKey, kelasData], rowIndex) => {
+                                  const sortedSlots = [...slots].sort((a, b) => a.mulai.localeCompare(b.mulai));
+                                  const renderCell = (slot: typeof sortedSlots[number] | undefined) => {
+                                    if (!slot) return <span className="text-slate-300">—</span>;
                                     const cellItems = kelasData.items.filter(j =>
                                       `${j.jam_mulai?.slice(0, 5) || "--:--"}-${j.jam_selesai?.slice(0, 5) || "--:--"}` === slot.key
                                     );
-                                    if (!cellItems.length) return null;
+                                    if (!cellItems.length) return <span className="text-slate-300 dark:text-slate-600">—</span>;
+
                                     return (
-                                      <section key={slot.key} className="p-3">
-                                        <div className="mb-2 flex items-center gap-2">
-                                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">{index + 1}</span>
-                                          <div>
-                                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{index === 0 ? "Jam Pertama" : index === 1 ? "Jam Kedua" : `Jam Ke-${index + 1}`}</p>
-                                            <p className="text-[11px] text-slate-500 dark:text-slate-400">{slot.mulai}–{slot.selesai}</p>
-                                          </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                          {cellItems.map(j => {
-                                            const ustazNama = ustazOptions.find(o => o.value === j.user_id)?.label || "-";
-                                            const penggantiNama = j.guru_pengganti_id
-                                              ? ustazOptions.find(o => o.value === j.guru_pengganti_id)?.label
-                                              : undefined;
-                                            return (
-                                              <div key={j.id} className="rounded-lg border border-slate-200 p-2.5 dark:border-slate-700">
-                                                <div className="break-words text-sm font-bold text-slate-800 dark:text-slate-100">{j.pelajaran || "Mata pelajaran belum diatur"}</div>
-                                                <div className="mt-1.5 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
-                                                  <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                                  <span className="break-words">{ustazNama}</span>
-                                                </div>
-                                                {penggantiNama && <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Pengganti: {penggantiNama}</p>}
-                                                {j.ruangan && <div className="mt-1 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400"><MapPin className="h-3 w-3 shrink-0" /><span className="break-words">{j.ruangan}</span></div>}
-                                                {j.is_libur && <p className="mt-1 text-xs font-semibold text-rose-600">Libur</p>}
-                                                <div className="mt-2 flex justify-end gap-1 border-t border-slate-100 pt-2 dark:border-slate-700">
-                                                  <button type="button" onClick={() => openEdit(j)} title="Edit jadwal" aria-label="Edit jadwal" className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40"><Pencil className="h-4 w-4" /></button>
-                                                  <button type="button" onClick={() => handleDelete(j)} title="Hapus jadwal" aria-label="Hapus jadwal" className="rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"><Trash2 className="h-4 w-4" /></button>
-                                                </div>
+                                      <div className="space-y-3">
+                                        {cellItems.map(j => {
+                                          const ustazNama = ustazOptions.find(o => o.value === j.user_id)?.label || "Guru Tugas";
+                                          const penggantiNama = j.guru_pengganti_id
+                                            ? ustazOptions.find(o => o.value === j.guru_pengganti_id)?.label
+                                            : undefined;
+                                          return (
+                                            <div key={j.id} className="min-w-0">
+                                              <div className="break-words text-[13px] font-extrabold leading-snug text-slate-800 dark:text-slate-100">
+                                                {j.pelajaran || "Pelajaran belum diatur"}
                                               </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </section>
+                                              <div className="mt-1 flex items-start gap-1 text-xs leading-snug text-stone-600 dark:text-slate-300">
+                                                <Users className="mt-0.5 h-3 w-3 shrink-0" />
+                                                <span className="break-words">{ustazNama}</span>
+                                              </div>
+                                              {penggantiNama && (
+                                                <p className="mt-1 break-words text-[10px] text-amber-700 dark:text-amber-300">
+                                                  Pengganti: {penggantiNama}
+                                                </p>
+                                              )}
+                                              {j.ruangan && (
+                                                <p className="mt-1 break-words text-[10px] text-slate-500">{j.ruangan}</p>
+                                              )}
+                                              {j.is_libur && <p className="mt-1 text-xs font-bold text-rose-600">Libur</p>}
+                                              <div className="mt-1 flex gap-1">
+                                                <button type="button" onClick={() => openEdit(j)} title="Edit jadwal" aria-label="Edit jadwal" className="rounded p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600">
+                                                  <Pencil className="h-3.5 w-3.5" />
+                                                </button>
+                                                <button type="button" onClick={() => handleDelete(j)} title="Hapus jadwal" aria-label="Hapus jadwal" className="rounded p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600">
+                                                  <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     );
+                                  };
+
+                                  return (
+                                    <tr key={kelasKey} className={rowIndex % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/70 dark:bg-slate-800/40"}>
+                                      <th className="align-top border-r border-slate-100 px-2 py-3 text-left dark:border-slate-700">
+                                        <span className={
+                                          "inline-flex min-h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-xs font-extrabold text-white " +
+                                          (isBanin ? "bg-emerald-600" : isBanat ? "bg-pink-600" : "bg-violet-600")
+                                        }>
+                                          {kelasData.label.match(/\d+/)?.[0] || (rowIndex === 0 ? "★" : rowIndex + 1)}
+                                        </span>
+                                        <div className="mt-1 break-words text-xs font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                                          {kelasData.label}
+                                        </div>
+                                      </th>
+                                      <td className="align-top border-r border-slate-100 px-2 py-3 dark:border-slate-700">
+                                        {renderCell(sortedSlots[0])}
+                                      </td>
+                                      <td className="align-top px-2 py-3">
+                                        {renderCell(sortedSlots[1])}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                          {slots.length > 2 && (
+                            <div className="border-t border-slate-200 p-3 text-xs text-slate-500 dark:border-slate-700">
+                              Jadwal dengan jam tambahan:
+                              {slots.slice(2).map(slot => (
+                                <div key={slot.key} className="mt-2">
+                                  <strong>{slot.mulai}–{slot.selesai}</strong>
+                                  {Array.from(byKelas.entries()).map(([kelasKey, kelasData]) => {
+                                    const extra = kelasData.items.filter(j =>
+                                      `${j.jam_mulai?.slice(0, 5) || "--:--"}-${j.jam_selesai?.slice(0, 5) || "--:--"}` === slot.key
+                                    );
+                                    return extra.length ? (
+                                      <div key={kelasKey} className="mt-1">
+                                        {kelasData.label}: {extra.map(j => `${j.pelajaran} (${ustazOptions.find(o => o.value === j.user_id)?.label || "Guru Tugas"})`).join(", ")}
+                                      </div>
+                                    ) : null;
                                   })}
                                 </div>
-                              </article>
-                            ))}
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* Tabel untuk tablet/PC */}
