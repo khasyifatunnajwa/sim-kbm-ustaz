@@ -264,7 +264,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   };
 
   const fetchUstaz = async () => {
-    const { data } = await supabase.from('profiles').select('id, nama_lengkap, id_login').in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap');
+    const { data } = await supabase.from('profiles').select('id, nama_lengkap, id_login').in('role', ['ustaz', 'operator', 'admin']).eq('is_active', true).order('nama_lengkap');
     setUstazOptions((data || []).map((p: any) => ({ value: p.id, label: p.nama_lengkap || '-', login: p.id_login || '' })));
   };
 
