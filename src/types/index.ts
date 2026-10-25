@@ -626,7 +626,7 @@ export interface CapaianHafalan {
 
 export interface BukuSaku {
   id: number;
-  kelas_id?: number;
+  kelas_id?: string;
   pelajaran: string;
   bab_terakhir?: string;
   halaman_terakhir?: string;
@@ -639,7 +639,7 @@ export interface BukuSaku {
 
 export interface Muhafadhoh {
   id: number;
-  kelas_id?: number;
+  kelas_id?: string;
   tanggal: string;
   materi?: string;
   target_hafalan?: string;
@@ -653,7 +653,7 @@ export interface Muhafadhoh {
 export interface KbmHarian {
   id: number;
   tanggal: string;
-  kelas_id?: number;
+  kelas_id?: string;
   pelajaran?: string;
   materi?: string;
   catatan?: string;

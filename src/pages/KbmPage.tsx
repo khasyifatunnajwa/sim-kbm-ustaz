@@ -130,7 +130,7 @@ export default function KbmPage({ showToast, profile }: { showToast: ShowToast; 
     if (!bukuForm.kelas_id || !bukuForm.pelajaran) { showToast('Kelas dan pelajaran wajib diisi', 'error'); return; }
     setSaving(true);
     const payload = {
-      kelas_id: Number(bukuForm.kelas_id), pelajaran: bukuForm.pelajaran,
+      kelas_id: bukuForm.kelas_id, pelajaran: bukuForm.pelajaran,
       bab_terakhir: bukuForm.bab_terakhir || null, halaman_terakhir: bukuForm.halaman_terakhir || null,
       catatan: bukuForm.catatan || null,
     };
@@ -174,7 +174,7 @@ export default function KbmPage({ showToast, profile }: { showToast: ShowToast; 
     if (!hafalForm.kelas_id) { showToast('Pilih kelas', 'error'); return; }
     setSaving(true);
     const payload = {
-      tanggal: hafalForm.tanggal, kelas_id: Number(hafalForm.kelas_id),
+      tanggal: hafalForm.tanggal, kelas_id: hafalForm.kelas_id,
       materi: hafalForm.materi || null, target_hafalan: hafalForm.target_hafalan || null,
       catatan: hafalForm.catatan || null,
     };
