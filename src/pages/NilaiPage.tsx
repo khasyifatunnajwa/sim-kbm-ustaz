@@ -98,7 +98,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
     setMapelOptions(scope.mapelList);
     if (scope.mapelList.length) setInputMapel(scope.mapelList[0]);
 
-    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas, lembaga_id').eq('aktif', true).order('nama_kelas');
+    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas, lembaga_id').eq('is_active', true).order('nama_kelas');
     const kelasObjList = (kelasData ?? []) as Kelas[];
     setKelasList(kelasObjList);
 
@@ -559,7 +559,7 @@ export default function NilaiPage({ showToast, profile }: { showToast: ShowToast
             </div>
           </div>
 
-          <div className="flex gap-2 pt-1 border-t border-slate-100 mt-2">
+          <div className="sticky bottom-0 z-10 flex gap-2 pt-3 pb-1 mt-2 border-t border-slate-100 bg-white dark:bg-slate-800">
             <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm py-2.5">Batal</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2 py-2.5">
               <Save className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Nilai'}

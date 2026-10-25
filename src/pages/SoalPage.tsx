@@ -345,7 +345,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Isi Soal *</label>
 
             {/* Toolbar */}
-            <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 rounded-t-xl border-2 border-b-0 border-slate-200 border-dashed">
+            <div className="flex flex-wrap items-center gap-2 mb-2 p-2 bg-slate-100 rounded-t-xl border-2 border-b-0 border-slate-200 border-dashed">
               {/* Font size indicator */}
               <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
                 <Type className="w-3.5 h-3.5" />
@@ -392,8 +392,8 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
             {/* Large document-like textarea */}
             <textarea
               ref={soalTextareaRef}
-              rows={14}
-              className="w-full min-h-[400px] p-6 text-base leading-loose font-serif bg-slate-50 border-2 border-dashed border-slate-200 rounded-b-xl resize-y outline-none focus:border-emerald-400 transition-colors text-slate-800"
+              rows={10}
+              className="w-full min-h-[260px] sm:min-h-[400px] p-3 sm:p-6 text-base leading-relaxed sm:leading-loose font-serif bg-slate-50 border-2 border-dashed border-slate-200 rounded-b-xl resize-y outline-none focus:border-emerald-400 transition-colors text-slate-800"
               style={{ fontSize: `${fontSize}px`, direction: textDir, textAlign: textDir === 'rtl' ? 'right' : 'left' }}
               placeholder="(Ketik di sini...)"
               value={form.isi_soal}
@@ -409,7 +409,7 @@ export default function SoalPage({ showToast, profile }: { showToast: ShowToast;
             </p>
           </div>
 
-          <div className="flex gap-2 pt-1 border-t border-slate-100 mt-2">
+          <div className="sticky bottom-0 z-10 flex gap-2 pt-3 pb-1 mt-2 border-t border-slate-100 bg-white dark:bg-slate-800">
             {/* PERUBAHAN: Gunakan fungsi handleCloseModal */}
             <button type="button" onClick={handleCloseModal} className="btn-secondary flex-1 text-sm py-2.5">Batal</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 text-sm py-2.5">{saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan'}</button>
