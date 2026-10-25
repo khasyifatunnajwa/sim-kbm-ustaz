@@ -321,11 +321,46 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
   const handleImport = async (rows: string[][]) => {
     let count = 0;
+    let skipped = 0;
     const failures: string[] = [];
     const validDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
-    const norm = (v: string) => (v || '').trim().toLowerCase();
+    const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
     const loginNorm = (v: string) => norm(v).replace(/@simkbm\.local$/, '');
     const validTime = (v: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test((v || '').trim());
+    const timeNorm = (v: unknown) => String(v ?? '').trim().slice(0, 5);
+
+    // Identitas jadwal mengikuti pemeriksaan duplikasi sebelumnya.
+    // Ruangan tidak dijadikan pembeda agar impor ulang tidak menggandakan jadwal.
+    const scheduleKey = (j: {
+      user_id?: string | null;
+      hari?: string | null;
+      jam_mulai?: string | null;
+      jam_selesai?: string | null;
+      kelas?: string | null;
+      pelajaran?: string | null;
+    }) => [
+      norm(j.user_id),
+      norm(j.hari),
+      timeNorm(j.jam_mulai),
+      timeNorm(j.jam_selesai),
+      norm(j.kelas),
+      norm(j.pelajaran),
+    ].join('|');
+
+    // Periksa jadwal yang sudah tersimpan terlebih dahulu.
+    // Jika pemeriksaan gagal, hentikan impor agar tidak berisiko menggandakan data.
+    const { data: existingSchedules, error: existingError } = await supabase
+      .from('jadwal_mengajar')
+      .select('user_id,hari,jam_mulai,jam_selesai,kelas,pelajaran');
+
+    if (existingError) {
+      showToast('Impor dibatalkan karena jadwal lama gagal diperiksa: ' + existingError.message, 'error');
+      return;
+    }
+
+    const knownKeys = new Set(
+      (existingSchedules || []).map(j => scheduleKey(j))
+    );
 
     for (let i = 0; i < rows.length; i++) {
       const [teacherInput, dayInput, startInput, endInput, classInput, lessonInput, roomInput] = rows[i];
@@ -348,6 +383,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
         failures.push(`Baris ${line}: hari "${dayRaw}" tidak valid`);
         continue;
       }
+
       if (!validTime(start) || !validTime(end) || start >= end) {
         failures.push(`Baris ${line}: format jam salah atau jam selesai tidak setelah jam mulai`);
         continue;
@@ -370,11 +406,27 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
         continue;
       }
 
+      const userId = matches[0].value;
+      const key = scheduleKey({
+        user_id: userId,
+        hari,
+        jam_mulai: start,
+        jam_selesai: end,
+        kelas,
+        pelajaran,
+      });
+
+      // Lewati jadwal yang sudah ada, termasuk duplikat dalam file CSV yang sama.
+      if (knownKeys.has(key)) {
+        skipped++;
+        continue;
+      }
+
       const kelasMatch = dbKelasOptions.find(k => norm(k.label) === norm(kelas));
       const mapelMatch = dbMapelOptions.find(m => norm(m.label) === norm(pelajaran));
 
       const { error } = await supabase.from('jadwal_mengajar').insert({
-        user_id: matches[0].value,
+        user_id: userId,
         hari,
         jam_mulai: start,
         jam_selesai: end,
@@ -385,19 +437,28 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
         ruangan: ruangan || null
       });
 
-      if (error) failures.push(`Baris ${line}: ${error.message}`);
-      else count++;
+      if (error) {
+        failures.push(`Baris ${line}: ${error.message}`);
+      } else {
+        count++;
+        knownKeys.add(key);
+      }
     }
 
     if (failures.length) {
       console.warn('Detail kegagalan impor jadwal:\n' + failures.join('\n'));
-      showToast(`${count} berhasil; ${failures.length} gagal. Lihat Console browser untuk detail.`, 'error');
+      showToast(
+        `${count} jadwal baru; ${skipped} duplikat dilewati; ${failures.length} gagal. Detail di Console browser.`,
+        'error'
+      );
+    } else if (count === 0 && skipped > 0) {
+      showToast(`${skipped} jadwal duplikat dilewati; tidak ada jadwal baru.`, 'info');
     } else {
-      showToast(`${count} jadwal berhasil diimpor`, 'success');
+      showToast(`${count} jadwal baru ditambahkan; ${skipped} duplikat dilewati.`, 'success');
     }
+
     await fetchList();
   };
-
   const handleExportCSV = () => {
     const header = 'Hari,Jam Mulai,Jam Selesai,Kelas,Mata Pelajaran,Ruangan,Ustaz';
     const rows = filtered.map(j => {
