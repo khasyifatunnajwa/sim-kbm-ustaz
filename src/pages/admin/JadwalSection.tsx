@@ -16,6 +16,18 @@ import type { ShowToast, Profile, JadwalMengajar, GenderKelas, KalenderPendidika
 
 const hariOptions = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
+function formatKelasLabel(nama?: string, gender?: string | null, tingkat?: string | null): string {
+  const base = (nama || '').trim();
+  if (!base) return '-';
+  const norm = (s: string) => s.toLocaleLowerCase('id-ID').replace(/[’']/g, '').replace(/\\s+/g, ' ').trim();
+  let label = base;
+  const n = norm(base);
+  if (gender && !n.includes(norm(gender))) label += ` ${gender}`;
+  if (tingkat && !n.includes(norm(tingkat))) label += ` ${tingkat}`;
+  return label;
+}
+
+
 const HARI_COLOR: Record<string, string> = {
   Senin:  'bg-sky-600',
   Selasa: 'bg-violet-600',
@@ -242,7 +254,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
   const lembagaOptions = useMemo(() => lembagaList.map(l => ({ value: l.id, label: l.nama_lembaga })), [lembagaList]);
 
-  const [dbKelasOptions, setDbKelasOptions] = useState<{value: string; label: string}[]>([]);
+  const [dbKelasOptions, setDbKelasOptions] = useState<{value: string; label: string; nama_kelas: string; tingkat?: string | null; gender?: GenderKelas | null; lembaga_id?: string | null}[]>([]);
   const [dbMapelOptions, setDbMapelOptions] = useState<{value: string; label: string}[]>([]);
 
   // Menggabungkan list standar dengan data unik yang sudah ada di database
@@ -271,8 +283,8 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   useEffect(() => { fetchList(); fetchUstaz(); fetchKelasMapel(); }, [profile?.id, profile?.role]);
 
   const fetchKelasMapel = async () => {
-    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('is_active', true).order('nama_kelas');
-    if (kelasData) setDbKelasOptions(kelasData.map((k: any) => ({ value: k.id, label: k.nama_kelas })));
+    const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas, tingkat, gender, lembaga_id').eq('is_active', true).order('nama_kelas');
+    if (kelasData) setDbKelasOptions(kelasData.map((k: any) => ({ value: k.id, nama_kelas: k.nama_kelas, tingkat: k.tingkat, gender: k.gender, lembaga_id: k.lembaga_id, label: formatKelasLabel(k.nama_kelas, k.gender, k.tingkat) })));
     const { data: mapelData } = await supabase.from('mata_pelajaran').select('id, nama_mapel').eq('is_active', true).order('nama_mapel');
     if (mapelData) setDbMapelOptions(mapelData.map((m: any) => ({ value: m.id, label: m.nama_mapel })));
   };
@@ -308,7 +320,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     const normNama = (v: string) => v.trim().toLocaleLowerCase('id-ID');
 
     const kelasId = kelasIdTersimpan ||
-      dbKelasOptions.find(o => normNama(o.label) === normNama(kelasNama))?.value ||
+      dbKelasOptions.find(o => normNama(o.nama_kelas) === normNama(kelasNama))?.value ||
       (kelasNama ? '__legacy_kelas__' : '');
     const mapelId = mapelIdTersimpan ||
       dbMapelOptions.find(o => normNama(o.label) === normNama(mapelNama))?.value ||
@@ -467,7 +479,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
         continue;
       }
 
-      const kelasMatch = dbKelasOptions.find(k => norm(k.label) === norm(kelas));
+      const kelasMatch = dbKelasOptions.find(k => norm(k.nama_kelas) === norm(kelas));
       const mapelMatch = dbMapelOptions.find(m => norm(m.label) === norm(pelajaran));
 
       const { error } = await supabase.from('jadwal_mengajar').insert({
@@ -883,7 +895,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Kelas *</label>
                 <SearchableSelect
                   value={form.kelas_id}
-                  onChange={v => { const k = dbKelasOptions.find(o => o.value === v); setForm({ ...form, kelas_id: v, kelas: k?.label ?? '' }); }}
+                  onChange={v => { const k = dbKelasOptions.find(o => o.value === v); setForm({ ...form, kelas_id: v, kelas: k?.nama_kelas ?? '' , gender: k?.gender || form.gender }); }}
                   options={kelasOptions}
                   placeholder="Pilih kelas"
                 />

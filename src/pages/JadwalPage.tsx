@@ -15,6 +15,18 @@ import type { JadwalMengajar, AgendaPenting, Pengumuman, Kelas, MataPelajaran, P
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 const HARI_NON_JUMAT = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Sabtu', 'Ahad'];
 
+function formatKelasLabel(nama?: string, gender?: string | null, tingkat?: string | null): string {
+  const base = (nama || '').trim();
+  if (!base) return '-';
+  const norm = (s: string) => s.toLocaleLowerCase('id-ID').replace(/[’']/g, '').replace(/\\s+/g, ' ').trim();
+  let label = base;
+  const n = norm(base);
+  if (gender && !n.includes(norm(gender))) label += ` ${gender}`;
+  if (tingkat && !n.includes(norm(tingkat))) label += ` ${tingkat}`;
+  return label;
+}
+
+
 function getTodayHari(): string {
   return namaHari[new Date().getDay()];
 }
@@ -286,12 +298,9 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
 
   const grouped = HARI.reduce((acc, h) => { acc[h] = jadwal.filter(j => j.hari === h); return acc; }, {} as Record<string, JadwalMengajar[]>);
 
-  const kelasFilteredByLembaga = useMemo(() => {
-    if (!form.lembaga_id) return kelasList;
-    const kelasNames = muridKelasByLembaga[form.lembaga_id] || [];
-    if (kelasNames.length === 0) return kelasList;
-    return kelasList.filter(k => kelasNames.includes(k.nama_kelas));
-  }, [kelasList, form.lembaga_id, muridKelasByLembaga]);
+  // Jadwal pribadi boleh berada di luar tiga lembaga; jangan membatasi kelas
+  // berdasarkan daftar murid atau nama kelas yang bisa saja sama.
+  const kelasFilteredByLembaga = kelasList;
 
   return (
     <div>
@@ -459,7 +468,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="font-semibold text-slate-800 text-sm">{j.pelajaran}</span>
-                          <span className="badge badge-success text-[10px]">{j.kelas}</span>
+                          <span className="badge badge-success text-[10px]">{(() => { const k = kelasList.find(k => k.id === (j as any).kelas_id); return k ? formatKelasLabel(k.nama_kelas, k.gender, k.tingkat) : j.kelas; })()}</span>
                           {lembagaNama && (
                             <span className="badge bg-sky-50 text-sky-700 border border-sky-100 text-[10px]">{lembagaNama}</span>
                           )}
@@ -521,7 +530,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kelas</label>
               <select value={form.kelas_id} onChange={e => { const k = kelasFilteredByLembaga.find(k => k.id === e.target.value); setForm(p => ({ ...p, kelas_id: e.target.value, kelas: k?.nama_kelas ?? '' })); }} className="input-field text-sm" required>
                 <option value="">Pilih Kelas</option>
-                {kelasFilteredByLembaga.map(k => <option key={k.id} value={k.id}>{k.nama_kelas}</option>)}
+                {kelasFilteredByLembaga.map(k => <option key={k.id} value={k.id}>{formatKelasLabel(k.nama_kelas, k.gender, k.tingkat)}</option>)}
               </select>
             </div>
           </div>
