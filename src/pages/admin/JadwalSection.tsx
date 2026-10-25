@@ -746,11 +746,21 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
                       })
                     ).values()).sort((a, b) => a.mulai.localeCompare(b.mulai));
 
-                    const byKelas = new Map<string, JadwalMengajar[]>();
+                    const byKelas = new Map<string, { label: string; items: JadwalMengajar[] }>();
                     genderItems.forEach(j => {
-                      const key = j.kelas || "Kelas belum ditentukan";
-                      if (!byKelas.has(key)) byKelas.set(key, []);
-                      byKelas.get(key)!.push(j);
+                      const kelasMaster = j.kelas_id
+                        ? dbKelasOptions.find(o => o.value === j.kelas_id)
+                        : undefined;
+                      const key = j.kelas_id
+                        ? `id:${j.kelas_id}`
+                        : `legacy:${j.kelas || "Kelas belum ditentukan"}`;
+                      if (!byKelas.has(key)) {
+                        byKelas.set(key, {
+                          label: kelasMaster?.label || j.kelas || "Kelas belum ditentukan",
+                          items: [],
+                        });
+                      }
+                      byKelas.get(key)!.items.push(j);
                     });
 
                     return (
@@ -784,13 +794,13 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                              {Array.from(byKelas.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([namaKelas, kelasItems]) => (
-                                <tr key={namaKelas} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                              {Array.from(byKelas.entries()).sort(([, a], [, b]) => a.label.localeCompare(b.label)).map(([kelasKey, kelasData]) => (
+                                <tr key={kelasKey} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
                                   <th className="border-r border-slate-100 bg-slate-50/70 px-3 py-3 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100">
-                                    {namaKelas}
+                                    {kelasData.label}
                                   </th>
                                   {slots.map(slot => {
-                                    const cellItems = kelasItems.filter(j =>
+                                    const cellItems = kelasData.items.filter(j =>
                                       `${j.jam_mulai?.slice(0, 5) || "--:--"}-${j.jam_selesai?.slice(0, 5) || "--:--"}` === slot.key
                                     );
                                     return (
