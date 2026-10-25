@@ -29,6 +29,70 @@ const HARI_COLOR: Record<string, string> = {
 type SubTab = 'jadwal-mengajar' | 'jadwal-ujian' | 'kalender';
 
 // ====== Import Modal ======
+// Parser CSV: mendukung koma dalam tanda kutip, kutip ganda, dan CRLF.
+function parseCSV(text: string): string[][] {
+  const input = text.replace(/^\uFEFF/, '');
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '"') {
+      if (quoted && input[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (ch === ',' && !quoted) {
+      row.push(cell.trim());
+      cell = '';
+    } else if ((ch === '\n' || ch === '\r') && !quoted) {
+      if (ch === '\r' && input[i + 1] === '\n') i++;
+      row.push(cell.trim());
+      if (row.some(v => v !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += ch;
+    }
+  }
+
+  if (quoted) throw new Error('CSV memiliki tanda kutip yang tidak berpasangan.');
+  row.push(cell.trim());
+  if (row.some(v => v !== '')) rows.push(row);
+  if (rows.length < 2) throw new Error('CSV tidak berisi baris jadwal.');
+
+  const norm = (v: string) => v.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  const header = rows[0].map(norm);
+  const aliases: Record<string, string[]> = {
+    teacher: ['user id ustaz', 'ustaz', 'user id', 'id login ustaz', 'login ustaz'],
+    day: ['hari'],
+    start: ['jam mulai'],
+    end: ['jam selesai'],
+    className: ['kelas', 'nama kelas'],
+    lesson: ['mata pelajaran', 'pelajaran', 'mapel'],
+    room: ['ruangan', 'ruang']
+  };
+  const indexes: Record<string, number> = {};
+  for (const [key, names] of Object.entries(aliases)) {
+    indexes[key] = header.findIndex(h => names.includes(h));
+  }
+  const missing = Object.keys(aliases).filter(k => indexes[k] < 0);
+  if (missing.length) {
+    throw new Error('Header CSV tidak dikenali. Periksa kolom User ID Ustaz, Hari, Jam Mulai, Jam Selesai, Kelas, Mata Pelajaran, Ruangan.');
+  }
+
+  return rows.slice(1).map(r => [
+    r[indexes.teacher] || '', r[indexes.day] || '',
+    r[indexes.start] || '', r[indexes.end] || '',
+    r[indexes.className] || '', r[indexes.lesson] || '',
+    r[indexes.room] || ''
+  ]).filter(r => r.some(v => v.trim() !== ''));
+}
+
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,9 +112,8 @@ function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const text = (e.target?.result as string).replace(/^\uFEFF/, '');
-        const rows = text.split('\n').map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
-        setPreview(rows.filter((r, i) => i > 0 && r.some(c => c)).slice(0, 3));
+        const rows = parseCSV(e.target?.result as string);
+        setPreview(rows.slice(0, 3));
       } catch { setError('Format file tidak valid'); }
     };
     reader.readAsText(f);
@@ -74,9 +137,7 @@ function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
       await new Promise<void>((resolve, reject) => {
         reader.onload = async (e) => {
           try {
-            const text = (e.target?.result as string).replace(/^\uFEFF/, '');
-            const rows = text.split('\n').map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
-            const data = rows.filter((r, i) => i > 0 && r.some(c => c));
+            const data = parseCSV(e.target?.result as string);
             await onImport(data);
             resolve();
           } catch (err: any) { reject(err); }
@@ -162,7 +223,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   const [filterGender, setFilterGender] = useState('');
 
   // Reference data
-  const [ustazOptions, setUstazOptions] = useState<{ value: string; label: string }[]>([]);
+  const [ustazOptions, setUstazOptions] = useState<{ value: string; label: string; login?: string }[]>([]);
   const { data: lembagaList = [] } = useLembaga();
 
   const isAdmin = profile?.role === 'admin';
@@ -193,7 +254,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     return dbMapelOptions.length > 0 ? dbMapelOptions : [{ value: '', label: 'Pilih pelajaran' }];
   }, [dbMapelOptions]);
 
-  useEffect(() => { fetchList(); fetchUstaz(); fetchKelasMapel(); }, []);
+  useEffect(() => { fetchList(); fetchUstaz(); fetchKelasMapel(); }, [profile?.id, profile?.role]);
 
   const fetchKelasMapel = async () => {
     const { data: kelasData } = await supabase.from('kelas').select('id, nama_kelas').eq('is_active', true).order('nama_kelas');
@@ -203,8 +264,8 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   };
 
   const fetchUstaz = async () => {
-    const { data } = await supabase.from('profiles').select('id, nama_lengkap').in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap');
-    setUstazOptions((data || []).map((p: any) => ({ value: p.id, label: p.nama_lengkap || '-' })));
+    const { data } = await supabase.from('profiles').select('id, nama_lengkap, id_login').in('role', ['ustaz', 'operator']).eq('is_active', true).order('nama_lengkap');
+    setUstazOptions((data || []).map((p: any) => ({ value: p.id, label: p.nama_lengkap || '-', login: p.id_login || '' })));
   };
 
   const fetchList = async () => {
@@ -260,17 +321,81 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
   const handleImport = async (rows: string[][]) => {
     let count = 0;
-    for (const row of rows) {
-      const [user_id, hari, jam_mulai, jam_selesai, kelas, pelajaran, ruangan] = row;
-      if (!user_id || !hari || !kelas || !pelajaran) continue;
-      // Look up kelas_id and mapel_id by name
-      const kelasMatch = dbKelasOptions.find(k => k.label.toLowerCase() === kelas.trim().toLowerCase());
-      const mapelMatch = dbMapelOptions.find(m => m.label.toLowerCase() === pelajaran.trim().toLowerCase());
-      await supabase.from('jadwal_mengajar').insert({ user_id: user_id.trim(), hari: hari.trim(), jam_mulai: jam_mulai?.trim() || '07:00', jam_selesai: jam_selesai?.trim() || null, kelas: kelas.trim(), kelas_id: kelasMatch?.value || null, pelajaran: pelajaran.trim(), mapel_id: mapelMatch?.value || null, ruangan: ruangan?.trim() || null });
-      count++;
+    const failures: string[] = [];
+    const validDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
+    const norm = (v: string) => (v || '').trim().toLowerCase();
+    const loginNorm = (v: string) => norm(v).replace(/@simkbm\.local$/, '');
+    const validTime = (v: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test((v || '').trim());
+
+    for (let i = 0; i < rows.length; i++) {
+      const [teacherInput, dayInput, startInput, endInput, classInput, lessonInput, roomInput] = rows[i];
+      const line = i + 2;
+      const teacher = (teacherInput || '').trim();
+      const dayRaw = (dayInput || '').trim();
+      const start = (startInput || '').trim();
+      const end = (endInput || '').trim();
+      const kelas = (classInput || '').trim();
+      const pelajaran = (lessonInput || '').trim();
+      const ruangan = (roomInput || '').trim();
+
+      if (!teacher || !dayRaw || !start || !end || !kelas || !pelajaran) {
+        failures.push(`Baris ${line}: kolom wajib kosong`);
+        continue;
+      }
+
+      const hari = validDays.find(d => norm(d) === norm(dayRaw));
+      if (!hari) {
+        failures.push(`Baris ${line}: hari "${dayRaw}" tidak valid`);
+        continue;
+      }
+      if (!validTime(start) || !validTime(end) || start >= end) {
+        failures.push(`Baris ${line}: format jam salah atau jam selesai tidak setelah jam mulai`);
+        continue;
+      }
+
+      let matches = ustazOptions.filter(o =>
+        loginNorm(o.login || '') === loginNorm(teacher) ||
+        norm(o.label) === norm(teacher)
+      );
+
+      if (matches.length === 0) {
+        const alias = loginNorm(teacher);
+        matches = ustazOptions.filter(o =>
+          alias !== '' && norm(o.label).split(/\s+/).filter(Boolean).slice(-1)[0] === alias
+        );
+      }
+
+      if (matches.length !== 1) {
+        failures.push(`Baris ${line}: akun ustaz "${teacher}" ${matches.length ? 'tidak unik' : 'tidak ditemukan di Kelola User'}`);
+        continue;
+      }
+
+      const kelasMatch = dbKelasOptions.find(k => norm(k.label) === norm(kelas));
+      const mapelMatch = dbMapelOptions.find(m => norm(m.label) === norm(pelajaran));
+
+      const { error } = await supabase.from('jadwal_mengajar').insert({
+        user_id: matches[0].value,
+        hari,
+        jam_mulai: start,
+        jam_selesai: end,
+        kelas,
+        kelas_id: kelasMatch?.value || null,
+        pelajaran,
+        mapel_id: mapelMatch?.value || null,
+        ruangan: ruangan || null
+      });
+
+      if (error) failures.push(`Baris ${line}: ${error.message}`);
+      else count++;
     }
-    showToast(`${count} jadwal berhasil diimpor`, 'success');
-    fetchList();
+
+    if (failures.length) {
+      console.warn('Detail kegagalan impor jadwal:\n' + failures.join('\n'));
+      showToast(`${count} berhasil; ${failures.length} gagal. Lihat Console browser untuk detail.`, 'error');
+    } else {
+      showToast(`${count} jadwal berhasil diimpor`, 'success');
+    }
+    await fetchList();
   };
 
   const handleExportCSV = () => {
@@ -332,12 +457,18 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
     if (filterUstazId) result = result.filter(j => j.user_id === filterUstazId);
     if (filterLembagaId) result = result.filter(j => (j as any).lembaga_id === filterLembagaId);
     if (filterGender) result = result.filter(j => (j as any).gender === filterGender);
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(j => [j.kelas, j.pelajaran, j.hari, j.ruangan].filter(Boolean).join(' ').toLowerCase().includes(q));
+    if (search.trim()) {
+      const q = search.trim().toLocaleLowerCase();
+      result = result.filter(j => {
+        const ustazNama = ustazOptions.find(o => o.value === j.user_id)?.label || '';
+        const penggantiNama = ustazOptions.find(o => o.value === (j as any).guru_pengganti_id)?.label || '';
+        const teks = [ustazNama, penggantiNama, j.kelas, j.pelajaran, j.hari, j.ruangan]
+          .filter(Boolean).join(' ').toLocaleLowerCase();
+        return teks.includes(q);
+      });
     }
     return result;
-  }, [list, filterHari, filterUstazId, filterLembagaId, search, filterGender]);
+  }, [list, filterHari, filterUstazId, filterLembagaId, search, filterGender, ustazOptions]);
 
   const grouped = useMemo(() => {
     const g: Record<string, JadwalMengajar[]> = {};
@@ -374,7 +505,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[140px]">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari jadwal..." className="input-field text-xs pl-8" />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Ketik nama ustaz atau cari jadwal..." className="input-field text-xs pl-8" />
             </div>
             <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold rounded-xl border transition-colors ${hasFilters ? 'bg-amber-600 text-white border-amber-600' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400'}`}>
               <Filter className="w-3.5 h-3.5" />
