@@ -1,7 +1,7 @@
 import {
   useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Calendar, Plus, Pencil, Trash2, Search, FileText, X, AlertCircle, Upload, MessageCircle, Filter, RefreshCw, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle, Download
+  Calendar, Plus, Pencil, Trash2, Search, FileText, X, AlertCircle, Upload, MessageCircle, Filter, RefreshCw, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle, Download, Users
 } from 'lucide-react';
 import { ImportButton, ExportButton, WhatsAppActionButton } from '../../components/DataButtons';
 import { supabase } from '../../lib/supabase';
@@ -670,54 +670,179 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
           ) : filtered.length === 0 ? (
             <EmptyState title="Tidak ada jadwal" description="Tambah jadwal atau ubah filter." icon={<Calendar className="w-8 h-8 text-slate-300" />} />
           ) : (
-            <div className="space-y-3">
-              {hariOptions.map(hari => {
-                const items = grouped[hari];
-                if (!items || items.length === 0) return null;
-                const colorClass = HARI_COLOR[hari] || 'bg-slate-600';
-                return (
-                  <div key={hari} className="card overflow-hidden">
-                    <div className={`px-4 py-2.5 flex items-center justify-between ${colorClass}`}>
-                      <span className="font-bold text-sm text-white">{hari}</span>
-                      <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">{items.length} jadwal</span>
-                    </div>
-                    <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                      {items.map(j => {
-                        const ustazNama = ustazOptions.find(o => o.value === j.user_id)?.label || '-';
-                        const lembagaNama = (j as any).lembaga_id ? lembagaList.find(l => l.id === (j as any).lembaga_id)?.nama_lembaga : undefined;
-                        const penggantiNama = (j as any).guru_pengganti_id ? ustazOptions.find(o => o.value === (j as any).guru_pengganti_id)?.label : undefined;
-                        return (
-                          <div key={j.id} className="px-4 py-3 flex items-center gap-3 group">
-                            <div className="w-14 text-center flex-shrink-0">
-                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{j.jam_mulai?.slice(0, 5)}</span>
-                              <span className="block text-[9px] text-slate-400">- {j.jam_selesai?.slice(0, 5)}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                                <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">{j.pelajaran}</span>
-                                <span className="badge badge-success text-[10px]">{j.kelas}</span>
-                                {lembagaNama && <span className="badge bg-sky-50 text-sky-700 border border-sky-100 text-[10px]">{lembagaNama}</span>}
-                                {(j as any).gender && <span className="badge bg-purple-50 text-purple-700 border border-purple-100 text-[10px]">{(j as any).gender}</span>}
-                                {(j as any).is_libur && <span className="badge badge-danger text-[10px]">Libur</span>}
-                                {penggantiNama && <span className="badge badge-warning text-[10px]">Pengganti: {penggantiNama}</span>}
-                              </div>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
-                                <span>{ustazNama}</span>
-                                {j.ruangan && <><span>•</span><span>{j.ruangan}</span></>}
-                              </div>
-                            </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => openEdit(j)} className="p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600"><Pencil className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => handleDelete(j)} className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+     <div className="space-y-5">
+  {hariOptions.map(hari => {
+    const items = grouped[hari];
+    if (!items?.length) return null;
+
+    const byLembaga = new Map<string, JadwalMengajar[]>();
+    items.forEach(j => {
+      const key = j.lembaga_id || "__tanpa_lembaga__";
+      if (!byLembaga.has(key)) byLembaga.set(key, []);
+      byLembaga.get(key)!.push(j);
+    });
+
+    return (
+      <section key={hari} className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
+        <div className={`px-4 py-3 flex flex-wrap items-center justify-between gap-2 ${HARI_COLOR[hari] || "bg-slate-600"}`}>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-white" />
+            <h3 className="font-bold text-white text-base">{hari}</h3>
+          </div>
+          <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white">
+            {items.length} jadwal
+          </span>
+        </div>
+
+        <div className="space-y-4 p-3 sm:p-4">
+          {Array.from(byLembaga.entries()).map(([lembagaId, lembagaItems]) => {
+            const lembagaNama = lembagaId === "__tanpa_lembaga__"
+              ? "Lembaga belum ditentukan"
+              : lembagaList.find(l => l.id === lembagaId)?.nama_lembaga || "Lembaga";
+
+            const byGender = new Map<string, JadwalMengajar[]>();
+            lembagaItems.forEach(j => {
+              const genderKey = String(j.gender || "__lainnya__");
+              if (!byGender.has(genderKey)) byGender.set(genderKey, []);
+              byGender.get(genderKey)!.push(j);
+            });
+
+            return (
+              <div key={lembagaId} className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
+                  <MapPin className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">{lembagaNama}</h4>
+                  <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">{lembagaItems.length} jadwal</span>
+                </div>
+
+                <div className="space-y-4 p-3">
+                  {Array.from(byGender.entries()).map(([genderKey, genderItems]) => {
+                    const normalizedGender = genderKey.toLowerCase();
+                    const isBanin = normalizedGender === "banin";
+                    const isBanat = normalizedGender === "banat";
+                    const genderLabel = isBanin
+                      ? (settings.genderLabelBanin || "Banin")
+                      : isBanat
+                        ? (settings.genderLabelBanat || "Banat")
+                        : genderKey === "__lainnya__" ? "Gender belum ditentukan" : genderKey;
+
+                    const slots = Array.from(new Map(
+                      genderItems.map(j => {
+                        const mulai = j.jam_mulai?.slice(0, 5) || "--:--";
+                        const selesai = j.jam_selesai?.slice(0, 5) || "--:--";
+                        return [`${mulai}-${selesai}`, { key: `${mulai}-${selesai}`, mulai, selesai }];
+                      })
+                    ).values()).sort((a, b) => a.mulai.localeCompare(b.mulai));
+
+                    const byKelas = new Map<string, JadwalMengajar[]>();
+                    genderItems.forEach(j => {
+                      const key = j.kelas || "Kelas belum ditentukan";
+                      if (!byKelas.has(key)) byKelas.set(key, []);
+                      byKelas.get(key)!.push(j);
+                    });
+
+                    return (
+                      <div key={genderKey} className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className={`flex items-center gap-2 px-3 py-2 ${
+                          isBanin
+                            ? "bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200"
+                            : isBanat
+                              ? "bg-pink-50 text-pink-800 dark:bg-pink-950/40 dark:text-pink-200"
+                              : "bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
+                        }`}>
+                          <span className="text-lg" aria-hidden="true">{isBanin ? "👦🏻" : isBanat ? "👧🏻" : "👥"}</span>
+                          <h5 className="font-bold text-sm">{genderLabel}</h5>
+                          <span className="ml-auto text-xs opacity-75">{genderItems.length} jadwal</span>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[540px] border-collapse text-left">
+                            <thead>
+                              <tr className="bg-slate-100 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                <th className="w-36 border-b border-slate-200 px-3 py-3 font-bold dark:border-slate-700">Kelas</th>
+                                {slots.map((slot, index) => (
+                                  <th key={slot.key} className="min-w-[190px] border-b border-l border-slate-200 px-3 py-2.5 dark:border-slate-700">
+                                    <div className="font-bold">{index === 0 ? "Jam Pertama" : index === 1 ? "Jam Kedua" : `Jam Ke-${index + 1}`}</div>
+                                    <div className="mt-1 flex items-center gap-1 font-normal text-slate-500 dark:text-slate-400">
+                                      <Clock className="h-3 w-3" />
+                                      {slot.mulai}–{slot.selesai}
+                                    </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                              {Array.from(byKelas.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([namaKelas, kelasItems]) => (
+                                <tr key={namaKelas} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                                  <th className="border-r border-slate-100 bg-slate-50/70 px-3 py-3 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100">
+                                    {namaKelas}
+                                  </th>
+                                  {slots.map(slot => {
+                                    const cellItems = kelasItems.filter(j =>
+                                      `${j.jam_mulai?.slice(0, 5) || "--:--"}-${j.jam_selesai?.slice(0, 5) || "--:--"}` === slot.key
+                                    );
+                                    return (
+                                      <td key={slot.key} className="border-l border-slate-100 px-2 py-2 dark:border-slate-700">
+                                        {cellItems.length ? (
+                                          <div className="space-y-2">
+                                            {cellItems.map(j => {
+                                              const ustazNama = ustazOptions.find(o => o.value === j.user_id)?.label || "-";
+                                              const penggantiNama = j.guru_pengganti_id
+                                                ? ustazOptions.find(o => o.value === j.guru_pengganti_id)?.label
+                                                : undefined;
+                                              return (
+                                                <div key={j.id} className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900">
+                                                  <div className="font-bold text-sm text-slate-800 dark:text-slate-100">{j.pelajaran || "Mata pelajaran belum diatur"}</div>
+                                                  <div className="mt-1.5 flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                                                    <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                                    <span>{ustazNama}</span>
+                                                  </div>
+                                                  {penggantiNama && (
+                                                    <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                                                      Pengganti: {penggantiNama}
+                                                    </div>
+                                                  )}
+                                                  {j.ruangan && (
+                                                    <div className="mt-1 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                                                      <MapPin className="h-3 w-3" /> {j.ruangan}
+                                                    </div>
+                                                  )}
+                                                  {j.is_libur && <div className="mt-1 text-xs font-semibold text-rose-600">Libur</div>}
+                                                  <div className="mt-2 flex items-center justify-end gap-1 border-t border-slate-100 pt-2 dark:border-slate-700">
+                                                    <button type="button" onClick={() => openEdit(j)} title="Edit jadwal" aria-label="Edit jadwal" className="rounded-md p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40">
+                                                      <Pencil className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button type="button" onClick={() => handleDelete(j)} title="Hapus jadwal" aria-label="Hapus jadwal" className="rounded-md p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40">
+                                                      <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        ) : (
+                                          <span className="block py-2 text-center text-xs text-slate-300 dark:text-slate-600">—</span>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  })}
+</div>
           )}
         </>
       )}
