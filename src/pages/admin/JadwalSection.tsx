@@ -247,12 +247,26 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
   // Menggabungkan list standar dengan data unik yang sudah ada di database
   const kelasOptions = useMemo(() => {
-    return dbKelasOptions.length > 0 ? dbKelasOptions : [{ value: '', label: 'Pilih kelas' }];
-  }, [dbKelasOptions]);
+    const options = [...dbKelasOptions];
+    if (form.kelas && !options.some(o => o.value === form.kelas_id)) {
+      options.unshift({
+        value: form.kelas_id || '__legacy_kelas__',
+        label: form.kelas,
+      });
+    }
+    return options.length ? options : [{ value: '', label: 'Pilih kelas' }];
+  }, [dbKelasOptions, form.kelas_id, form.kelas]);
 
   const pelajaranOptions = useMemo(() => {
-    return dbMapelOptions.length > 0 ? dbMapelOptions : [{ value: '', label: 'Pilih pelajaran' }];
-  }, [dbMapelOptions]);
+    const options = [...dbMapelOptions];
+    if (form.pelajaran && !options.some(o => o.value === form.mapel_id)) {
+      options.unshift({
+        value: form.mapel_id || '__legacy_mapel__',
+        label: form.pelajaran,
+      });
+    }
+    return options.length ? options : [{ value: '', label: 'Pilih pelajaran' }];
+  }, [dbMapelOptions, form.mapel_id, form.pelajaran]);
 
   useEffect(() => { fetchList(); fetchUstaz(); fetchKelasMapel(); }, [profile?.id, profile?.role]);
 
@@ -287,13 +301,44 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
   const openAdd = () => { resetForm(); setShowModal(true); };
   const openEdit = (j: JadwalMengajar) => {
+    const kelasNama = j.kelas || '';
+    const mapelNama = j.pelajaran || '';
+    const kelasIdTersimpan = (j as any).kelas_id || '';
+    const mapelIdTersimpan = (j as any).mapel_id || '';
+    const normNama = (v: string) => v.trim().toLocaleLowerCase('id-ID');
+
+    const kelasId = kelasIdTersimpan ||
+      dbKelasOptions.find(o => normNama(o.label) === normNama(kelasNama))?.value ||
+      (kelasNama ? '__legacy_kelas__' : '');
+    const mapelId = mapelIdTersimpan ||
+      dbMapelOptions.find(o => normNama(o.label) === normNama(mapelNama))?.value ||
+      (mapelNama ? '__legacy_mapel__' : '');
+
     setEditingId(j.id);
-    setForm({ user_id: j.user_id || '', hari: j.hari || 'Senin', jam_mulai: j.jam_mulai?.slice(0, 5) || '07:00', jam_selesai: j.jam_selesai?.slice(0, 5) || '08:30', kelas: j.kelas || '', kelas_id: (j as any).kelas_id ?? '', pelajaran: j.pelajaran || '', mapel_id: (j as any).mapel_id ?? '', ruangan: j.ruangan || '', lembaga_id: (j as any).lembaga_id || '', guru_pengganti_id: (j as any).guru_pengganti_id || '', is_libur: (j as any).is_libur ?? false, gender: (j as any).gender || '' });
+    setForm({
+      user_id: j.user_id || '',
+      hari: j.hari || 'Senin',
+      jam_mulai: j.jam_mulai?.slice(0, 5) || '07:00',
+      jam_selesai: j.jam_selesai?.slice(0, 5) || '08:30',
+      kelas: kelasNama,
+      kelas_id: kelasId,
+      pelajaran: mapelNama,
+      mapel_id: mapelId,
+      ruangan: j.ruangan || '',
+      lembaga_id: (j as any).lembaga_id || '',
+      guru_pengganti_id: (j as any).guru_pengganti_id || '',
+      is_libur: (j as any).is_libur ?? false,
+      gender: (j as any).gender || '',
+    });
     setShowModal(true);
   };
 
   const handleSave = async () => {
     if (!form.user_id || !form.kelas_id || !form.mapel_id || !form.hari) { showToast('Ustaz, kelas, pelajaran, dan hari wajib diisi', 'error'); return; }
+    if (form.kelas_id === '__legacy_kelas__' || form.mapel_id === '__legacy_mapel__') {
+      showToast('Kelas atau mata pelajaran lama belum cocok dengan Data Master. Pilih ulang dari daftar sebelum menyimpan.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const payload: any = { user_id: form.user_id, hari: form.hari, jam_mulai: form.jam_mulai, jam_selesai: form.jam_selesai || null, kelas: form.kelas, kelas_id: form.kelas_id, pelajaran: form.pelajaran, mapel_id: form.mapel_id, ruangan: form.ruangan || null, lembaga_id: form.lembaga_id || null, guru_pengganti_id: form.guru_pengganti_id || null, is_libur: form.is_libur, gender: form.gender || null };
