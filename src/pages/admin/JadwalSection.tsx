@@ -217,7 +217,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
   const [search, setSearch] = useState('');
 
   // Filters
-  const [filterHari, setFilterHari] = useState('');
+  const [filterHari, setFilterHari] = useState(() => hariOptions[(new Date().getDay() + 6) % 7]);
   const [filterUstazId, setFilterUstazId] = useState('');
   const [filterLembagaId, setFilterLembagaId] = useState('');
   const [filterGender, setFilterGender] = useState('');
@@ -647,7 +647,7 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
                 </div>
               )}
               {hasFilters && (
-                <button onClick={() => { setFilterHari(''); setFilterUstazId(''); setFilterLembagaId(''); setFilterGender(''); }} className="text-[10px] text-rose-600 hover:underline col-span-full text-left">
+                <button onClick={() => { setFilterHari(hariOptions[(new Date().getDay() + 6) % 7]); setFilterUstazId(''); setFilterLembagaId(''); setFilterGender(''); }} className="text-[10px] text-rose-600 hover:underline col-span-full text-left">
                   Hapus semua filter
                 </button>
               )}

@@ -66,8 +66,7 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
   const { data: jadwalHariIni = [], isLoading: loadingJadwalHariIni } = useQuery<JadwalMengajar[]>({
     queryKey: ['dashboard-jadwal', todayHari, userId, isUstaz],
     queryFn: async () => {
-      let q = supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).order('jam_mulai');
-      if (isUstaz) q = q.eq('user_id', userId);
+      let q = supabase.from('jadwal_mengajar').select('*').eq('hari', todayHari).eq('user_id', userId).order('jam_mulai');
       const { data } = await q;
       return (data ?? []) as JadwalMengajar[];
     },
@@ -121,8 +120,7 @@ export default function DashboardPage({ showToast, profile, setActiveTab }: Dash
   const { data: jadwalCount = 0, isLoading: loadingJadwal } = useQuery<number>({
     queryKey: ['dashboard-jadwal-count', userId, isUstaz],
     queryFn: async () => {
-      let q = supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true });
-      if (isUstaz) q = q.eq('user_id', userId);
+      let q = supabase.from('jadwal_mengajar').select('*', { count: 'exact', head: true }).eq('user_id', userId);
       const { count } = await q;
       return count ?? 0;
     },

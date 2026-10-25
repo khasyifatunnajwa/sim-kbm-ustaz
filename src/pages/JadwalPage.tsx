@@ -116,9 +116,7 @@ export default function JadwalPage({ showToast, profile }: { showToast: ShowToas
     }
 
     try {
-      const jadwalQuery = profile?.role === 'admin'
-        ? supabase.from('jadwal_mengajar').select('*').order('jam_mulai')
-        : supabase.from('jadwal_mengajar').select('*').eq('user_id', profile?.id ?? '').order('jam_mulai');
+      const jadwalQuery = supabase.from('jadwal_mengajar').select('*').eq('user_id', profile?.id ?? '').order('jam_mulai');
       const [jr, ar, pr, kr, mr, muridRes] = await Promise.all([
         jadwalQuery,
         supabase.from('agenda_penting').select('*').order('tanggal', { ascending: true }),
