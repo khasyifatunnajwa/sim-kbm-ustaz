@@ -447,8 +447,9 @@ export default function JadwalSection({ showToast, profile }: { showToast: ShowT
 
     if (failures.length) {
       console.warn('Detail kegagalan impor jadwal:\n' + failures.join('\n'));
+      const detailError = failures.slice(0, 2).join(' | ');
       showToast(
-        `${count} jadwal baru; ${skipped} duplikat dilewati; ${failures.length} gagal. Detail di Console browser.`,
+        `${count} jadwal baru; ${skipped} duplikat; ${failures.length} gagal. Contoh: ${detailError}`,
         'error'
       );
     } else if (count === 0 && skipped > 0) {
