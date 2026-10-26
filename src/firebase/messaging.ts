@@ -158,21 +158,37 @@ export function onForegroundMessage(callback: (payload: MessagePayload) => void)
 }
 
 /** Display a local Notification (used for foreground messages). */
-export function showLocalNotification(title: string, body: string, url = '/'): void {
+export async function showLocalNotification(title: string, body: string, url = '/'): Promise<void> {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
+  const options: NotificationOptions = {
+    body,
+    icon: '/icon/192x192.png',
+    badge: '/icon/192x192.png',
+    tag: 'simkbm-push',
+    data: { url },
+  };
+
   try {
-    const n = new Notification(title, {
-      body,
-      icon: '/icon/192x192.png',
-      badge: '/icon/192x192.png',
-      tag: 'simkbm-push',
-      data: { url },
-    });
-    n.onclick = () => {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration(
+        '/firebase-cloud-messaging-push-scope/',
+      );
+
+      if (registration) {
+        await registration.showNotification(title, options);
+        return;
+      }
+    }
+
+    // Fallback untuk lingkungan yang tidak memiliki registrasi service worker.
+    const notification = new Notification(title, options);
+    notification.onclick = () => {
       window.focus();
-      n.close();
+      notification.close();
+      if (url && url !== '/') window.location.assign(url);
     };
-  } catch {
-    // ignore
+  } catch (error) {
+    console.error('Gagal menampilkan notifikasi lokal:', error);
   }
 }

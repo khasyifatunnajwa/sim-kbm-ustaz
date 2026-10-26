@@ -69,7 +69,7 @@ export function usePushNotification(userId: string | null | undefined): PushNoti
         const title = payload.notification?.title ?? 'SIM KBM Ustaz';
         const body = payload.notification?.body ?? '';
         const url = (payload.data?.url as string) ?? '/';
-        showLocalNotification(title, body, url);
+        void showLocalNotification(title, body, url);
       });
       unsubRef.current = unsub;
     })();
