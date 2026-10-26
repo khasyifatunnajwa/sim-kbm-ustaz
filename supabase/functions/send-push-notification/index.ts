@@ -276,6 +276,14 @@ async function sendNotification(
     project_id: string;
   };
 
+  // Jangan mengirim token jika kredensial server mengarah ke proyek lain.
+  if (account.project_id !== "sim-kbm-ustaz") {
+    console.error("Project Firebase service account tidak cocok.");
+    return json({
+      error: "Konfigurasi proyek Firebase server tidak cocok.",
+    }, 500);
+  }
+
   const accessToken = await getFirebaseAccessToken(account);
   let sent = 0;
   let invalidTokens = 0;
@@ -322,7 +330,23 @@ async function sendNotification(
             )?.errorCode
           : undefined;
 
-        if (errorCode === "UNREGISTERED") invalidTokens++;
+        if (errorCode === "UNREGISTERED") {
+          invalidTokens++;
+
+          // Hapus hanya token yang ditolak untuk pengguna ini.
+          const { error: deleteError } = await supabase
+            .from("device_tokens")
+            .delete()
+            .eq("user_id", userId)
+            .eq("token", token);
+
+          if (deleteError) {
+            console.error(
+              "Gagal membersihkan token FCM tidak terdaftar:",
+              deleteError.message,
+            );
+          }
+        }
 
         console.error("FCM gagal:", {
           status: response.status,

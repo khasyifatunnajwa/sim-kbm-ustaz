@@ -88,39 +88,50 @@ export async function getAndSaveToken(userId: string, platform = 'web'): Promise
   }
   if (!token) return null;
 
-  await upsertToken(userId, token, platform);
+  try {
+    await upsertToken(userId, token, platform);
+  } catch (error) {
+    // Jangan laporkan token aktif jika penyimpanan di server gagal.
+    console.error(
+      'Gagal menyimpan token notifikasi ke server:',
+      error instanceof Error ? error.message : 'Kesalahan tidak diketahui',
+    );
+    return null;
+  }
+
   return token;
 }
 
-/** Insert or update a token row for the current user. */
+/** Insert or update a token row; propagate database errors to the caller. */
 async function upsertToken(userId: string, token: string, platform: string): Promise<void> {
-  try {
-    // Check if this token already exists for this user
-    const { data: existing } = await supabase
+  const { data: existing, error: selectError } = await supabase
+    .from('device_tokens')
+    .select('id, token')
+    .eq('user_id', userId)
+    .eq('token', token)
+    .maybeSingle();
+
+  if (selectError) throw selectError;
+
+  if (existing) {
+    const { error: updateError } = await supabase
       .from('device_tokens')
-      .select('id, token')
-      .eq('user_id', userId)
-      .eq('token', token)
-      .maybeSingle();
+      .update({ platform })
+      .eq('id', existing.id);
 
-    if (existing) {
-      // Touch updated_at via update (trigger bumps it)
-      await supabase
-        .from('device_tokens')
-        .update({ platform })
-        .eq('id', existing.id);
-      return;
-    }
+    if (updateError) throw updateError;
+    return;
+  }
 
-    // Insert new token
-    await supabase.from('device_tokens').insert({
+  const { error: insertError } = await supabase
+    .from('device_tokens')
+    .insert({
       user_id: userId,
       token,
       platform,
     });
-  } catch {
-    // best-effort — don't block the UI
-  }
+
+  if (insertError) throw insertError;
 }
 
 /** Delete a specific token from Supabase and revoke it from FCM. */
