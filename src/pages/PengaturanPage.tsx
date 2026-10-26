@@ -557,9 +557,28 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
                         );
                       }
                     } catch (err) {
-                      console.error('Tes push gagal:', err);
+                      const details =
+                        err instanceof Error ? err.message : String(err);
+                      let responseDetails = '';
+                      const context = (err as { context?: unknown })?.context;
+
+                      if (context instanceof Response) {
+                        try {
+                          responseDetails = await context.clone().text();
+                        } catch {
+                          responseDetails = '';
+                        }
+                      }
+
+                      console.error('Tes push gagal:', {
+                        error: err,
+                        details,
+                        responseDetails,
+                      });
+
+                      const message = responseDetails || details;
                       showToast(
-                        'Tes gagal. Periksa Logs/Invocations Edge Function.',
+                        `Tes gagal: ${message.slice(0, 140)}`,
                         'error',
                       );
                     } finally {
