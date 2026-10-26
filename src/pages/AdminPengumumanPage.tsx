@@ -146,6 +146,52 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     window.history.pushState(null, '', '#pengumuman/form');
   };
 
+  const sendAnnouncementPush = async (judul: string, isi: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'send-push-notification',
+        {
+          body: {
+            broadcast: true,
+            title: judul,
+            body: isi,
+            data: { url: '/dashboard' },
+          },
+        },
+      );
+
+      if (error) {
+        console.error('Broadcast push gagal:', error);
+        showToast('Pengumuman tersimpan, tetapi notifikasi gagal dikirim.', 'error');
+        return;
+      }
+
+      if (!data?.success || Number(data.sent) <= 0) {
+        showToast(
+          data?.message || 'Pengumuman tersimpan, tetapi belum ada perangkat yang menerima notifikasi.',
+          'error',
+        );
+        return;
+      }
+
+      const failedDevices = Number(data.failed_devices) || 0;
+      const failedRecipients = Number(data.failed_recipients) || 0;
+
+      if (failedDevices > 0 || failedRecipients > 0) {
+        showToast(
+          `Terkirim ke ${data.sent} perangkat; gagal: ${failedDevices} perangkat, ${failedRecipients} ustaz.`,
+          'error',
+        );
+        return;
+      }
+
+      showToast(`Notifikasi terkirim ke ${data.sent} perangkat.`, 'success');
+    } catch (error) {
+      console.error('Broadcast push gagal:', error);
+      showToast('Pengumuman tersimpan, tetapi notifikasi gagal dikirim.', 'error');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.judul || !form.isi) {
@@ -158,6 +204,33 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     }
     
     setSaving(true);
+    let wasPublished = false;
+    if (editingId) {
+      const {
+        data: previousAnnouncement,
+        error: previousAnnouncementError,
+      } = await supabase
+        .from('pengumuman')
+        .select('status')
+        .eq('id', editingId)
+        .maybeSingle();
+
+      if (previousAnnouncementError) {
+        console.error(
+          'Gagal memeriksa status pengumuman sebelumnya:',
+          previousAnnouncementError,
+        );
+        showToast(
+          'Status pengumuman gagal diperiksa. Perubahan dibatalkan.',
+          'error',
+        );
+        setSaving(false);
+        return;
+      }
+
+      wasPublished = previousAnnouncement?.status === 'Publish';
+    }
+
     const payload = {
       judul: form.judul,
       isi: form.isi,
@@ -190,6 +263,10 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
     
     // Invalidasi cache agar data baru di-fetch dari server otomatis
     queryClient.invalidateQueries({ queryKey: ['admin-pengumuman-list'] });
+
+    if (payload.status === 'Publish' && !wasPublished) {
+      await sendAnnouncementPush(payload.judul, payload.isi);
+    }
   };
 
   // --- OPTIMISTIC UPDATES: HAPUS ---
@@ -233,6 +310,10 @@ export default function AdminPengumuman({ showToast }: { showToast: ShowToast })
       return; 
     }
     showToast(`Status diubah ke ${newStatus}`, 'success');
+
+    if (newStatus === 'Publish' && p.status !== 'Publish') {
+      await sendAnnouncementPush(p.judul, p.isi);
+    }
   };
 
   const isLive = (p: Pengumuman) => {
