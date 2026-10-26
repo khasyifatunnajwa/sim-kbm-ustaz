@@ -78,6 +78,7 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
 
   // Firebase Cloud Messaging — user id from Supabase session
   const [fcmUserId, setFcmUserId] = useState<string | null>(null);
+  const [testingPush, setTestingPush] = useState(false);
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -521,6 +522,53 @@ export default function PengaturanPage({ showToast }: PengaturanPageProps) {
                   className="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition-colors"
                 >
                   Nonaktifkan Notifikasi Push
+                </button>
+              )}
+
+              {push.permission === 'granted' && push.token && fcmUserId && (
+                <button
+                  disabled={testingPush}
+                  onClick={async () => {
+                    setTestingPush(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke(
+                        'send-push-notification',
+                        {
+                          body: {
+                            user_id: fcmUserId,
+                            title: 'TES NOTIFIKASI SIM KBM',
+                            body: 'Jika pesan ini muncul, pengiriman push berhasil.',
+                            data: { url: '/' },
+                          },
+                        },
+                      );
+
+                      if (error) throw error;
+
+                      if (data?.success && data.sent > 0) {
+                        showToast(
+                          `Firebase menerima pengiriman ke ${data.sent} perangkat.`,
+                          'success',
+                        );
+                      } else {
+                        showToast(
+                          data?.message || 'Notifikasi belum berhasil dikirim.',
+                          'error',
+                        );
+                      }
+                    } catch (err) {
+                      console.error('Tes push gagal:', err);
+                      showToast(
+                        'Tes gagal. Periksa Logs/Invocations Edge Function.',
+                        'error',
+                      );
+                    } finally {
+                      setTestingPush(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {testingPush ? 'Mengirim tes...' : 'Kirim Notifikasi Uji'}
                 </button>
               )}
 
