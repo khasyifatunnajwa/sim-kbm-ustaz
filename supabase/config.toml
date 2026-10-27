@@ -1,0 +1,2 @@
+[functions.remind-jadwal-mengajar]
+verify_jwt = false

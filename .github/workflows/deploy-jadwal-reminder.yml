@@ -1,0 +1,27 @@
+name: Deploy Jadwal Reminder
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy Jadwal Reminder
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          npx --yes supabase@latest functions deploy remind-jadwal-mengajar \
+            --project-ref intkcrhsinezswldmokr \
+            --no-verify-jwt
